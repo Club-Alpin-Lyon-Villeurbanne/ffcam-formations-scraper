@@ -1,0 +1,35 @@
+{
+  "name": "ffcam-formations-adherents-scraper",
+  "version": "1.0.0",
+  "description": "TypeScript scraper to extract training data and skill levels from FFCAM (French Alpine Club) extranet",
+  "scripts": {
+    "sync": "tsx src/sync.ts",
+    "sync:dry": "tsx src/sync.ts --dry-run",
+    "dev": "npm run sync:dry",
+    "build": "tsc",
+    "type-check": "tsc --noEmit"
+  },
+  "author": "Club Alpin Lyon",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/club-alpin-lyon/ffcam-formations-adherents-scraper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/club-alpin-lyon/ffcam-formations-adherents-scraper/issues"
+  },
+  "homepage": "https://github.com/club-alpin-lyon/ffcam-formations-adherents-scraper#readme",
+  "packageManager": "pnpm@10.13.1",
+  "dependencies": {
+    "better-sqlite3": "^12.2.0",
+    "bindings": "^1.5.0",
+    "dotenv": "^17.2.1",
+    "mysql2": "^3.14.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
