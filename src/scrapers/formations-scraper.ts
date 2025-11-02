@@ -2,38 +2,26 @@
  * Scraper pour les formations validées
  */
 import { Formation, ApiRow, Scraper } from '../types';
-import BaseScraper from './base-scraper';
-import { isClubMember } from '../config';
+import BaseScraper, { ScraperConfig } from './base-scraper';
 
-class FormationsScraper extends BaseScraper implements Scraper<Formation> {
+class FormationsScraper extends BaseScraper<Formation> implements Scraper<Formation> {
   /**
-   * Récupère toutes les formations
+   * Configuration du scraper
    */
-  async scrape(): Promise<Formation[]> {
-    console.log(`\n📂 Récupération des FORMATIONS...\n`);
-    
-    const baseParams = {
+  protected getScraperConfig(): ScraperConfig {
+    return {
+      entityName: 'formation',
+      entityNamePlural: 'formations',
       def: 'adh_formations',
-      mode: 'liste',
-      sidx: 'jqGrid_adh_formations_NOMCOMPLET',
-      sord: 'asc'
+      sidx: 'jqGrid_adh_formations_NOMCOMPLET'
     };
-    
-    const formations = await this.fetchAllPages(baseParams, this.processFormation.bind(this));
-
-    console.log(`\n✅ ${formations.length} formations récupérées\n`);
-
-    return formations;
   }
-  
+
   /**
    * Traite une ligne de formation
    */
-  private processFormation(row: ApiRow): Formation | null {
-    const cafnum = row.cell.col_0;
-
-    // Filtrer : ne garder que les adhérents du club
-    if (!isClubMember(cafnum)) {
+  protected processRow(row: ApiRow): Formation | null {
+    if (this.shouldFilterRow(row)) {
       return null;
     }
 
@@ -42,9 +30,7 @@ class FormationsScraper extends BaseScraper implements Scraper<Formation> {
     // col_9: Date début formation
     // col_10: Date fin formation
     return {
-      id: row.id,
-      adherentId: cafnum,
-      nom: row.cell.col_1,
+      ...this.extractCommonFields(row),
       codeFormation: row.cell.col_2,
       intituleFormation: row.cell.col_3,
       lieuFormation: row.cell.col_7 || '',

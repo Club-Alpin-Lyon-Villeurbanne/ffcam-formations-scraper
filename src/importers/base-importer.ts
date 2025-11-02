@@ -18,7 +18,7 @@ abstract class BaseImporter<T> {
   /**
    * Méthodes abstraites à implémenter par les classes filles
    */
-  protected abstract getDataKey(): 'formations' | 'brevets' | 'niveaux';
+  protected abstract getDataKey(): 'formations' | 'brevets' | 'niveaux' | 'competences';
   protected abstract getSectionTitle(): string;
   protected abstract getReferentielKey(item: T): string;
   protected abstract validateItem(item: T): void;

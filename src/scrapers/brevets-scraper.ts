@@ -2,38 +2,26 @@
  * Scraper pour les brevets des adhérents
  */
 import { Brevet, ApiRow, Scraper } from '../types';
-import BaseScraper from './base-scraper';
-import { isClubMember } from '../config';
+import BaseScraper, { ScraperConfig } from './base-scraper';
 
-class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
+class BrevetsScraper extends BaseScraper<Brevet> implements Scraper<Brevet> {
   /**
-   * Récupère tous les brevets
+   * Configuration du scraper
    */
-  async scrape(): Promise<Brevet[]> {
-    console.log(`\n📂 Récupération des BREVETS...\n`);
-
-    const baseParams = {
+  protected getScraperConfig(): ScraperConfig {
+    return {
+      entityName: 'brevet',
+      entityNamePlural: 'brevets',
       def: 'adh_brevets',
-      mode: 'liste',
-      sidx: 'jqGrid_adh_brevets_NOMCOMPLET',
-      sord: 'asc'
+      sidx: 'jqGrid_adh_brevets_NOMCOMPLET'
     };
-
-    const brevets = await this.fetchAllPages(baseParams, this.processBrevet.bind(this));
-
-    console.log(`\n✅ ${brevets.length} brevets récupérés\n`);
-
-    return brevets;
   }
 
   /**
    * Traite une ligne de brevet
    */
-  private processBrevet(row: ApiRow): Brevet | null {
-    const cafnum = row.cell.col_0;
-
-    // Filtrer : ne garder que les adhérents du club
-    if (!isClubMember(cafnum)) {
+  protected processRow(row: ApiRow): Brevet | null {
+    if (this.shouldFilterRow(row)) {
       return null;
     }
 
@@ -51,9 +39,7 @@ class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
     // col_10: Date de migration (DATE_MIGRATION) → date_migration
     // col_11: Autre → non utilisé
     return {
-      id: row.id,
-      adherentId: cafnum,
-      nom: row.cell.col_1,
+      ...this.extractCommonFields(row),
       codeBrevet: row.cell.col_2,
       intituleBrevet: row.cell.col_3,
       dateObtention: this.formatDate(row.cell.col_4),

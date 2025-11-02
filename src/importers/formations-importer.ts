@@ -77,6 +77,7 @@ class FormationsImporter extends BaseImporter<Formation> {
       }
       
       // 3. Insert dans formation_validation
+      // ON DUPLICATE KEY UPDATE fonctionnera une fois la contrainte UNIQUE (user_id, id_interne) ajoutée
       await this.db.execute(
         `INSERT INTO formation_validation
          (user_id, code_formation, valide, date_validation, numero_formation,
@@ -87,6 +88,7 @@ class FormationsImporter extends BaseImporter<Formation> {
          date_validation = VALUES(date_validation),
          numero_formation = VALUES(numero_formation),
          validateur = VALUES(validateur),
+         code_formation = VALUES(code_formation),
          updated_at = NOW()`,
         [
           userId,

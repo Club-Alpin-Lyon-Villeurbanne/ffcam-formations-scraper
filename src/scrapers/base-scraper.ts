@@ -2,9 +2,19 @@
  * Classe de base pour les scrapers
  */
 import { ApiRequestParams, ApiResponse, ApiRow } from '../types';
-import { FFCAM_CONFIG } from '../config';
+import { FFCAM_CONFIG, isClubMember } from '../config';
 
-class BaseScraper {
+/**
+ * Configuration pour un scraper
+ */
+export interface ScraperConfig {
+  entityName: string;        // Ex: "formation"
+  entityNamePlural: string;  // Ex: "formations"
+  def: string;               // Ex: "adh_formations"
+  sidx?: string;             // Optionnel, auto-généré si absent
+}
+
+abstract class BaseScraper<T = any> {
   protected sessionId: string;
   protected rowsPerPage: number;
   protected apiDelay: number;
@@ -15,6 +25,38 @@ class BaseScraper {
     this.rowsPerPage = FFCAM_CONFIG.ROWS_PER_PAGE;
     this.apiDelay = FFCAM_CONFIG.API_DELAY;
     this.baseUrl = FFCAM_CONFIG.BASE_URL;
+  }
+
+  /**
+   * Configuration du scraper (à implémenter dans chaque sous-classe)
+   */
+  protected abstract getScraperConfig(): ScraperConfig;
+
+  /**
+   * Traite une ligne de l'API (à implémenter dans chaque sous-classe)
+   */
+  protected abstract processRow(row: ApiRow): T | null;
+
+  /**
+   * Méthode principale de scraping (template method)
+   * Peut être surchargée par les sous-classes pour retourner des données enrichies
+   */
+  async scrape(): Promise<T[] | any> {
+    const config = this.getScraperConfig();
+    console.log(`\n📂 Récupération des ${config.entityNamePlural.toUpperCase()}...\n`);
+
+    const baseParams = {
+      def: config.def,
+      mode: 'liste',
+      sidx: config.sidx || `jqGrid_${config.def}_NOMCOMPLET`,
+      sord: 'asc'
+    };
+
+    const results = await this.fetchAllPages(baseParams, this.processRow.bind(this));
+
+    console.log(`\n✅ ${results.length} ${config.entityName} récupérés\n`);
+
+    return results;
   }
 
   /**
@@ -94,6 +136,37 @@ class BaseScraper {
   }
 
   /**
+   * Extrait les champs communs à tous les types d'entités
+   */
+  protected extractCommonFields(row: ApiRow): {
+    id: string;
+    adherentId: string;
+    nom: string;
+  } {
+    return {
+      id: row.id,
+      adherentId: row.cell.col_0,
+      nom: row.cell.col_1
+    };
+  }
+
+  /**
+   * Vérifie si une ligne doit être filtrée (adhérent hors club)
+   */
+  protected shouldFilterRow(row: ApiRow): boolean {
+    const cafnum = row.cell.col_0;
+    return !isClubMember(cafnum);
+  }
+
+  /**
+   * Hook appelé après chaque récupération de données
+   * Peut être surchargé par les sous-classes pour traiter les métadonnées
+   */
+  protected onDataFetched(_data: ApiResponse): void {
+    // Default: do nothing
+  }
+
+  /**
    * Récupère toutes les pages de données
    */
   protected async fetchAllPages<T>(
@@ -108,7 +181,10 @@ class BaseScraper {
       try {
         const url = this.buildUrl({ ...baseParams, page } as ApiRequestParams);
         const data = await this.fetchData(url);
-        
+
+        // Appeler le hook pour traiter les métadonnées
+        this.onDataFetched(data);
+
         if (page === 1) {
           totalPages = parseInt(data.total.toString());
           console.log(`📊 ${data.records} enregistrements sur ${totalPages} pages\n`);

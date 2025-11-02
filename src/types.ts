@@ -57,6 +57,23 @@ export interface Brevet {
   dateMigration: string;
 }
 
+/**
+ * Compétence (groupe de compétences) record from FFCAM
+ */
+export interface Competence {
+  id: string;
+  adherentId: string;
+  nom: string;
+  codeActivite: string;
+  activite: string;
+  intituleCompetence: string;
+  niveauAssocie: string;
+  dateValidation: string;
+  estValide: boolean;
+  validePar: string;
+  commentaire: string;
+}
+
 // Types de compétences supprimés (non utilisés dans le nouveau schéma)
 
 /**
@@ -204,10 +221,17 @@ export interface ImportStats {
     sans_code: number;
     sans_date_obtention: number;
   };
+  competences: {
+    total: number;
+    imported: number;
+    ignored: number;
+    errors: number;
+  };
   referentiels: {
     formations: Set<string>;
     niveaux: Set<string>;
     brevets: Set<string>;
+    competences: Set<string>;
   };
 }
 
@@ -247,6 +271,7 @@ export interface Logger {
   printFormationReport(dryRun?: boolean): void;
   printNiveauReport(dryRun?: boolean): void;
   printBrevetReport(dryRun?: boolean): void;
+  printCompetenceReport(dryRun?: boolean): void;
   printFinalReport(timestamp: string, dryRun?: boolean): void;
 }
 

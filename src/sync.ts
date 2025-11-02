@@ -66,7 +66,6 @@ async function main(): Promise<void> {
     // ==========================================
     // 1. FORMATIONS
     // ==========================================
-    console.log('📂 Récupération des FORMATIONS...\n');
     const formationsScraper = new FormationsScraper();
     const formations: Formation[] = await formationsScraper.scrape();
 
@@ -81,7 +80,6 @@ async function main(): Promise<void> {
     // ==========================================
     // 2. BREVETS
     // ==========================================
-    console.log('📂 Récupération des BREVETS...\n');
     const brevetsScraper = new BrevetsScraper();
     const brevets: Brevet[] = await brevetsScraper.scrape();
 
@@ -96,13 +94,28 @@ async function main(): Promise<void> {
     // ==========================================
     // 3. NIVEAUX DE PRATIQUE
     // ==========================================
-    console.log('📂 Récupération des NIVEAUX DE PRATIQUE...\n');
     const niveauxScraper = new NiveauxScraper();
     const { data: niveaux, metadata }: ScrapedData<NiveauPratique> = await niveauxScraper.scrape();
 
     // Import direct en DB
     const niveauxImporter = new NiveauxImporter(db, logger, DRY_RUN);
     await niveauxImporter.import(niveaux, metadata || {});
+
+    // ==========================================
+    // 4. COMPÉTENCES (commenté - tables pas encore créées)
+    // ==========================================
+    /*
+    // Pause entre les types de données
+    console.log('\n⏳ Pause de 2 secondes...\n');
+    await new Promise<void>(r => setTimeout(r, 2000));
+
+    const competencesScraper = new CompetencesScraper();
+    const competences: Competence[] = await competencesScraper.scrape();
+
+    // Import direct en DB
+    const competencesImporter = new CompetencesImporter(db, logger, DRY_RUN);
+    await competencesImporter.import(competences);
+    */
 
     // ==========================================
     // FINALISATION
@@ -113,6 +126,7 @@ async function main(): Promise<void> {
       await db.updateLastSync('formations', logger.stats.formations.imported);
       await db.updateLastSync('brevets', logger.stats.brevets.imported);
       await db.updateLastSync('niveaux_pratique', logger.stats.niveaux.imported);
+      // await db.updateLastSync('competences', logger.stats.competences.imported);
     }
 
     // Afficher le rapport final

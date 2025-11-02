@@ -43,9 +43,52 @@ class SQLiteAdapter implements DatabaseAdapter {
   }
 
   /**
-   * Initialise les tables SQLite - Schéma simplifié (5 tables)
+   * Vérifie si une table existe
+   */
+  private tableExists(tableName: string): boolean {
+    const result = this.db!.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
+    ).get(tableName);
+    return !!result;
+  }
+
+  /**
+   * Drop et recrée les tables si le schéma a changé
+   */
+  private async migrateIfNeeded(): Promise<void> {
+    // Vérifier si formation_brevet existe avec l'ancien schéma (sans brevet_id)
+    if (this.tableExists('formation_brevet')) {
+      const columns = this.db!.pragma(`table_info(formation_brevet)`) as any[];
+      const hasBrevetId = columns.some((col: any) => col.name === 'brevet_id');
+
+      if (!hasBrevetId) {
+        console.log('⚠️  Ancien schéma détecté - Migration nécessaire');
+        console.log('   Suppression des anciennes tables...');
+
+        // Drop toutes les tables (ordre important pour les FK)
+        this.db!.exec('DROP TABLE IF EXISTS formation_competence_validation');
+        this.db!.exec('DROP TABLE IF EXISTS formation_competence_referentiel');
+        this.db!.exec('DROP TABLE IF EXISTS formation_brevet');
+        this.db!.exec('DROP TABLE IF EXISTS formation_brevet_referentiel');
+        this.db!.exec('DROP TABLE IF EXISTS formation_validation');
+        this.db!.exec('DROP TABLE IF EXISTS formation_niveau_validation');
+        this.db!.exec('DROP TABLE IF EXISTS formation_niveau_referentiel');
+        this.db!.exec('DROP TABLE IF EXISTS formation_referentiel');
+        this.db!.exec('DROP TABLE IF EXISTS formation_last_sync');
+        this.db!.exec('DROP TABLE IF EXISTS caf_user');
+
+        console.log('   ✅ Migration terminée - Nouveau schéma sera créé\n');
+      }
+    }
+  }
+
+  /**
+   * Initialise les tables SQLite - Schéma complet (9 tables)
    */
   private async initTables(): Promise<void> {
+    // Migrer si nécessaire
+    await this.migrateIfNeeded();
+
     const tables = [
       // Table des utilisateurs (conservée pour référence)
       `CREATE TABLE IF NOT EXISTS caf_user (
@@ -100,8 +143,61 @@ class SQLiteAdapter implements DatabaseAdapter {
         FOREIGN KEY (user_id) REFERENCES caf_user(id_user) ON DELETE CASCADE,
         FOREIGN KEY (cursus_niveau_id) REFERENCES formation_niveau_referentiel(cursus_niveau_id) ON DELETE RESTRICT
       )`,
-      
-      // 5. Table de synchronisation
+
+      // 5. Table référentiel des brevets
+      `CREATE TABLE IF NOT EXISTS formation_brevet_referentiel (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_brevet TEXT NOT NULL UNIQUE,
+        intitule TEXT NOT NULL
+      )`,
+
+      // 6. Table des brevets (alignée avec MySQL prod)
+      `CREATE TABLE IF NOT EXISTS formation_brevet (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        cafnum_user TEXT NOT NULL,
+        brevet_id INTEGER NOT NULL,
+        date_obtention DATE,
+        date_recyclage DATE,
+        date_edition DATE,
+        date_formation_continue DATE,
+        date_migration DATE,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, brevet_id),
+        FOREIGN KEY (user_id) REFERENCES caf_user(id_user) ON DELETE CASCADE,
+        FOREIGN KEY (brevet_id) REFERENCES formation_brevet_referentiel(id) ON DELETE RESTRICT
+      )`,
+
+      // 7. Table référentiel des compétences
+      `CREATE TABLE IF NOT EXISTS formation_competence_referentiel (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        intitule TEXT NOT NULL,
+        code_activite TEXT,
+        activite TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(intitule, code_activite)
+      )`,
+
+      // 8. Table de validation des compétences
+      `CREATE TABLE IF NOT EXISTS formation_competence_validation (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        competence_id INTEGER NOT NULL,
+        niveau_associe TEXT,
+        date_validation DATETIME,
+        est_valide INTEGER DEFAULT 0 NOT NULL,
+        valide_par TEXT,
+        commentaire TEXT,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, competence_id),
+        FOREIGN KEY (user_id) REFERENCES caf_user(id_user) ON DELETE CASCADE,
+        FOREIGN KEY (competence_id) REFERENCES formation_competence_referentiel(id) ON DELETE RESTRICT
+      )`,
+
+      // 9. Table de synchronisation
       `CREATE TABLE IF NOT EXISTS formation_last_sync (
         type TEXT PRIMARY KEY,
         last_sync DATETIME DEFAULT CURRENT_TIMESTAMP,

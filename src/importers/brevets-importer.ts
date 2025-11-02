@@ -84,14 +84,21 @@ class BrevetsImporter extends BaseImporter<Brevet> {
       }
 
       // 4. Insert dans formation_brevet en utilisant brevet_id (clé étrangère vers le référentiel)
-      // Note: Pas de contrainte UNIQUE, donc pas de ON DUPLICATE KEY UPDATE
+      // ON DUPLICATE KEY UPDATE fonctionnera une fois la contrainte UNIQUE (user_id, brevet_id) ajoutée
       await this.db.execute(
         `INSERT INTO formation_brevet
          (user_id, cafnum_user, brevet_id,
           date_obtention, date_recyclage, date_edition,
           date_formation_continue, date_migration,
           created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+         ON DUPLICATE KEY UPDATE
+         date_obtention = VALUES(date_obtention),
+         date_recyclage = VALUES(date_recyclage),
+         date_edition = VALUES(date_edition),
+         date_formation_continue = VALUES(date_formation_continue),
+         date_migration = VALUES(date_migration),
+         updated_at = NOW()`,
         [
           userId,
           brevet.adherentId,

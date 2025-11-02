@@ -23,6 +23,24 @@ export const FFCAM_CONFIG: FfcamConfig = {
 };
 
 // =============================================================================
+// Configuration du club
+// =============================================================================
+
+/**
+ * Préfixes des numéros CAF du club de Lyon
+ * Format: 69002XXXXXXX (département 69, structure 002)
+ */
+export const CLUB_CAFNUM_PREFIXES = ['6900', '690'];
+
+/**
+ * Vérifie si un cafnum appartient au club de Lyon
+ */
+export function isClubMember(cafnum: string): boolean {
+  if (!cafnum) return false;
+  return CLUB_CAFNUM_PREFIXES.some(prefix => cafnum.startsWith(prefix));
+}
+
+// =============================================================================
 // Chemins des dossiers
 // =============================================================================
 

@@ -2,72 +2,63 @@
  * Scraper pour les niveaux de pratique
  */
 import { NiveauPratique, NiveauxMetadata, ApiRow, ApiResponse, ScrapedData } from '../types';
-import BaseScraper from './base-scraper';
-import { isClubMember } from '../config';
+import BaseScraper, { ScraperConfig } from './base-scraper';
 
-class NiveauxScraper extends BaseScraper {
+class NiveauxScraper extends BaseScraper<NiveauPratique> {
   private metadata: NiveauxMetadata = {};
 
   constructor() {
     super();
     this.metadata = {};
   }
-  
+
   /**
-   * Récupère tous les niveaux de pratique
+   * Configuration du scraper
+   */
+  protected getScraperConfig(): ScraperConfig {
+    return {
+      entityName: 'niveau de pratique',
+      entityNamePlural: 'niveaux de pratique',
+      def: 'adh_niveaux_pratique',
+      sidx: 'jqGrid_adh_niveaux_pratique_nom_complet'
+    };
+  }
+
+  /**
+   * Surcharge de scrape() pour retourner data + metadata
    */
   async scrape(): Promise<ScrapedData<NiveauPratique>> {
-    console.log(`\n📂 Récupération des NIVEAUX DE PRATIQUE...\n`);
-    
-    const baseParams = {
-      def: 'adh_niveaux_pratique',
-      mode: 'liste',
-      sidx: 'jqGrid_adh_niveaux_pratique_nom_complet',
-      sord: 'asc'
-    };
-    
     // Réinitialiser les métadonnées
     this.metadata = {};
-    
-    const niveaux = await this.fetchAllPages(baseParams, (row: ApiRow) => this.processNiveau(row));
 
-    console.log(`\n✅ ${niveaux.length} niveaux de pratique récupérés\n`);
+    // Appeler la méthode parente
+    const data = await super.scrape();
 
     return {
-      data: niveaux,
+      data,
       metadata: this.metadata
     };
   }
-  
+
   /**
-   * Effectue une requête et capture les métadonnées
+   * Hook pour capturer les métadonnées
    */
-  protected async fetchData(url: string): Promise<ApiResponse> {
-    const data = await super.fetchData(url);
-    
-    // Capturer les métadonnées si présentes
-    if (data.userData && data.userData.caliData) {
+  protected onDataFetched(data: ApiResponse): void {
+    if (data.userData?.caliData) {
       Object.assign(this.metadata, data.userData.caliData);
     }
-    
-    return data;
   }
-  
+
   /**
    * Traite une ligne de niveau
    */
-  private processNiveau(row: ApiRow): NiveauPratique | null {
-    const cafnum = row.cell.col_0;
-
-    // Filtrer : ne garder que les adhérents du club
-    if (!isClubMember(cafnum)) {
+  protected processRow(row: ApiRow): NiveauPratique | null {
+    if (this.shouldFilterRow(row)) {
       return null;
     }
 
     const niveau: NiveauPratique = {
-      id: row.id,
-      adherentId: cafnum,
-      nom: row.cell.col_1,
+      ...this.extractCommonFields(row),
       club: row.cell.col_2,
       codeActivite: row.cell.col_4,
       activite: row.cell.col_5,

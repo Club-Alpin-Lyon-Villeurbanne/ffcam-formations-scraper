@@ -27,10 +27,17 @@ class Logger implements LoggerInterface {
         sans_code: 0,
         sans_date_obtention: 0
       },
+      competences: {
+        total: 0,
+        imported: 0,
+        ignored: 0,
+        errors: 0
+      },
       referentiels: {
         formations: new Set(),
         niveaux: new Set(),
-        brevets: new Set()
+        brevets: new Set(),
+        competences: new Set()
       }
     };
   }
@@ -137,9 +144,17 @@ class Logger implements LoggerInterface {
     console.log(`   - Erreurs: ${brevets.errors}`);
   }
 
+  printCompetenceReport(dryRun: boolean = false): void {
+    const { competences } = this.stats;
+    console.log(`\n✅ Compétences traitées: ${competences.total}`);
+    console.log(`   - ${dryRun ? 'À importer' : 'Importées'}: ${competences.imported}`);
+    console.log(`   - Ignorées: ${competences.ignored}`);
+    console.log(`   - Erreurs: ${competences.errors}`);
+  }
+
 
   printFinalReport(timestamp: string, dryRun: boolean = false): void {
-    const { formations, niveaux, brevets } = this.stats;
+    const { formations, niveaux, brevets, competences } = this.stats;
 
     this.separator();
     console.log('📊 RÉSUMÉ FINAL:');
@@ -148,7 +163,8 @@ class Logger implements LoggerInterface {
     console.log(`   - Formations: ${formations.imported}/${formations.total}`);
     console.log(`   - Niveaux: ${niveaux.imported}/${niveaux.total}`);
     console.log(`   - Brevets: ${brevets.imported}/${brevets.total}`);
-    console.log(`   - Total des erreurs: ${formations.errors + niveaux.errors + brevets.errors}`);
+    console.log(`   - Compétences: ${competences.imported}/${competences.total}`);
+    console.log(`   - Total des erreurs: ${formations.errors + niveaux.errors + brevets.errors + competences.errors}`);
   }
 }
 
