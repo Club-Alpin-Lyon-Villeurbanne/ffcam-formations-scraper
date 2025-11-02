@@ -127,6 +127,7 @@ async function main(): Promise<void> {
         formations: {
           total: logger.stats.formations.total,
           imported: logger.stats.formations.imported,
+          ignored: logger.stats.formations.ignored,
           sans_numero: logger.stats.formations.sans_numero,
           sans_formateur: logger.stats.formations.sans_formateur,
           sans_lieu: logger.stats.formations.sans_lieu,
@@ -135,12 +136,14 @@ async function main(): Promise<void> {
         brevets: {
           total: logger.stats.brevets.total,
           imported: logger.stats.brevets.imported,
+          ignored: logger.stats.brevets.ignored,
           sans_code: logger.stats.brevets.sans_code,
           sans_date_obtention: logger.stats.brevets.sans_date_obtention
         },
         niveaux: {
           total: logger.stats.niveaux.total,
           imported: logger.stats.niveaux.imported,
+          ignored: logger.stats.niveaux.ignored,
           sans_cursus_id: logger.stats.niveaux.sans_cursus_id
         },
         referentiels: {

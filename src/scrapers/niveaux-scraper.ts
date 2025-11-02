@@ -3,6 +3,7 @@
  */
 import { NiveauPratique, NiveauxMetadata, ApiRow, ApiResponse, ScrapedData } from '../types';
 import BaseScraper from './base-scraper';
+import { isClubMember } from '../config';
 
 class NiveauxScraper extends BaseScraper {
   private metadata: NiveauxMetadata = {};
@@ -29,10 +30,9 @@ class NiveauxScraper extends BaseScraper {
     this.metadata = {};
     
     const niveaux = await this.fetchAllPages(baseParams, (row: ApiRow) => this.processNiveau(row));
-    
-    console.log(`\n✅ ${niveaux.length} niveaux de pratique récupérés`);
-    this.displayExamples(niveaux);
-    
+
+    console.log(`\n✅ ${niveaux.length} niveaux de pratique récupérés\n`);
+
     return {
       data: niveaux,
       metadata: this.metadata
@@ -56,10 +56,17 @@ class NiveauxScraper extends BaseScraper {
   /**
    * Traite une ligne de niveau
    */
-  private processNiveau(row: ApiRow): NiveauPratique {
+  private processNiveau(row: ApiRow): NiveauPratique | null {
+    const cafnum = row.cell.col_0;
+
+    // Filtrer : ne garder que les adhérents du club
+    if (!isClubMember(cafnum)) {
+      return null;
+    }
+
     const niveau: NiveauPratique = {
       id: row.id,
-      adherentId: row.cell.col_0,
+      adherentId: cafnum,
       nom: row.cell.col_1,
       club: row.cell.col_2,
       codeActivite: row.cell.col_4,
@@ -68,28 +75,14 @@ class NiveauxScraper extends BaseScraper {
       dateValidation: row.cell.col_7,
       validationPar: ''
     };
-    
+
     // Enrichir avec les métadonnées si disponibles
     const userData = this.metadata[row.id];
     if (userData) {
       niveau.validationPar = userData._BASE_validation_qui || '';
     }
-    
+
     return niveau;
-  }
-  
-  /**
-   * Affiche quelques exemples de niveaux
-   */
-  private displayExamples(niveaux: NiveauPratique[]): void {
-    console.log('\n📋 Exemples de niveaux récupérés:');
-    niveaux.slice(0, 3).forEach((n, i) => {
-      console.log(`\n   ${i + 1}. ${n.nom} (CAF#${n.adherentId})`);
-      console.log(`      Activité: ${n.activite} (${n.codeActivite})`);
-      console.log(`      Niveau: ${n.niveau}`);
-      console.log(`      Date: ${n.dateValidation}`);
-      if (n.validationPar) console.log(`      Validé par: ${n.validationPar}`);
-    });
   }
 }
 

@@ -3,6 +3,7 @@
  */
 import { Formation, ApiRow, Scraper } from '../types';
 import BaseScraper from './base-scraper';
+import { isClubMember } from '../config';
 
 class FormationsScraper extends BaseScraper implements Scraper<Formation> {
   /**
@@ -19,24 +20,30 @@ class FormationsScraper extends BaseScraper implements Scraper<Formation> {
     };
     
     const formations = await this.fetchAllPages(baseParams, this.processFormation.bind(this));
-    
-    console.log(`\n✅ ${formations.length} formations récupérées`);
-    this.displayExamples(formations);
-    
+
+    console.log(`\n✅ ${formations.length} formations récupérées\n`);
+
     return formations;
   }
   
   /**
    * Traite une ligne de formation
    */
-  private processFormation(row: ApiRow): Formation {
+  private processFormation(row: ApiRow): Formation | null {
+    const cafnum = row.cell.col_0;
+
+    // Filtrer : ne garder que les adhérents du club
+    if (!isClubMember(cafnum)) {
+      return null;
+    }
+
     // Structure attendue:
     // col_7: Lieu de formation
     // col_9: Date début formation
     // col_10: Date fin formation
     return {
       id: row.id,
-      adherentId: row.cell.col_0,
+      adherentId: cafnum,
       nom: row.cell.col_1,
       codeFormation: row.cell.col_2,
       intituleFormation: row.cell.col_3,
@@ -48,22 +55,6 @@ class FormationsScraper extends BaseScraper implements Scraper<Formation> {
       formateur: row.cell.col_6,
       idInterne: row.cell.col_8
     };
-  }
-  
-  /**
-   * Affiche quelques exemples de formations
-   */
-  private displayExamples(formations: Formation[]): void {
-    console.log('\n📋 Exemples de formations récupérées:');
-    formations.slice(0, 3).forEach((f, i) => {
-      console.log(`\n   ${i + 1}. ${f.nom} (CAF#${f.adherentId})`);
-      console.log(`      Formation: ${f.intituleFormation}`);
-      console.log(`      Code: ${f.codeFormation}`);
-      console.log(`      Date validation: ${f.dateValidation}`);
-      console.log(`      Date début: ${f.dateDebutFormation || 'VIDE'}`);
-      console.log(`      Date fin: ${f.dateFinFormation || 'VIDE'}`);
-      console.log(`      Lieu: ${f.lieuFormation || 'VIDE'}`);
-    });
   }
 }
 

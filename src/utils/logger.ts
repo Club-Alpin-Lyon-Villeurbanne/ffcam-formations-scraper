@@ -11,16 +11,18 @@ class Logger implements LoggerInterface {
       formations: {
         total: 0,
         imported: 0,
+        ignored: 0,
         errors: 0,
         sans_numero: 0,
         sans_formateur: 0,
         sans_lieu: 0,
         sans_dates: 0
       },
-      niveaux: { total: 0, imported: 0, errors: 0, sans_cursus_id: 0 },
+      niveaux: { total: 0, imported: 0, ignored: 0, errors: 0, sans_cursus_id: 0 },
       brevets: {
         total: 0,
         imported: 0,
+        ignored: 0,
         errors: 0,
         sans_code: 0,
         sans_date_obtention: 0
@@ -108,6 +110,7 @@ class Logger implements LoggerInterface {
     const { formations } = this.stats;
     console.log(`\n✅ Formations traitées: ${formations.total}`);
     console.log(`   - ${dryRun ? 'À importer' : 'Importées'}: ${formations.imported}`);
+    console.log(`   - Ignorées: ${formations.ignored}`);
     console.log(`   - Sans numéro: ${formations.sans_numero} (${Math.round(formations.sans_numero / formations.total * 100) || 0}%)`);
     console.log(`   - Sans formateur: ${formations.sans_formateur} (${Math.round(formations.sans_formateur / formations.total * 100) || 0}%)`);
     console.log(`   - Sans lieu: ${formations.sans_lieu} (${Math.round(formations.sans_lieu / formations.total * 100) || 0}%)`);
@@ -119,6 +122,7 @@ class Logger implements LoggerInterface {
     const { niveaux } = this.stats;
     console.log(`\n✅ Niveaux traités: ${niveaux.total}`);
     console.log(`   - ${dryRun ? 'À importer' : 'Importés'}: ${niveaux.imported}`);
+    console.log(`   - Ignorés: ${niveaux.ignored}`);
     console.log(`   - Sans cursus_id: ${niveaux.sans_cursus_id}`);
     console.log(`   - Erreurs: ${niveaux.errors}`);
   }
@@ -127,6 +131,7 @@ class Logger implements LoggerInterface {
     const { brevets } = this.stats;
     console.log(`\n✅ Brevets traités: ${brevets.total}`);
     console.log(`   - ${dryRun ? 'À importer' : 'Importés'}: ${brevets.imported}`);
+    console.log(`   - Ignorés: ${brevets.ignored}`);
     console.log(`   - Sans code: ${brevets.sans_code}`);
     console.log(`   - Sans date d'obtention: ${brevets.sans_date_obtention} (${Math.round(brevets.sans_date_obtention / brevets.total * 100) || 0}%)`);
     console.log(`   - Erreurs: ${brevets.errors}`);

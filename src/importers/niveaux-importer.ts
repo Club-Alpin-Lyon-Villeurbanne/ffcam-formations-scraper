@@ -32,11 +32,6 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printNiveauReport(dryRun);
-
-    if (this.missingCafnums.size > 0) {
-      console.log(`\n⚠️  ${this.missingCafnums.size} adhérents uniques non trouvés dans caf_user`);
-      console.log(`   Niveaux ignorés: ${this.logger.stats.niveaux.errors}`);
-    }
   }
 
   /**
@@ -125,11 +120,8 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(niveau.adherentId);
       if (!userId) {
-        if (this.missingCafnums.size < 5) {
-          console.log(`   ⚠️  Adhérent non trouvé: ${niveau.nom} (cafnum: ${niveau.adherentId})`);
-        }
         this.missingCafnums.add(niveau.adherentId);
-        this.logger.stats.niveaux.errors++;
+        this.logger.stats.niveaux.ignored++;
         return;
       }
       

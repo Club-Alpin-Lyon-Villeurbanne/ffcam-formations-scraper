@@ -3,6 +3,7 @@
  */
 import { Brevet, ApiRow, Scraper } from '../types';
 import BaseScraper from './base-scraper';
+import { isClubMember } from '../config';
 
 class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
   /**
@@ -20,8 +21,7 @@ class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
 
     const brevets = await this.fetchAllPages(baseParams, this.processBrevet.bind(this));
 
-    console.log(`\n✅ ${brevets.length} brevets récupérés`);
-    this.displayExamples(brevets);
+    console.log(`\n✅ ${brevets.length} brevets récupérés\n`);
 
     return brevets;
   }
@@ -29,7 +29,14 @@ class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
   /**
    * Traite une ligne de brevet
    */
-  private processBrevet(row: ApiRow): Brevet {
+  private processBrevet(row: ApiRow): Brevet | null {
+    const cafnum = row.cell.col_0;
+
+    // Filtrer : ne garder que les adhérents du club
+    if (!isClubMember(cafnum)) {
+      return null;
+    }
+
     // Structure attendue (mapping FFCAM → DB):
     // col_0: Numéro adhérent (ADHERENT_ID) → cafnum_user
     // col_1: Nom complet (NOMCOMPLET) → utilisé pour affichage uniquement
@@ -45,7 +52,7 @@ class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
     // col_11: Autre → non utilisé
     return {
       id: row.id,
-      adherentId: row.cell.col_0,
+      adherentId: cafnum,
       nom: row.cell.col_1,
       codeBrevet: row.cell.col_2,
       intituleBrevet: row.cell.col_3,
@@ -55,19 +62,6 @@ class BrevetsScraper extends BaseScraper implements Scraper<Brevet> {
       dateFormationContinue: this.formatDate(row.cell.col_9),
       dateMigration: this.formatDate(row.cell.col_10)
     };
-  }
-
-  /**
-   * Affiche quelques exemples de brevets
-   */
-  private displayExamples(brevets: Brevet[]): void {
-    console.log('\n📋 Exemples de brevets récupérés:');
-    brevets.slice(0, 3).forEach((b, i) => {
-      console.log(`\n   ${i + 1}. ${b.nom} (CAF#${b.adherentId})`);
-      console.log(`      Brevet: ${b.intituleBrevet}`);
-      console.log(`      Code: ${b.codeBrevet}`);
-      console.log(`      Date obtention: ${b.dateObtention}`);
-    });
   }
 }
 

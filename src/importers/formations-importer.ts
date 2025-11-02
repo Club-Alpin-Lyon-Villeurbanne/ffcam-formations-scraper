@@ -21,12 +21,6 @@ class FormationsImporter extends BaseImporter<Formation> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printFormationReport(dryRun);
-
-    // Afficher le nombre d'adhérents manquants
-    if (this.missingCafnums.size > 0) {
-      console.log(`\n⚠️  ${this.missingCafnums.size} adhérents uniques non trouvés dans caf_user`);
-      console.log(`   Formations ignorées: ${this.logger.stats.formations.errors}`);
-    }
   }
 
   /**
@@ -77,12 +71,8 @@ class FormationsImporter extends BaseImporter<Formation> {
       // 2. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(formation.adherentId);
       if (!userId) {
-        // Log les premiers cafnum non trouvés pour debug
-        if (this.missingCafnums.size < 5) {
-          console.log(`   ⚠️  Adhérent non trouvé: ${formation.nom} (cafnum: ${formation.adherentId})`);
-        }
         this.missingCafnums.add(formation.adherentId);
-        this.logger.stats.formations.errors++;
+        this.logger.stats.formations.ignored++;
         return;
       }
       

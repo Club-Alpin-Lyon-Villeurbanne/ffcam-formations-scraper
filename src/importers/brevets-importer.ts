@@ -6,6 +6,7 @@ import BaseImporter from './base-importer';
 
 class BrevetsImporter extends BaseImporter<Brevet> {
   private missingCafnums = new Set<string>();
+  private errorsByType = new Map<string, number>();
 
   protected getDataKey(): 'brevets' {
     return 'brevets';
@@ -22,9 +23,14 @@ class BrevetsImporter extends BaseImporter<Brevet> {
   protected printReport(dryRun: boolean): void {
     this.logger.printBrevetReport(dryRun);
 
-    if (this.missingCafnums.size > 0) {
-      console.log(`\n⚠️  ${this.missingCafnums.size} adhérents uniques non trouvés dans caf_user`);
-      console.log(`   Brevets ignorés: ${this.logger.stats.brevets.errors}`);
+    // Afficher les types d'erreurs rencontrées (seulement si vraies erreurs SQL)
+    if (this.errorsByType.size > 0) {
+      console.log(`\n📊 Répartition des erreurs par type:`);
+      const sortedErrors = Array.from(this.errorsByType.entries())
+        .sort((a, b) => b[1] - a[1]);
+      sortedErrors.forEach(([type, count]) => {
+        console.log(`   - ${type}: ${count}`);
+      });
     }
   }
 
@@ -57,22 +63,31 @@ class BrevetsImporter extends BaseImporter<Brevet> {
         [brevet.codeBrevet, brevet.intituleBrevet]
       );
 
-      // 2. Chercher l'user_id
+      // 2. Récupérer l'ID du brevet depuis le référentiel
+      const [brevetRows] = await this.db.execute(
+        `SELECT id FROM formation_brevet_referentiel WHERE code_brevet = ? LIMIT 1`,
+        [brevet.codeBrevet]
+      );
+
+      if (!brevetRows || brevetRows.length === 0) {
+        throw new Error(`Impossible de récupérer l'ID du brevet ${brevet.codeBrevet}`);
+      }
+
+      const brevetId = brevetRows[0].id;
+
+      // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(brevet.adherentId);
       if (!userId) {
-        if (this.missingCafnums.size < 5) {
-          console.log(`   ⚠️  Adhérent non trouvé: ${brevet.nom} (cafnum: ${brevet.adherentId})`);
-        }
         this.missingCafnums.add(brevet.adherentId);
-        this.logger.stats.brevets.errors++;
+        this.logger.stats.brevets.ignored++;
         return;
       }
 
-      // 3. Insert dans formation_brevet (sans intitule_brevet, il est dans le référentiel)
+      // 4. Insert dans formation_brevet en utilisant brevet_id (clé étrangère vers le référentiel)
       // Note: Pas de contrainte UNIQUE, donc pas de ON DUPLICATE KEY UPDATE
       await this.db.execute(
         `INSERT INTO formation_brevet
-         (user_id, cafnum_user, code_brevet,
+         (user_id, cafnum_user, brevet_id,
           date_obtention, date_recyclage, date_edition,
           date_formation_continue, date_migration,
           created_at, updated_at)
@@ -80,7 +95,7 @@ class BrevetsImporter extends BaseImporter<Brevet> {
         [
           userId,
           brevet.adherentId,
-          brevet.codeBrevet,
+          brevetId,
           brevet.dateObtention || null,
           brevet.dateRecyclage || null,
           brevet.dateEdition || null,
@@ -92,6 +107,20 @@ class BrevetsImporter extends BaseImporter<Brevet> {
       this.logger.stats.brevets.imported++;
 
     } catch (error: any) {
+      // Catégoriser l'erreur
+      const errorType = error.errno ? `SQL-${error.errno}` : error.message.substring(0, 50);
+      this.errorsByType.set(errorType, (this.errorsByType.get(errorType) || 0) + 1);
+
+      // Log détaillé des premières erreurs seulement
+      if (this.logger.stats.brevets.errors < 3) {
+        console.log(`\n   ❌ ERREUR import brevet: ${brevet.nom} (cafnum: ${brevet.adherentId})`);
+        console.log(`      Code brevet: ${brevet.codeBrevet}`);
+        console.log(`      Message: ${error.message}`);
+        console.log(`      SQL State: ${error.sqlState || 'N/A'}`);
+        console.log(`      Errno: ${error.errno || 'N/A'}\n`);
+      } else if (this.logger.stats.brevets.errors === 3) {
+        console.log(`\n   ... (erreurs supplémentaires masquées, voir résumé à la fin)\n`);
+      }
       this.logger.stats.brevets.errors++;
     }
   }

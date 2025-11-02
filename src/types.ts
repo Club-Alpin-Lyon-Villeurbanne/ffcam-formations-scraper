@@ -182,6 +182,7 @@ export interface ImportStats {
   formations: {
     total: number;
     imported: number;
+    ignored: number;
     errors: number;
     sans_numero: number;
     sans_formateur: number;
@@ -191,12 +192,14 @@ export interface ImportStats {
   niveaux: {
     total: number;
     imported: number;
+    ignored: number;
     errors: number;
     sans_cursus_id: number;
   };
   brevets: {
     total: number;
     imported: number;
+    ignored: number;
     errors: number;
     sans_code: number;
     sans_date_obtention: number;
