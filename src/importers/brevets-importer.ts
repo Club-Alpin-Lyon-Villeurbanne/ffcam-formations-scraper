@@ -87,11 +87,11 @@ class BrevetsImporter extends BaseImporter<Brevet> {
       // ON DUPLICATE KEY UPDATE fonctionnera une fois la contrainte UNIQUE (user_id, brevet_id) ajoutée
       await this.db.execute(
         `INSERT INTO formation_brevet
-         (user_id, cafnum_user, brevet_id,
+         (user_id, brevet_id,
           date_obtention, date_recyclage, date_edition,
           date_formation_continue, date_migration,
           created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
          ON DUPLICATE KEY UPDATE
          date_obtention = VALUES(date_obtention),
          date_recyclage = VALUES(date_recyclage),
@@ -101,7 +101,6 @@ class BrevetsImporter extends BaseImporter<Brevet> {
          updated_at = NOW()`,
         [
           userId,
-          brevet.adherentId,
           brevetId,
           brevet.dateObtention || null,
           brevet.dateRecyclage || null,

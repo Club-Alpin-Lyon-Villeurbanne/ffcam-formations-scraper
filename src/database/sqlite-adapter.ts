@@ -155,7 +155,6 @@ class SQLiteAdapter implements DatabaseAdapter {
       `CREATE TABLE IF NOT EXISTS formation_brevet (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        cafnum_user TEXT NOT NULL,
         brevet_id INTEGER NOT NULL,
         date_obtention DATE,
         date_recyclage DATE,

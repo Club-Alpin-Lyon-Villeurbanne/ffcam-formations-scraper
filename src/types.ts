@@ -74,8 +74,6 @@ export interface Competence {
   commentaire: string;
 }
 
-// Types de compétences supprimés (non utilisés dans le nouveau schéma)
-
 /**
  * Raw row from FFCAM API response
  */
@@ -246,10 +244,12 @@ export interface ImportReport {
     formations: Omit<ImportStats['formations'], 'errors'>;
     niveaux: Omit<ImportStats['niveaux'], 'errors'>;
     brevets: Omit<ImportStats['brevets'], 'errors'>;
+    competences: Omit<ImportStats['competences'], 'errors'>;
     referentiels: {
       formations_count: number;
       niveaux_count: number;
       brevets_count: number;
+      competences_count: number;
     };
   };
 }

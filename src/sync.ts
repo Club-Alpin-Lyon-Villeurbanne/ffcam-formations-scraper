@@ -8,13 +8,15 @@
  *   npm run sync --dry-run      # Test sans importer
  */
 
-import { Formation, Brevet, NiveauPratique, ScrapedData, DatabaseAdapter, Logger as LoggerType, ImportReport } from './types';
+import { Formation, Brevet, NiveauPratique, Competence, ScrapedData, DatabaseAdapter, Logger as LoggerType, ImportReport } from './types';
 import FormationsScraper from './scrapers/formations-scraper';
 import BrevetsScraper from './scrapers/brevets-scraper';
 import NiveauxScraper from './scrapers/niveaux-scraper';
+import CompetencesScraper from './scrapers/competences-scraper';
 import FormationsImporter from './importers/formations-importer';
 import BrevetsImporter from './importers/brevets-importer';
 import NiveauxImporter from './importers/niveaux-importer';
+import CompetencesImporter from './importers/competences-importer';
 import { getDatabase } from './database/db-factory';
 import Logger from './utils/logger';
 import { ensureDirectories, saveImportReport, FFCAM_CONFIG } from './config';
@@ -102,9 +104,8 @@ async function main(): Promise<void> {
     await niveauxImporter.import(niveaux, metadata || {});
 
     // ==========================================
-    // 4. COMPÉTENCES (commenté - tables pas encore créées)
+    // 4. COMPÉTENCES
     // ==========================================
-    /*
     // Pause entre les types de données
     console.log('\n⏳ Pause de 2 secondes...\n');
     await new Promise<void>(r => setTimeout(r, 2000));
@@ -115,7 +116,6 @@ async function main(): Promise<void> {
     // Import direct en DB
     const competencesImporter = new CompetencesImporter(db, logger, DRY_RUN);
     await competencesImporter.import(competences);
-    */
 
     // ==========================================
     // FINALISATION
@@ -126,7 +126,7 @@ async function main(): Promise<void> {
       await db.updateLastSync('formations', logger.stats.formations.imported);
       await db.updateLastSync('brevets', logger.stats.brevets.imported);
       await db.updateLastSync('niveaux_pratique', logger.stats.niveaux.imported);
-      // await db.updateLastSync('competences', logger.stats.competences.imported);
+      await db.updateLastSync('competences', logger.stats.competences.imported);
     }
 
     // Afficher le rapport final
@@ -160,10 +160,16 @@ async function main(): Promise<void> {
           ignored: logger.stats.niveaux.ignored,
           sans_cursus_id: logger.stats.niveaux.sans_cursus_id
         },
+        competences: {
+          total: logger.stats.competences.total,
+          imported: logger.stats.competences.imported,
+          ignored: logger.stats.competences.ignored
+        },
         referentiels: {
           formations_count: logger.stats.referentiels.formations.size,
           brevets_count: logger.stats.referentiels.brevets.size,
-          niveaux_count: logger.stats.referentiels.niveaux.size
+          niveaux_count: logger.stats.referentiels.niveaux.size,
+          competences_count: logger.stats.referentiels.competences.size
         }
       }
     };
