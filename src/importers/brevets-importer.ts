@@ -75,6 +75,12 @@ class BrevetsImporter extends BaseImporter<Brevet> {
 
       const brevetId = brevetRows[0].id;
 
+      // 2b. Mapper vers les commissions CAF
+      await this.commissionMapper.linkBrevetToCommissions(
+        brevetId,
+        brevet.codeBrevet
+      );
+
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(brevet.adherentId);
       if (!userId) {

@@ -18,6 +18,7 @@ import BrevetsImporter from './importers/brevets-importer';
 import NiveauxImporter from './importers/niveaux-importer';
 import CompetencesImporter from './importers/competences-importer';
 import { getDatabase } from './database/db-factory';
+import { CommissionMapper } from './services/commission-mapper';
 import Logger from './utils/logger';
 import { ensureDirectories, saveImportReport, FFCAM_CONFIG } from './config';
 
@@ -58,6 +59,7 @@ async function main(): Promise<void> {
 
   const logger: LoggerType = new Logger();
   const db: DatabaseAdapter = getDatabase();
+  const commissionMapper = new CommissionMapper(db, DRY_RUN);
 
   try {
     // Connexion DB (seulement si pas dry-run)
@@ -72,7 +74,7 @@ async function main(): Promise<void> {
     const formations: Formation[] = await formationsScraper.scrape();
 
     // Import direct en DB
-    const formationsImporter = new FormationsImporter(db, logger, DRY_RUN);
+    const formationsImporter = new FormationsImporter(db, logger, commissionMapper, DRY_RUN);
     await formationsImporter.import(formations);
 
     // Pause entre les types de données
@@ -86,7 +88,7 @@ async function main(): Promise<void> {
     const brevets: Brevet[] = await brevetsScraper.scrape();
 
     // Import direct en DB
-    const brevetsImporter = new BrevetsImporter(db, logger, DRY_RUN);
+    const brevetsImporter = new BrevetsImporter(db, logger, commissionMapper, DRY_RUN);
     await brevetsImporter.import(brevets);
 
     // Pause entre les types de données
@@ -100,7 +102,7 @@ async function main(): Promise<void> {
     const { data: niveaux, metadata }: ScrapedData<NiveauPratique> = await niveauxScraper.scrape();
 
     // Import direct en DB
-    const niveauxImporter = new NiveauxImporter(db, logger, DRY_RUN);
+    const niveauxImporter = new NiveauxImporter(db, logger, commissionMapper, DRY_RUN);
     await niveauxImporter.import(niveaux, metadata || {});
 
     // ==========================================
@@ -114,7 +116,7 @@ async function main(): Promise<void> {
     const competences: Competence[] = await competencesScraper.scrape();
 
     // Import direct en DB
-    const competencesImporter = new CompetencesImporter(db, logger, DRY_RUN);
+    const competencesImporter = new CompetencesImporter(db, logger, commissionMapper, DRY_RUN);
     await competencesImporter.import(competences);
 
     // ==========================================

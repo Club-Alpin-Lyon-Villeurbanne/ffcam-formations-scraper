@@ -3,15 +3,18 @@
  * Factorise le code commun (constructeur, boucle d'import, gestion des stats)
  */
 import { DatabaseAdapter, Logger } from '../types';
+import { CommissionMapper } from '../services/commission-mapper';
 
 abstract class BaseImporter<T> {
   protected db: DatabaseAdapter;
   protected logger: Logger;
   protected dryRun: boolean;
+  protected commissionMapper: CommissionMapper;
 
-  constructor(db: DatabaseAdapter, logger: Logger, dryRun: boolean = false) {
+  constructor(db: DatabaseAdapter, logger: Logger, commissionMapper: CommissionMapper, dryRun: boolean = false) {
     this.db = db;
     this.logger = logger;
+    this.commissionMapper = commissionMapper;
     this.dryRun = dryRun;
   }
 

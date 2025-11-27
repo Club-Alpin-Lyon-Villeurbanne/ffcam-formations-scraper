@@ -99,7 +99,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       
       // 2. Upsert dans formation_niveau_referentiel
       await this.db.execute(
-        `INSERT INTO formation_niveau_referentiel 
+        `INSERT INTO formation_niveau_referentiel
          (cursus_niveau_id, code_activite, activite, niveau, libelle, niveau_court, discipline)
          VALUES (?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
@@ -116,7 +116,25 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
           niveau.discipline || null
         ]
       );
-      
+
+      // 2b. Récupérer l'ID du niveau pour le mapping des commissions
+      const [niveauRows] = await this.db.execute(
+        `SELECT id FROM formation_niveau_referentiel WHERE cursus_niveau_id = ? LIMIT 1`,
+        [parseInt(cursusNiveauId)]
+      );
+
+      if (niveauRows && niveauRows.length > 0) {
+        const niveauId = niveauRows[0].id;
+
+        // 2c. Mapper vers les commissions CAF
+        await this.commissionMapper.linkNiveauToCommissions(
+          niveauId,
+          niveau.activite,
+          niveau.codeActivite,
+          niveau.discipline
+        );
+      }
+
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(niveau.adherentId);
       if (!userId) {

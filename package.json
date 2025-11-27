@@ -7,7 +7,9 @@
     "sync:dry": "tsx src/sync.ts --dry-run",
     "dev": "npm run sync:dry",
     "build": "tsc",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "init:brevet-patterns": "tsx src/scripts/init-brevet-patterns.ts",
+    "test:brevet-mapping": "tsx src/scripts/test-brevet-mapping.ts"
   },
   "author": "Club Alpin Lyon",
   "license": "MIT",

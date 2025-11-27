@@ -73,6 +73,13 @@ class CompetencesImporter extends BaseImporter<Competence> {
 
       const competenceId = competenceRows[0].id;
 
+      // 2b. Mapper vers les commissions CAF
+      await this.commissionMapper.linkCompetenceToCommissions(
+        competenceId,
+        competence.activite,
+        competence.codeActivite
+      );
+
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(competence.adherentId);
       if (!userId) {

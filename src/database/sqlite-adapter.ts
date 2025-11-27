@@ -83,7 +83,7 @@ class SQLiteAdapter implements DatabaseAdapter {
   }
 
   /**
-   * Initialise les tables SQLite - Schéma complet (9 tables)
+   * Initialise les tables SQLite - Schéma complet (14 tables)
    */
   private async initTables(): Promise<void> {
     // Migrer si nécessaire
@@ -196,7 +196,57 @@ class SQLiteAdapter implements DatabaseAdapter {
         FOREIGN KEY (competence_id) REFERENCES formation_competence_referentiel(id) ON DELETE RESTRICT
       )`,
 
-      // 9. Table de synchronisation
+      // 9. Table de mapping activités FFCAM → Commissions
+      `CREATE TABLE IF NOT EXISTS formation_activite_commission_mapping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        activite_ffcam TEXT NOT NULL,
+        code_activite TEXT,
+        discipline TEXT,
+        commission_id INTEGER NOT NULL,
+        priorite INTEGER DEFAULT 0,
+        actif INTEGER DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // 9b. Table de mapping patterns de code brevet → Commissions
+      `CREATE TABLE IF NOT EXISTS formation_brevet_pattern_commission_mapping (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_pattern TEXT NOT NULL,
+        exclude_pattern TEXT,
+        commission_id INTEGER NOT NULL,
+        priorite INTEGER DEFAULT 10,
+        actif INTEGER DEFAULT 1,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      // 10. Tables de liaison Many-to-Many (Référentiels ↔ Commissions)
+      `CREATE TABLE IF NOT EXISTS formation_niveau_commission (
+        niveau_id INTEGER NOT NULL,
+        commission_id INTEGER NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (niveau_id, commission_id),
+        FOREIGN KEY (niveau_id) REFERENCES formation_niveau_referentiel(id) ON DELETE CASCADE
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS formation_competence_commission (
+        competence_id INTEGER NOT NULL,
+        commission_id INTEGER NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (competence_id, commission_id),
+        FOREIGN KEY (competence_id) REFERENCES formation_competence_referentiel(id) ON DELETE CASCADE
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS formation_brevet_commission (
+        brevet_id INTEGER NOT NULL,
+        commission_id INTEGER NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (brevet_id, commission_id),
+        FOREIGN KEY (brevet_id) REFERENCES formation_brevet_referentiel(id) ON DELETE CASCADE
+      )`,
+
+      // 14. Table de synchronisation
       `CREATE TABLE IF NOT EXISTS formation_last_sync (
         type TEXT PRIMARY KEY,
         last_sync DATETIME DEFAULT CURRENT_TIMESTAMP,
