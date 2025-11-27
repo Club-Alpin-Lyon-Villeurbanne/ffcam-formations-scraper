@@ -74,11 +74,94 @@ npm run sync:dry
 npm run dev  # alias de sync:dry
 ```
 
-**Le script `sync` effectue :**
-1. Connexion à l'extranet FFCAM avec votre session ID
-2. Scraping de toutes les données (formations, brevets, niveaux)
-3. Import direct dans la base de données (SQLite ou MySQL)
-4. Génération d'un rapport JSON dans `data/reports/`
+## Workflow détaillé
+
+### Vue d'ensemble
+
+```
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│  Extranet FFCAM │ ───► │    Scraper      │ ───► │   Base MySQL    │
+│  (API JSON)     │      │  (Node.js/TS)   │      │ (plateforme)    │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+```
+
+### Étapes du sync
+
+**1. Authentification**
+- Le scraper utilise un `SESSION_ID` copié manuellement depuis l'extranet FFCAM
+- Ce SID est passé en paramètre de chaque requête (`?sid=XXX`)
+
+**2. Scraping des 4 types de données**
+
+```
+Pour chaque type (formations, brevets, niveaux, compétences) :
+│
+├── Requête page 1 → Parse JSON → Récupère total de pages
+├── Requête page 2 → Parse JSON
+├── ...
+└── Requête page N → Parse JSON
+```
+
+Les données viennent d'URLs comme :
+```
+https://extranet-clubalpin.com/app/Effectifs/exportXXX.php?sid=...&page=1
+```
+
+**3. Import en base de données**
+
+Pour chaque élément scrapé :
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. UPSERT dans le référentiel                                   │
+│    Ex: formation_brevet_referentiel (code_brevet, intitule)     │
+├─────────────────────────────────────────────────────────────────┤
+│ 2. Mapping vers les commissions CAF                             │
+│    Ex: BF1-ESC → commission Escalade                            │
+│    INSERT INTO formation_brevet_commission (brevet_id, comm_id) │
+├─────────────────────────────────────────────────────────────────┤
+│ 3. Chercher l'adhérent (cafnum → user_id)                       │
+│    SELECT id FROM fos_user WHERE cafnum = ?                     │
+├─────────────────────────────────────────────────────────────────┤
+│ 4. UPSERT dans la table de liaison adhérent                     │
+│    Ex: formation_brevet (user_id, brevet_id, date_obtention)    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Tables utilisées
+
+| Type | Référentiel | Liaison adhérent | Liaison commission |
+|------|-------------|------------------|-------------------|
+| Brevets | `formation_brevet_referentiel` | `formation_brevet` | `formation_brevet_commission` |
+| Niveaux | `formation_niveau_referentiel` | `formation_niveau_validation` | `formation_niveau_commission` |
+| Compétences | `formation_competence_referentiel` | `formation_competence_validation` | `formation_competence_commission` |
+
+### Mapping des commissions
+
+Le scraper associe automatiquement les formations aux commissions du club (escalade, alpinisme, ski-de-randonnee, etc.).
+
+**A. Par pattern de code brevet** (table `formation_brevet_pattern_commission_mapping`)
+```sql
+-- Config en base :
+code_pattern = 'BF%-ESC%'  →  commission Escalade
+code_pattern = 'BF%-ALP%'  →  commission Alpinisme
+
+-- Le scraper fait :
+SELECT commission_id FROM ... WHERE 'BF1-ESC' LIKE code_pattern
+```
+
+**B. Par activité FFCAM** (table `formation_activite_commission_mapping`)
+```sql
+-- Config en base :
+activite_ffcam = 'ESCALADE'        →  commission Escalade
+activite_ffcam = 'SPORTS DE NEIGE' →  commission Ski de randonnée
+```
+
+Voir [COMMISSION_MAPPING.md](COMMISSION_MAPPING.md) pour la documentation complète.
+
+### Idempotence
+
+Le script peut être relancé sans créer de doublons grâce aux UPSERT (`ON DUPLICATE KEY UPDATE`).
 
 **Détection automatique de la base de données :**
 - Pas de MySQL configuré dans `.env` → **SQLite** (créé dans `data/local.db`)
