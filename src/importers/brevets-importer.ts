@@ -5,7 +5,6 @@ import { Brevet } from '../types';
 import BaseImporter from './base-importer';
 
 class BrevetsImporter extends BaseImporter<Brevet> {
-  private missingCafnums = new Set<string>();
   private errorsByType = new Map<string, number>();
 
   protected getDataKey(): 'brevets' {
@@ -55,9 +54,9 @@ class BrevetsImporter extends BaseImporter<Brevet> {
    */
   protected async importItemToDb(brevet: Brevet): Promise<void> {
     try {
-      // 1. Upsert dans formation_brevet_referentiel
+      // 1. Upsert dans formation_referentiel_brevet
       await this.db.execute(
-        `INSERT INTO formation_brevet_referentiel (code_brevet, intitule)
+        `INSERT INTO formation_referentiel_brevet (code_brevet, intitule)
          VALUES (?, ?)
          ON DUPLICATE KEY UPDATE intitule = VALUES(intitule)`,
         [brevet.codeBrevet, brevet.intituleBrevet]
@@ -65,7 +64,7 @@ class BrevetsImporter extends BaseImporter<Brevet> {
 
       // 2. Récupérer l'ID du brevet depuis le référentiel
       const [brevetRows] = await this.db.execute(
-        `SELECT id FROM formation_brevet_referentiel WHERE code_brevet = ? LIMIT 1`,
+        `SELECT id FROM formation_referentiel_brevet WHERE code_brevet = ? LIMIT 1`,
         [brevet.codeBrevet]
       );
 
@@ -75,24 +74,19 @@ class BrevetsImporter extends BaseImporter<Brevet> {
 
       const brevetId = brevetRows[0].id;
 
-      // 2b. Mapper vers les commissions CAF
-      await this.commissionMapper.linkBrevetToCommissions(
-        brevetId,
-        brevet.codeBrevet
-      );
+      // 2b. Lier le brevet à sa commission (si applicable)
+      await this.commissionLinker.linkBrevet(brevetId, brevet.codeBrevet);
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(brevet.adherentId);
       if (!userId) {
-        this.missingCafnums.add(brevet.adherentId);
         this.logger.stats.brevets.ignored++;
         return;
       }
 
-      // 4. Insert dans formation_brevet en utilisant brevet_id (clé étrangère vers le référentiel)
-      // ON DUPLICATE KEY UPDATE fonctionnera une fois la contrainte UNIQUE (user_id, brevet_id) ajoutée
+      // 4. Insert dans formation_validation_brevet
       await this.db.execute(
-        `INSERT INTO formation_brevet
+        `INSERT INTO formation_validation_brevet
          (user_id, brevet_id,
           date_obtention, date_recyclage, date_edition,
           date_formation_continue, date_migration,

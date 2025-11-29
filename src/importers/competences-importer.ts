@@ -5,8 +5,6 @@ import { Competence } from '../types';
 import BaseImporter from './base-importer';
 
 class CompetencesImporter extends BaseImporter<Competence> {
-  private missingCafnums = new Set<string>();
-
   protected getDataKey(): 'competences' {
     return 'competences';
   }
@@ -39,10 +37,9 @@ class CompetencesImporter extends BaseImporter<Competence> {
    */
   protected async importItemToDb(competence: Competence): Promise<void> {
     try {
-      // 1. Upsert dans formation_competence_referentiel
-      // La contrainte UNIQUE sera sur (intitule, code_activite)
+      // 1. Upsert dans formation_referentiel_groupe_competence
       await this.db.execute(
-        `INSERT INTO formation_competence_referentiel
+        `INSERT INTO formation_referentiel_groupe_competence
          (intitule, code_activite, activite, created_at, updated_at)
          VALUES (?, ?, ?, NOW(), NOW())
          ON DUPLICATE KEY UPDATE
@@ -57,7 +54,7 @@ class CompetencesImporter extends BaseImporter<Competence> {
 
       // 2. Récupérer l'ID de la compétence depuis le référentiel
       const [competenceRows] = await this.db.execute(
-        `SELECT id FROM formation_competence_referentiel
+        `SELECT id FROM formation_referentiel_groupe_competence
          WHERE intitule = ? AND (code_activite = ? OR (code_activite IS NULL AND ? IS NULL))
          LIMIT 1`,
         [
@@ -73,25 +70,19 @@ class CompetencesImporter extends BaseImporter<Competence> {
 
       const competenceId = competenceRows[0].id;
 
-      // 2b. Mapper vers les commissions CAF
-      await this.commissionMapper.linkCompetenceToCommissions(
-        competenceId,
-        competence.activite,
-        competence.codeActivite
-      );
+      // 2b. Lier la compétence à sa commission (si applicable)
+      await this.commissionLinker.linkCompetence(competenceId, competence.activite);
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(competence.adherentId);
       if (!userId) {
-        this.missingCafnums.add(competence.adherentId);
         this.logger.stats.competences.ignored++;
         return;
       }
 
-      // 4. Insert dans formation_competence_validation
-      // ON DUPLICATE KEY UPDATE fonctionnera une fois la contrainte UNIQUE (user_id, competence_id) ajoutée
+      // 4. Insert dans formation_validation_groupe_competence
       await this.db.execute(
-        `INSERT INTO formation_competence_validation
+        `INSERT INTO formation_validation_groupe_competence
          (user_id, competence_id, niveau_associe, date_validation,
           est_valide, valide_par, commentaire, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())

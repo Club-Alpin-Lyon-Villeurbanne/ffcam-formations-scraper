@@ -5,8 +5,6 @@ import { Formation } from '../types';
 import BaseImporter from './base-importer';
 
 class FormationsImporter extends BaseImporter<Formation> {
-  private missingCafnums = new Set<string>();
-
   protected getDataKey(): 'formations' {
     return 'formations';
   }
@@ -60,26 +58,37 @@ class FormationsImporter extends BaseImporter<Formation> {
    */
   protected async importItemToDb(formation: Formation): Promise<void> {
     try {
-      // 1. Upsert dans formation_referentiel
+      // 1. Upsert dans formation_referentiel_formation
       await this.db.execute(
-        `INSERT INTO formation_referentiel (code_formation, intitule) 
+        `INSERT INTO formation_referentiel_formation (code_formation, intitule)
          VALUES (?, ?)
          ON DUPLICATE KEY UPDATE intitule = VALUES(intitule)`,
         [formation.codeFormation, formation.intituleFormation]
       );
-      
-      // 2. Chercher l'user_id
+
+      // 2. Récupérer l'ID de la formation et lier à sa commission
+      const [formationRows] = await this.db.execute(
+        `SELECT id FROM formation_referentiel_formation WHERE code_formation = ? LIMIT 1`,
+        [formation.codeFormation]
+      );
+
+      if (formationRows && formationRows.length > 0) {
+        await this.commissionLinker.linkFormation(
+          formationRows[0].id,
+          formation.codeFormation
+        );
+      }
+
+      // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(formation.adherentId);
       if (!userId) {
-        this.missingCafnums.add(formation.adherentId);
         this.logger.stats.formations.ignored++;
         return;
       }
-      
-      // 3. Insert dans formation_validation
-      // ON DUPLICATE KEY UPDATE fonctionnera une fois la contrainte UNIQUE (user_id, id_interne) ajoutée
+
+      // 4. Insert dans formation_validation_formation
       await this.db.execute(
-        `INSERT INTO formation_validation
+        `INSERT INTO formation_validation_formation
          (user_id, code_formation, valide, date_validation, numero_formation,
           validateur, id_interne, intitule_formation, created_at, updated_at)
          VALUES (?, ?, 1, ?, ?, ?, ?, ?, NOW(), NOW())
@@ -100,7 +109,7 @@ class FormationsImporter extends BaseImporter<Formation> {
           formation.intituleFormation
         ]
       );
-      
+
       this.logger.stats.formations.imported++;
 
     } catch (error: any) {

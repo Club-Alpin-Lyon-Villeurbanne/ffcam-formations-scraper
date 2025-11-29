@@ -138,26 +138,26 @@ Pour chaque élément scrapé :
 
 ### Mapping des commissions
 
-Le scraper associe automatiquement les formations aux commissions du club (escalade, alpinisme, ski-de-randonnee, etc.).
+Le scraper associe automatiquement les formations aux commissions du club via des **patterns hardcodés** (pas de tables de configuration).
 
-**A. Par pattern de code brevet** (table `formation_brevet_pattern_commission_mapping`)
-```sql
--- Config en base :
-code_pattern = 'BF%-ESC%'  →  commission Escalade
-code_pattern = 'BF%-ALP%'  →  commission Alpinisme
-
--- Le scraper fait :
-SELECT commission_id FROM ... WHERE 'BF1-ESC' LIKE code_pattern
+**A. Par pattern de code brevet** (regex)
+```typescript
+// Exemples de patterns (src/utils/commission-mapping.ts)
+'BF1-ESC'    → 'escalade'
+'BF2-ALP'    → 'alpinisme'
+'BF1-SKI'    → 'ski-de-randonnee'
+'BF1-CANYON' → 'canyon'
 ```
 
-**B. Par activité FFCAM** (table `formation_activite_commission_mapping`)
-```sql
--- Config en base :
-activite_ffcam = 'ESCALADE'        →  commission Escalade
-activite_ffcam = 'SPORTS DE NEIGE' →  commission Ski de randonnée
+**B. Par activité FFCAM**
+```typescript
+'ESCALADE'          → 'escalade'
+'ALPINISME'         → 'alpinisme'
+'SPORTS DE NEIGE'   → dépend de la discipline (Randonnée → 'ski-de-randonnee', etc.)
+'VELO DE MONTAGNE'  → 'vtt'
 ```
 
-Voir [COMMISSION_MAPPING.md](COMMISSION_MAPPING.md) pour la documentation complète.
+Le mapping utilise le **slug** de la commission pour trouver l'ID dans `caf_commission`.
 
 ### Idempotence
 
@@ -205,7 +205,8 @@ ffcam-formations-adherents-scraper/
 │   ├── database/           # Adaptateurs DB (SQLite/MySQL)
 │   ├── scrapers/           # Scrapers FFCAM API
 │   ├── importers/          # Logique d'import en DB
-│   └── utils/              # Logger
+│   ├── services/           # CommissionLinker (liaison référentiels → commissions)
+│   └── utils/              # Logger, commission-mapping (patterns hardcodés)
 ├── dist/                   # Code compilé (gitignored)
 ├── data/                   # Données (gitignored)
 │   ├── local.db            # Base SQLite (auto-créée)

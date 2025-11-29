@@ -169,4 +169,3 @@ class Logger implements LoggerInterface {
 }
 
 export default Logger;
-module.exports = Logger;

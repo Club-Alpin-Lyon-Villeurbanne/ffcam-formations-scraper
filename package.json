@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "TypeScript scraper to extract training data and skill levels from FFCAM (French Alpine Club) extranet",
   "scripts": {
-    "sync": "tsx src/sync.ts",
-    "sync:dry": "tsx src/sync.ts --dry-run",
-    "dev": "npm run sync:dry",
+    "import": "tsx src/import.ts",
+    "import:dry": "tsx src/import.ts --dry-run",
+    "import:formations": "tsx src/import.ts --formations",
+    "import:brevets": "tsx src/import.ts --brevets",
+    "import:niveaux": "tsx src/import.ts --niveaux",
+    "import:competences": "tsx src/import.ts --competences",
+    "dev": "npm run import:dry",
     "build": "tsc",
-    "type-check": "tsc --noEmit",
-    "init:brevet-patterns": "tsx src/scripts/init-brevet-patterns.ts",
-    "test:brevet-mapping": "tsx src/scripts/test-brevet-mapping.ts"
+    "type-check": "tsc --noEmit"
   },
   "author": "Club Alpin Lyon",
   "license": "MIT",

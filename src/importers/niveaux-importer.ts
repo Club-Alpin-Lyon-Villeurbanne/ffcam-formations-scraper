@@ -5,7 +5,7 @@ import { NiveauPratique, NiveauxMetadata } from '../types';
 import BaseImporter from './base-importer';
 
 class NiveauxImporter extends BaseImporter<NiveauPratique> {
-  private missingCafnums = new Set<string>();
+  private errorsByType = new Map<string, number>();
 
   protected getDataKey(): 'niveaux' {
     return 'niveaux';
@@ -32,6 +32,16 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printNiveauReport(dryRun);
+
+    // Afficher les types d'erreurs rencontrées
+    if (this.errorsByType.size > 0) {
+      console.log(`\n📊 Répartition des erreurs par type:`);
+      const sortedErrors = Array.from(this.errorsByType.entries())
+        .sort((a, b) => b[1] - a[1]);
+      sortedErrors.forEach(([type, count]) => {
+        console.log(`   - ${type}: ${count}`);
+      });
+    }
   }
 
   /**
@@ -95,11 +105,9 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
    */
   private async importNiveau(niveau: NiveauPratique, cursusNiveauId: string, niveauCourt: string | null): Promise<void> {
     try {
-      // Table formation_activite_referentiel supprimée dans le nouveau schéma
-      
-      // 2. Upsert dans formation_niveau_referentiel
+      // 1. Upsert dans formation_referentiel_niveau_pratique
       await this.db.execute(
-        `INSERT INTO formation_niveau_referentiel
+        `INSERT INTO formation_referentiel_niveau_pratique
          (cursus_niveau_id, code_activite, activite, niveau, libelle, niveau_court, discipline)
          VALUES (?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
@@ -117,50 +125,67 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
         ]
       );
 
-      // 2b. Récupérer l'ID du niveau pour le mapping des commissions
+      // 2. Récupérer l'ID du niveau depuis le référentiel
       const [niveauRows] = await this.db.execute(
-        `SELECT id FROM formation_niveau_referentiel WHERE cursus_niveau_id = ? LIMIT 1`,
+        `SELECT id FROM formation_referentiel_niveau_pratique WHERE cursus_niveau_id = ? LIMIT 1`,
         [parseInt(cursusNiveauId)]
       );
 
-      if (niveauRows && niveauRows.length > 0) {
-        const niveauId = niveauRows[0].id;
-
-        // 2c. Mapper vers les commissions CAF
-        await this.commissionMapper.linkNiveauToCommissions(
-          niveauId,
-          niveau.activite,
-          niveau.codeActivite,
-          niveau.discipline
-        );
+      if (!niveauRows || niveauRows.length === 0) {
+        throw new Error(`Impossible de récupérer l'ID du niveau pour cursus_niveau_id ${cursusNiveauId}`);
       }
+
+      const niveauRefId = niveauRows[0].id;
+
+      // 2b. Lier à sa commission
+      await this.commissionLinker.linkNiveau(
+        niveauRefId,
+        niveau.activite,
+        niveau.discipline
+      );
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(niveau.adherentId);
       if (!userId) {
-        this.missingCafnums.add(niveau.adherentId);
         this.logger.stats.niveaux.ignored++;
         return;
       }
-      
-      // 4. Insert dans formation_niveau_validation (simplifié sans compétences ni validation_par)
+
+      // 4. Insert dans formation_validation_niveau_pratique
+      // Note: cursus_niveau_id référence formation_referentiel_niveau_pratique.id (pas le cursus_niveau_id FFCAM)
       await this.db.execute(
-        `INSERT INTO formation_niveau_validation
+        `INSERT INTO formation_validation_niveau_pratique
          (user_id, cursus_niveau_id, date_validation, created_at, updated_at)
          VALUES (?, ?, ?, NOW(), NOW())
          ON DUPLICATE KEY UPDATE
          date_validation = VALUES(date_validation),
          updated_at = NOW()`,
         [
-          userId, 
-          parseInt(cursusNiveauId), // Utiliser directement le cursus_niveau_id FFCAM
+          userId,
+          niveauRefId,
           niveau.dateValidation
         ]
       );
-      
+
       this.logger.stats.niveaux.imported++;
-      
+
     } catch (error: any) {
+      // Catégoriser l'erreur
+      const errorType = error.errno ? `SQL-${error.errno}` : error.message.substring(0, 50);
+      this.errorsByType.set(errorType, (this.errorsByType.get(errorType) || 0) + 1);
+
+      // Log détaillé des premières erreurs seulement
+      if (this.logger.stats.niveaux.errors < 3) {
+        console.log(`\n   ❌ ERREUR import niveau: ${niveau.adherentId}`);
+        console.log(`      Activité: ${niveau.activite}`);
+        console.log(`      Niveau: ${niveau.niveau}`);
+        console.log(`      cursus_niveau_id: ${cursusNiveauId}`);
+        console.log(`      Message: ${error.message}`);
+        console.log(`      SQL State: ${error.sqlState || 'N/A'}`);
+        console.log(`      Errno: ${error.errno || 'N/A'}\n`);
+      } else if (this.logger.stats.niveaux.errors === 3) {
+        console.log(`\n   ... (erreurs supplémentaires masquées, voir résumé à la fin)\n`);
+      }
       this.logger.stats.niveaux.errors++;
     }
   }
