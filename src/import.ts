@@ -148,7 +148,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log('Session ID:', FFCAM_CONFIG.SESSION_ID);
+  // Masquer le SESSION_ID pour la sécurité (afficher seulement les 4 premiers caractères)
+  const maskedSessionId = FFCAM_CONFIG.SESSION_ID.slice(0, 4) + '****' + FFCAM_CONFIG.SESSION_ID.slice(-2);
+  console.log('Session ID:', maskedSessionId);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   console.log('Timestamp:', timestamp);
   console.log('Types:', TYPES_TO_IMPORT.join(', '));

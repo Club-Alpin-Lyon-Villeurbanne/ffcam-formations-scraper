@@ -1,0 +1,298 @@
+{
+  "$schema": "./formation-patterns.schema.json",
+  "_comment": "Mapping des codes formations FFCAM vers les commissions du club. Modifiable sans redéploiement.",
+  "_updated": "2025-12-08",
+
+  "formations": [
+    {
+      "commission": "escalade",
+      "patterns": [
+        "^STG-FEA",
+        "^STG-FEB",
+        "^STG-FES",
+        "^STG-UFES",
+        "^STG-RFEA",
+        "^STG-RFES",
+        "^STG-TEST",
+        "^STG-QLGV",
+        "^FOR-CIEA",
+        "^FOR-CIEN",
+        "^FOR-CIES",
+        "^FOR-CIEG",
+        "^FOR-CTEA",
+        "^FOR-CTEN",
+        "^FOR-IIES",
+        "^STG-BFEA",
+        "^STG-BFES"
+      ],
+      "description": "Escalade (SAE, Bloc, Sites Naturels, Grandes Voies)"
+    },
+    {
+      "commission": "alpinisme",
+      "patterns": [
+        "^STG-FAL",
+        "^STG-FAM",
+        "^STG-FAT",
+        "^STG-FCG",
+        "^STG-UFALA",
+        "^STG-UFCG",
+        "^STG-UFGV",
+        "^STG-UFTV",
+        "^STG-UVAM",
+        "^STG-UVAT",
+        "^STG-UVCG",
+        "^STG-RFAL",
+        "^STG-RFAM",
+        "^STG-RFAT",
+        "^FOR-CIAL",
+        "^FOR-CICG",
+        "^FOR-CTAL",
+        "^FOR-IIAL",
+        "^FOR-ITAL",
+        "^STG-BFAL"
+      ],
+      "description": "Alpinisme (inclut Cascade de glace, Terrain Montagne/Aventure)"
+    },
+    {
+      "commission": "canyon",
+      "patterns": [
+        "^STG-FCA",
+        "^STG-UFCA",
+        "^STG-UFPA",
+        "^STG-RFCA",
+        "^FOR-CICA"
+      ],
+      "description": "Canyon"
+    },
+    {
+      "commission": "randonnee",
+      "patterns": [
+        "^STG-FRA",
+        "^STG-FRD",
+        "^STG-FRM",
+        "^STG-UFRA",
+        "^STG-UFCO",
+        "^STG-UFCAR",
+        "^STG-UFGPS",
+        "^STG-RFRA",
+        "^STG-RFRD",
+        "^STG-RFRM",
+        "^FOR-CIRM",
+        "^FOR-CIRA",
+        "^FOR-CTRM",
+        "^FOR-CTRA",
+        "^FOR-IICO",
+        "^FOR-ITCO",
+        "^STG-BFRD",
+        "^STG-UFQO"
+      ],
+      "description": "Randonnée (Montagne, Alpine, Cartographie)"
+    },
+    {
+      "commission": "trail",
+      "patterns": [
+        "^FOR-CITR",
+        "^FOR-CTTR"
+      ],
+      "description": "Trail"
+    },
+    {
+      "commission": "raquette",
+      "patterns": [
+        "^STG-FRQ",
+        "^STG-UFSN90",
+        "^STG-RFRQ",
+        "^STG-APTRQ",
+        "^FOR-CIRQ",
+        "^FOR-CTRQ",
+        "^STG-BFRQ"
+      ],
+      "description": "Raquette à neige"
+    },
+    {
+      "commission": "ski-de-randonnee",
+      "patterns": [
+        "^STG-FSM",
+        "^STG-UFNA",
+        "^STG-UFNS",
+        "^STG-UFSG",
+        "^STG-UFSN60",
+        "^STG-UFSN70",
+        "^STG-SNFST",
+        "^STG-UFFST",
+        "^STG-UFSST",
+        "^STG-RFSM",
+        "^STG-QFSN",
+        "^FOR-CISM",
+        "^FOR-CTSM",
+        "^FOR-IISA",
+        "^FOR-ITSM",
+        "^FOR-IINA",
+        "^FOR-ITNA",
+        "^STG-BFSM",
+        "^STG-QFHM"
+      ],
+      "description": "Ski de randonnée / Ski Alpinisme / Neige et Avalanches"
+    },
+    {
+      "commission": "ski-de-piste",
+      "patterns": [
+        "^STG-FSA",
+        "^STG-UFSN80"
+      ],
+      "description": "Ski de piste / Ski Alpin"
+    },
+    {
+      "commission": "ski-de-fond",
+      "patterns": [
+        "^STG-FSF"
+      ],
+      "description": "Ski de fond"
+    },
+    {
+      "commission": "snowboard-rando",
+      "patterns": [
+        "^STG-FSB",
+        "^STG-FSL",
+        "^STG-FSU",
+        "^STG-UFSB",
+        "^STG-RFSL",
+        "^FOR-CISB",
+        "^FOR-CISL",
+        "^FOR-CTSB",
+        "^FOR-IISL",
+        "^FOR-ITSL"
+      ],
+      "description": "Snowboard"
+    },
+    {
+      "commission": "vtt",
+      "patterns": [
+        "^STG-FVM",
+        "^STG-RFVM",
+        "^FOR-CIVM",
+        "^FOR-ITVM"
+      ],
+      "description": "VTT / Vélo de montagne"
+    },
+    {
+      "commission": "via-ferrata",
+      "patterns": [
+        "^STG-UFVF"
+      ],
+      "description": "Via Ferrata"
+    },
+    {
+      "commission": "marche-nordique",
+      "patterns": [
+        "^STG-QFMN"
+      ],
+      "description": "Marche Nordique"
+    },
+    {
+      "commission": "formation",
+      "patterns": [
+        "^STG-PSC1",
+        "^STG-SNSEC",
+        "^STG-UFSE",
+        "^STG-UFSEC",
+        "^STG-UFFG",
+        "^STG-FROEPI",
+        "^STG-AFTCA",
+        "^FOR-IIC"
+      ],
+      "description": "Formation / Sécurité / Secourisme"
+    },
+    {
+      "commission": "environnement",
+      "patterns": [
+        "^FOR-CIFC"
+      ],
+      "description": "Environnement durable"
+    },
+    {
+      "commission": "vie-du-club",
+      "patterns": [
+        "^STG-FORDIR",
+        "^STG-FORTR",
+        "^STG_FCO"
+      ],
+      "description": "Vie du club / Formation de dirigeants"
+    }
+  ],
+
+  "brevets": [
+    {
+      "commission": "escalade",
+      "patterns": ["^BF\\d?-ES-"],
+      "description": "Brevets Escalade"
+    },
+    {
+      "commission": "alpinisme",
+      "patterns": ["^BF\\d?-AL-"],
+      "description": "Brevets Alpinisme"
+    },
+    {
+      "commission": "canyon",
+      "patterns": ["^BF\\d?-CA-"],
+      "description": "Brevets Canyon"
+    },
+    {
+      "commission": "randonnee",
+      "patterns": ["^BF\\d?-RA-"],
+      "description": "Brevets Randonnée"
+    },
+    {
+      "commission": "trail",
+      "patterns": ["^BF\\d?-RA-TR"],
+      "description": "Brevets Trail"
+    },
+    {
+      "commission": "ski-de-randonnee",
+      "patterns": ["^BF\\d?-SN-SR", "^BRV-NIVO", "^BRV-UFNA"],
+      "description": "Brevets Ski de randonnée"
+    },
+    {
+      "commission": "ski-de-piste",
+      "patterns": ["^BF\\d?-SN-SA"],
+      "description": "Brevets Ski de piste"
+    },
+    {
+      "commission": "raquette",
+      "patterns": ["^BF\\d?-SN-RQ"],
+      "description": "Brevets Raquette"
+    },
+    {
+      "commission": "snowboard-rando",
+      "patterns": ["^BF\\d?-SN-SW$"],
+      "description": "Brevets Snowboard rando"
+    },
+    {
+      "commission": "snowboard-alpin",
+      "patterns": ["^BF\\d?-SN-SWA"],
+      "description": "Brevets Snowboard alpin"
+    },
+    {
+      "commission": "vtt",
+      "patterns": ["^BF\\d?-VM-"],
+      "description": "Brevets VTT"
+    }
+  ],
+
+  "activites": {
+    "ESCALADE": "escalade",
+    "ALPINISME": "alpinisme",
+    "DESCENTE DE CANYON": "canyon",
+    "RANDONNEE": "randonnee",
+    "VELO DE MONTAGNE": "vtt"
+  },
+
+  "sportsNeigeDisciplines": {
+    "Randonnée": "ski-de-randonnee",
+    "Raquettes": "raquette",
+    "Piste": "ski-de-piste",
+    "Fond": "ski-de-fond",
+    "Snowboard": "snowboard-rando",
+    "Nordique": "ski-randonnee-nordique"
+  }
+}

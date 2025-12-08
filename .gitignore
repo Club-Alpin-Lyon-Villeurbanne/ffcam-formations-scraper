@@ -12,6 +12,9 @@ node_modules/
 # Build TypeScript
 /dist/
 
+# Test coverage
+/coverage/
+
 # Logs et temporaires
 *.log
 .DS_Store

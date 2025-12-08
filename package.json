@@ -11,7 +11,10 @@
     "import:competences": "tsx src/import.ts --competences",
     "dev": "npm run import:dry",
     "build": "tsc",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "author": "Club Alpin Lyon",
   "license": "MIT",
@@ -33,7 +36,9 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "^4.0.15",
     "tsx": "^4.20.5",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.15"
   }
 }

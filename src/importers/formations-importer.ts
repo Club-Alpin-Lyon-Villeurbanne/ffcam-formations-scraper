@@ -86,10 +86,17 @@ class FormationsImporter extends BaseImporter<Formation> {
         return;
       }
 
-      // 4. Insert dans formation_validation_formation
+      // 4. Récupérer l'ID de la formation depuis le référentiel
+      const formationId = formationRows && formationRows.length > 0 ? formationRows[0].id : null;
+      if (!formationId) {
+        this.logger.stats.formations.errors++;
+        return;
+      }
+
+      // 5. Insert dans formation_validation_formation
       await this.db.execute(
         `INSERT INTO formation_validation_formation
-         (user_id, code_formation, valide, date_validation, numero_formation,
+         (user_id, formation_id, valide, date_validation, numero_formation,
           validateur, id_interne, intitule_formation, created_at, updated_at)
          VALUES (?, ?, 1, ?, ?, ?, ?, ?, NOW(), NOW())
          ON DUPLICATE KEY UPDATE
@@ -97,11 +104,11 @@ class FormationsImporter extends BaseImporter<Formation> {
          date_validation = VALUES(date_validation),
          numero_formation = VALUES(numero_formation),
          validateur = VALUES(validateur),
-         code_formation = VALUES(code_formation),
+         formation_id = VALUES(formation_id),
          updated_at = NOW()`,
         [
           userId,
-          formation.codeFormation,
+          formationId,
           formation.dateValidation,
           formation.numeroFormation || null,
           formation.formateur?.trim() || null,

@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Formation Patterns Configuration",
+  "description": "Configuration du mapping entre codes FFCAM et commissions du club",
+  "type": "object",
+  "required": ["formations", "brevets", "activites", "sportsNeigeDisciplines"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "_comment": {
+      "type": "string",
+      "description": "Commentaire explicatif"
+    },
+    "_updated": {
+      "type": "string",
+      "description": "Date de dernière mise à jour"
+    },
+    "formations": {
+      "type": "array",
+      "description": "Mapping des codes formations vers les commissions",
+      "items": {
+        "type": "object",
+        "required": ["commission", "patterns"],
+        "properties": {
+          "commission": {
+            "type": "string",
+            "description": "Slug de la commission (doit correspondre à code_commission dans caf_commission)"
+          },
+          "patterns": {
+            "type": "array",
+            "description": "Liste de patterns regex (case insensitive) pour matcher les codes formations",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string",
+            "description": "Description pour documentation"
+          }
+        }
+      }
+    },
+    "brevets": {
+      "type": "array",
+      "description": "Mapping des codes brevets vers les commissions",
+      "items": {
+        "type": "object",
+        "required": ["commission", "patterns"],
+        "properties": {
+          "commission": {
+            "type": "string"
+          },
+          "patterns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "activites": {
+      "type": "object",
+      "description": "Mapping direct activité FFCAM → commission",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "sportsNeigeDisciplines": {
+      "type": "object",
+      "description": "Mapping des disciplines Sports de Neige → commission",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}
