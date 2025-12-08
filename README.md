@@ -1,5 +1,7 @@
 # FFCAM Formations & Adhérents Scraper
 
+[![CI](https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper/actions/workflows/ci.yml/badge.svg)](https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper/actions/workflows/ci.yml)
+
 Extracteur de données TypeScript pour récupérer les formations et niveaux de pratique des adhérents depuis l'extranet de la Fédération des Clubs Alpin et de Montagne (FFCAM).
 
 ## Description
@@ -12,7 +14,7 @@ Les données sont importées directement dans une base de données SQLite (local
 
 ## Prérequis
 
-- Node.js (v14+)
+- Node.js (v22+)
 - pnpm (v10.13.1)
 - TypeScript (installé automatiquement)
 - Accès à l'extranet FFCAM avec un compte valide
@@ -74,6 +76,19 @@ npm run sync:dry
 npm run dev  # alias de sync:dry
 ```
 
+### Tests
+
+```bash
+# Lancer les tests
+npm run test
+
+# Tests en mode watch
+npm run test:watch
+
+# Tests avec couverture
+npm run test:coverage
+```
+
 ## Workflow détaillé
 
 ### Vue d'ensemble
@@ -121,7 +136,7 @@ Pour chaque élément scrapé :
 │    INSERT INTO formation_brevet_commission (brevet_id, comm_id) │
 ├─────────────────────────────────────────────────────────────────┤
 │ 3. Chercher l'adhérent (cafnum → user_id)                       │
-│    SELECT id FROM fos_user WHERE cafnum = ?                     │
+│    SELECT id_user FROM caf_user WHERE cafnum_user = ?                     │
 ├─────────────────────────────────────────────────────────────────┤
 │ 4. UPSERT dans la table de liaison adhérent                     │
 │    Ex: formation_brevet (user_id, brevet_id, date_obtention)    │
@@ -247,6 +262,10 @@ Le projet suit le principe KISS (Keep It Simple, Stupid) :
 - **Pas de frameworks** : Utilisation des API natives (fetch, better-sqlite3)
 - **Structure claire** : Un fichier = une responsabilité
 - **Logs dans la console** : Feedback temps réel, pas de complexité
+
+## Documentation technique
+
+- **[docs/FFCAM-API.md](docs/FFCAM-API.md)** : Documentation reverse-engineered de l'API FFCAM Extranet
 
 ## Notes importantes
 
