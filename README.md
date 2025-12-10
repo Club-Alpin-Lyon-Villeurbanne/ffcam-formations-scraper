@@ -65,15 +65,15 @@ Pour obtenir votre session ID :
 
 ## Utilisation
 
-### Synchronisation (scraping → base de données)
+### Import (scraping → base de données)
 
 ```bash
-# Synchronisation complète
-npm run sync
+# Import complet
+npm run import
 
 # Mode test (dry-run sans importer)
-npm run sync:dry
-npm run dev  # alias de sync:dry
+npm run import:dry
+npm run dev  # alias de import:dry
 ```
 
 ### Tests
@@ -147,9 +147,10 @@ Pour chaque élément scrapé :
 
 | Type | Référentiel | Liaison adhérent | Liaison commission |
 |------|-------------|------------------|-------------------|
-| Brevets | `formation_brevet_referentiel` | `formation_brevet` | `formation_brevet_commission` |
-| Niveaux | `formation_niveau_referentiel` | `formation_niveau_validation` | `formation_niveau_commission` |
-| Compétences | `formation_competence_referentiel` | `formation_competence_validation` | `formation_competence_commission` |
+| Formations | `formation_referentiel_formation` | `formation_validation_formation` | `formation_formation_commission` |
+| Brevets | `formation_referentiel_brevet` | `formation_validation_brevet` | `formation_brevet_commission` |
+| Niveaux | `formation_referentiel_niveau_pratique` | `formation_validation_niveau_pratique` | `formation_niveau_commission` |
+| Compétences | `formation_referentiel_groupe_competence` | `formation_validation_groupe_competence` | `formation_competence_commission` |
 
 ### Mapping des commissions
 
@@ -158,10 +159,10 @@ Le scraper associe automatiquement les formations aux commissions du club via de
 **A. Par pattern de code brevet** (regex)
 ```typescript
 // Exemples de patterns (src/utils/commission-mapping.ts)
-'BF1-ESC'    → 'escalade'
-'BF2-ALP'    → 'alpinisme'
-'BF1-SKI'    → 'ski-de-randonnee'
-'BF1-CANYON' → 'canyon'
+'BF1-ES-*'   → 'escalade'
+'BF1-AL-*'   → 'alpinisme'
+'BF1-SN-SR'  → 'ski-de-randonnee'
+'BF1-CA-*'   → 'canyon'
 ```
 
 **B. Par activité FFCAM**
@@ -216,7 +217,7 @@ ffcam-formations-adherents-scraper/
 ├── src/
 │   ├── config.ts           # Configuration centrale
 │   ├── types.ts            # Définitions TypeScript
-│   ├── sync.ts             # 🌟 Script principal
+│   ├── import.ts           # 🌟 Script principal
 │   ├── database/           # Adaptateurs DB (SQLite/MySQL)
 │   ├── scrapers/           # Scrapers FFCAM API
 │   ├── importers/          # Logique d'import en DB
@@ -255,7 +256,7 @@ ffcam-formations-adherents-scraper/
 ## Architecture simplifiée (KISS)
 
 Le projet suit le principe KISS (Keep It Simple, Stupid) :
-- **Un seul workflow** : `npm run sync` fait tout (scraping → DB)
+- **Un seul workflow** : `npm run import` fait tout (scraping → DB)
 - **TypeScript simple** : Types stricts mais pas de sur-ingénierie
 - **SQLite par défaut** : Zero configuration pour développer
 - **Détection automatique** : Choix intelligent de la base de données

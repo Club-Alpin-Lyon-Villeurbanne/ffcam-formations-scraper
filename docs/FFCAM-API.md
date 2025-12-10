@@ -143,12 +143,12 @@ GET /jx_jqGrid.php?sid=XXX&def=adh_brevets&mode=liste&page=1&rows=150
 
 ---
 
-### 3. Niveaux de pratique (`adh_niveaux`)
+### 3. Niveaux de pratique (`adh_niveaux_pratique`)
 
 Récupère les niveaux de pratique validés.
 
 ```
-GET /jx_jqGrid.php?sid=XXX&def=adh_niveaux&mode=liste&page=1&rows=150
+GET /jx_jqGrid.php?sid=XXX&def=adh_niveaux_pratique&mode=liste&page=1&rows=150
 ```
 
 **Structure de réponse :**
@@ -158,8 +158,8 @@ GET /jx_jqGrid.php?sid=XXX&def=adh_niveaux&mode=liste&page=1&rows=150
   "page": 1,
   "total": 8,
   "records": 1055,
-  "userdata": {
-    "niveaux": {
+  "userData": {
+    "caliData": {
       "123": {
         "cursus_niveau_id": "123",
         "code_activite": "ES",
@@ -167,7 +167,8 @@ GET /jx_jqGrid.php?sid=XXX&def=adh_niveaux&mode=liste&page=1&rows=150
         "niveau": "INITIE",
         "libelle": "Initié escalade SAE",
         "niveau_court": "N1",
-        "discipline": null
+        "discipline": null,
+        "_BASE_validation_qui": "Martin Pierre"
       }
     }
   },
@@ -204,9 +205,9 @@ GET /jx_jqGrid.php?sid=XXX&def=adh_niveaux&mode=liste&page=1&rows=150
 | col_7 | validateur | Nom du validateur |
 | col_8 | cursus_niveau_id | ID du niveau dans le référentiel |
 
-**Métadonnées (`userdata.niveaux`) :**
+**Métadonnées (`userData.caliData`) :**
 
-Le champ `userdata` contient le référentiel complet des niveaux avec leurs métadonnées (discipline, niveau_court, etc.).
+Le champ `userData.caliData` contient le référentiel complet des niveaux avec leurs métadonnées (discipline, niveau_court, validateur, etc.).
 
 ---
 
