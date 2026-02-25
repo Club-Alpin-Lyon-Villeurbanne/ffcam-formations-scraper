@@ -67,6 +67,11 @@ async function importFormations(
   const scraper = new FormationsScraper();
   const formations: Formation[] = await scraper.scrape();
 
+  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
+  if (!DRY_RUN && !db.isConnected()) {
+    await db.connect();
+  }
+
   const importer = new FormationsImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(formations);
 }
@@ -81,6 +86,11 @@ async function importBrevets(
 ): Promise<void> {
   const scraper = new BrevetsScraper();
   const brevets: Brevet[] = await scraper.scrape();
+
+  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
+  if (!DRY_RUN && !db.isConnected()) {
+    await db.connect();
+  }
 
   const importer = new BrevetsImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(brevets);
@@ -97,6 +107,11 @@ async function importNiveaux(
   const scraper = new NiveauxScraper();
   const { data: niveaux, metadata }: ScrapedData<NiveauPratique> = await scraper.scrape();
 
+  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
+  if (!DRY_RUN && !db.isConnected()) {
+    await db.connect();
+  }
+
   const importer = new NiveauxImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(niveaux, metadata || {});
 }
@@ -111,6 +126,11 @@ async function importCompetences(
 ): Promise<void> {
   const scraper = new CompetencesScraper();
   const competences: Competence[] = await scraper.scrape();
+
+  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
+  if (!DRY_RUN && !db.isConnected()) {
+    await db.connect();
+  }
 
   const importer = new CompetencesImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(competences);
@@ -168,10 +188,8 @@ async function main(): Promise<void> {
   const commissionLinker = new CommissionLinker(db, DRY_RUN);
 
   try {
-    // Connexion DB (seulement si pas dry-run)
-    if (!DRY_RUN) {
-      await db.connect();
-    }
+    // NOTE: La connexion DB est établie juste avant chaque import (après le scraping)
+    // pour éviter les timeouts pendant le scraping qui peut prendre plusieurs minutes
 
     // Import selon les types sélectionnés
     let isFirst = true;

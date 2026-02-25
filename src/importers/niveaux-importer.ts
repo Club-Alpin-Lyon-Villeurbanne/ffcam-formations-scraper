@@ -138,10 +138,13 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       const niveauRefId = niveauRows[0].id;
 
       // 2b. Lier à sa commission
+      // Utilise le niveau complet (ex: "PERFECTIONNE en snowboard de randonnée")
+      // pour déterminer la discipline si non disponible dans les métadonnées
       await this.commissionLinker.linkNiveau(
         niveauRefId,
         niveau.activite,
-        niveau.discipline
+        niveau.discipline,
+        niveau.niveau  // Intitulé complet du niveau pour analyse
       );
 
       // 3. Chercher l'user_id

@@ -5,17 +5,43 @@
  * - Les codes de brevets FFCAM → slugs de commissions CAF
  * - Les codes de formations FFCAM → slugs de commissions CAF
  * - Les activités FFCAM → slugs de commissions CAF
+ * - Les intitulés de niveaux → slugs de commissions CAF (avec degré de certitude)
  *
- * CONFIGURATION :
- * - Ce fichier TypeScript est la source de vérité (testée avec 186+ tests unitaires)
- * - Une copie JSON est disponible dans config/formation-patterns.json pour référence
+ * IMPORTANT : Pour les groupes de compétences (GC), le mapping est géré par le fichier CSV
+ * data/groupes-competences-commissions.csv via gc-csv-mapping.ts.
+ * Ce fichier ne gère que les brevets, formations et niveaux.
  *
  * Usage :
- *   import { getCommissionForBrevet, getCommissionForActivite } from './utils/commission-mapping';
+ *   import { getCommissionForBrevet, getCommissionForActivite, getCommissionFromIntitule } from './utils/commission-mapping';
  *
  *   getCommissionForBrevet('BF1-ESC');  // → 'escalade'
  *   getCommissionForActivite('ESCALADE');  // → 'escalade'
+ *   getCommissionFromIntitule('PERFECTIONNE en snowboard de randonnée', 'SPORTS DE NEIGE');
+ *   // → { commission: 'snowboard-rando', certainty: 95, source: 'intitule_pattern' }
  */
+
+// =============================================================================
+// Types pour le mapping avec degré de certitude
+// =============================================================================
+
+/**
+ * Résultat d'un mapping avec degré de certitude
+ */
+export interface MappingResult {
+  /** Slug de la commission (null si non mappable ou certitude trop faible) */
+  commission: string | null;
+  /** Degré de certitude de 0 à 100 */
+  certainty: number;
+  /** Source du mapping */
+  source: 'activite_directe' | 'discipline_field' | 'intitule_pattern' | 'fallback' | 'none';
+  /** Pattern qui a matché (pour debug) */
+  matchedPattern?: string;
+  /** Alerte si certitude faible */
+  warning?: string;
+}
+
+/** Seuil de certitude minimum pour valider un mapping (configurable) */
+export const CERTAINTY_THRESHOLD = 70;
 
 /**
  * Patterns de codes brevets → commission (slug)
@@ -66,6 +92,7 @@ const ACTIVITE_MAP: Record<string, string> = {
 
 /**
  * Mapping des disciplines "SPORTS DE NEIGE" → commission (slug)
+ * Utilisé quand le champ discipline est disponible dans les métadonnées
  */
 const SPORTS_NEIGE_DISCIPLINE_MAP: Record<string, string> = {
   'Randonnée': 'ski-de-randonnee',
@@ -75,6 +102,287 @@ const SPORTS_NEIGE_DISCIPLINE_MAP: Record<string, string> = {
   'Snowboard': 'snowboard-rando',
   'Nordique': 'ski-randonnee-nordique',
 };
+
+// =============================================================================
+// Patterns pour extraire la discipline depuis l'intitulé (avec certitude)
+// =============================================================================
+
+/**
+ * Patterns pour identifier la discipline depuis l'intitulé d'une compétence/niveau
+ *
+ * IMPORTANT : Les patterns sont ordonnés du plus spécifique au moins spécifique.
+ * Le premier qui matche gagne, donc on met les patterns les plus précis en premier.
+ *
+ * Certitude :
+ * - 95-100 : Pattern très spécifique, quasi certain
+ * - 80-94  : Pattern fiable mais pourrait avoir des faux positifs
+ * - 70-79  : Pattern acceptable, à surveiller
+ * - <70    : Pattern trop vague, ne sera pas utilisé (sauf si explicitement demandé)
+ */
+const INTITULE_DISCIPLINE_PATTERNS: Array<{
+  pattern: RegExp;
+  commission: string;
+  certainty: number;
+  description: string;
+}> = [
+  // ============================================================
+  // SNOWBOARD - Patterns spécifiques (priorité haute)
+  // ============================================================
+  {
+    pattern: /snowboard\s+de\s+randonn[ée]e/i,
+    commission: 'snowboard-rando',
+    certainty: 98,
+    description: 'snowboard de randonnée (forme complète)'
+  },
+  {
+    pattern: /snowboard[\s-]*rando/i,
+    commission: 'snowboard-rando',
+    certainty: 95,
+    description: 'snowboard-rando ou snowboard rando'
+  },
+  {
+    pattern: /\ben\s+snowboard\b/i,
+    commission: 'snowboard-rando',
+    certainty: 92,
+    description: '"en snowboard" dans le texte'
+  },
+  {
+    pattern: /\bsnowboard\b/i,
+    commission: 'snowboard-rando',
+    certainty: 88,
+    description: 'mot snowboard seul'
+  },
+
+  // ============================================================
+  // SKI DE RANDONNÉE - Patterns spécifiques
+  // ============================================================
+  {
+    pattern: /ski\s+de\s+randonn[ée]e/i,
+    commission: 'ski-de-randonnee',
+    certainty: 98,
+    description: 'ski de randonnée (forme complète)'
+  },
+  {
+    pattern: /ski[\s-]*rando(?!nn)/i,
+    commission: 'ski-de-randonnee',
+    certainty: 95,
+    description: 'ski-rando ou ski rando (pas suivi de nn)'
+  },
+  {
+    pattern: /\ben\s+ski\s+de\s+randonn[ée]e\b/i,
+    commission: 'ski-de-randonnee',
+    certainty: 98,
+    description: '"en ski de randonnée"'
+  },
+  {
+    pattern: /ski[\s-]*alpinisme/i,
+    commission: 'ski-de-randonnee',
+    certainty: 95,
+    description: 'ski alpinisme'
+  },
+
+  // ============================================================
+  // RAQUETTES
+  // ============================================================
+  {
+    pattern: /raquettes?\s+[àa]\s+neige/i,
+    commission: 'raquette',
+    certainty: 98,
+    description: 'raquettes à neige'
+  },
+  {
+    pattern: /\ben\s+raquettes?\b/i,
+    commission: 'raquette',
+    certainty: 95,
+    description: '"en raquettes"'
+  },
+  {
+    pattern: /\braquettes?\b(?!\s+de\s+tennis)/i,
+    commission: 'raquette',
+    certainty: 90,
+    description: 'raquettes (hors tennis)'
+  },
+
+  // ============================================================
+  // SKI DE FOND
+  // ============================================================
+  {
+    pattern: /ski\s+de\s+fond/i,
+    commission: 'ski-de-fond',
+    certainty: 98,
+    description: 'ski de fond'
+  },
+  {
+    pattern: /\ben\s+ski\s+de\s+fond\b/i,
+    commission: 'ski-de-fond',
+    certainty: 98,
+    description: '"en ski de fond"'
+  },
+
+  // ============================================================
+  // SKI NORDIQUE / RANDONNÉE NORDIQUE
+  // ============================================================
+  {
+    pattern: /ski\s+de\s+randonn[ée]e\s+nordique/i,
+    commission: 'ski-randonnee-nordique',
+    certainty: 98,
+    description: 'ski de randonnée nordique'
+  },
+  {
+    pattern: /randonn[ée]e\s+nordique/i,
+    commission: 'ski-randonnee-nordique',
+    certainty: 90,
+    description: 'randonnée nordique'
+  },
+
+  // ============================================================
+  // SKI DE PISTE / SKI ALPIN
+  // ============================================================
+  {
+    pattern: /ski\s+de\s+piste/i,
+    commission: 'ski-de-piste',
+    certainty: 98,
+    description: 'ski de piste'
+  },
+  {
+    pattern: /ski\s+alpin/i,
+    commission: 'ski-de-piste',
+    certainty: 95,
+    description: 'ski alpin'
+  },
+  {
+    pattern: /hors[\s-]*piste/i,
+    commission: 'ski-de-piste',
+    certainty: 80,
+    description: 'hors-piste (associé au ski alpin)'
+  },
+
+  // ============================================================
+  // ESCALADE (hors glace/dry qui est alpinisme)
+  // ============================================================
+  {
+    pattern: /escalade\s+(?:sur\s+)?(?:glace|dry|cascade)/i,
+    commission: 'alpinisme',
+    certainty: 95,
+    description: 'escalade sur glace / dry tooling → alpinisme'
+  },
+  {
+    pattern: /\bescalade\s+(?:en\s+)?(?:SAE|SNE|bloc|moulinette|tête|grandes?\s+voies?)/i,
+    commission: 'escalade',
+    certainty: 95,
+    description: 'escalade SAE/SNE/bloc/moulinette/tête/grandes voies'
+  },
+  {
+    pattern: /\ben\s+escalade\b/i,
+    commission: 'escalade',
+    certainty: 92,
+    description: '"en escalade" dans le texte'
+  },
+  {
+    pattern: /\bescalade\b(?!\s+(?:sur\s+)?(?:glace|dry|cascade))/i,
+    commission: 'escalade',
+    certainty: 88,
+    description: 'mot escalade (hors glace/dry)'
+  },
+
+  // ============================================================
+  // ALPINISME
+  // ============================================================
+  {
+    pattern: /\balpinisme\b/i,
+    commission: 'alpinisme',
+    certainty: 98,
+    description: 'alpinisme'
+  },
+  {
+    pattern: /\balpi\b/i,
+    commission: 'alpinisme',
+    certainty: 90,
+    description: 'abréviation alpi'
+  },
+  {
+    pattern: /\bcascade\s+de\s+glace\b/i,
+    commission: 'alpinisme',
+    certainty: 98,
+    description: 'cascade de glace'
+  },
+  {
+    pattern: /\bdry[\s-]*tooling\b/i,
+    commission: 'alpinisme',
+    certainty: 98,
+    description: 'dry tooling'
+  },
+  {
+    pattern: /progression\s+sur\s+glacier/i,
+    commission: 'alpinisme',
+    certainty: 90,
+    description: 'progression sur glacier'
+  },
+
+  // ============================================================
+  // CANYON
+  // ============================================================
+  {
+    pattern: /\bcanyon(?:ing|isme)?\b/i,
+    commission: 'canyon',
+    certainty: 98,
+    description: 'canyon, canyoning ou canyonisme'
+  },
+  {
+    pattern: /descente\s+de\s+canyon/i,
+    commission: 'canyon',
+    certainty: 98,
+    description: 'descente de canyon'
+  },
+
+  // ============================================================
+  // RANDONNÉE (hors ski/snow/raquette)
+  // ============================================================
+  {
+    pattern: /randonn[ée]e\s+(?:montagne|alpine|p[ée]destre)/i,
+    commission: 'randonnee',
+    certainty: 95,
+    description: 'randonnée montagne/alpine/pédestre'
+  },
+  {
+    pattern: /\ben\s+randonn[ée]e\b(?!\s+(?:ski|nordique|raquette))/i,
+    commission: 'randonnee',
+    certainty: 88,
+    description: '"en randonnée" (hors ski/nordique/raquette)'
+  },
+
+  // ============================================================
+  // TRAIL
+  // ============================================================
+  {
+    pattern: /\ben\s+trail\b/i,
+    commission: 'trail',
+    certainty: 95,
+    description: '"en trail" dans le texte'
+  },
+  {
+    pattern: /\btrail\b/i,
+    commission: 'trail',
+    certainty: 90,
+    description: 'mot trail seul'
+  },
+
+  // ============================================================
+  // VTT / VÉLO DE MONTAGNE
+  // ============================================================
+  {
+    pattern: /\bvtt\b/i,
+    commission: 'vtt',
+    certainty: 98,
+    description: 'VTT'
+  },
+  {
+    pattern: /v[ée]lo\s+de\s+montagne/i,
+    commission: 'vtt',
+    certainty: 98,
+    description: 'vélo de montagne'
+  },
+];
 
 /**
  * Trouve TOUTES les commissions correspondant à un code brevet
@@ -126,6 +434,8 @@ export function getCommissionForBrevet(codeBrevet: string): string | null {
 /**
  * Trouve la commission correspondant à une activité FFCAM
  *
+ * @deprecated Pour les SPORTS DE NEIGE, utiliser getCommissionFromIntitule qui analyse l'intitulé
+ *
  * @param activite - Activité FFCAM (ex: "ESCALADE", "SPORTS DE NEIGE")
  * @param discipline - Discipline optionnelle pour SPORTS DE NEIGE (ex: "Randonnée")
  * @returns Slug de la commission ou null si non mappable
@@ -133,7 +443,7 @@ export function getCommissionForBrevet(codeBrevet: string): string | null {
  * @example
  * getCommissionForActivite('ESCALADE');                    // → 'escalade'
  * getCommissionForActivite('SPORTS DE NEIGE', 'Randonnée'); // → 'ski-de-randonnee'
- * getCommissionForActivite('SPORTS DE NEIGE');             // → 'ski-de-randonnee' (fallback)
+ * getCommissionForActivite('SPORTS DE NEIGE');             // → null (plus de fallback !)
  */
 export function getCommissionForActivite(
   activite: string,
@@ -154,11 +464,138 @@ export function getCommissionForActivite(
         }
       }
     }
-    // Fallback : ski de randonnée (le plus courant)
-    return 'ski-de-randonnee';
+    // Plus de fallback ! Retourne null si pas de discipline identifiable
+    // Utiliser getCommissionFromIntitule pour analyser l'intitulé
+    return null;
   }
 
   return ACTIVITE_MAP[act] || null;
+}
+
+// =============================================================================
+// Nouvelle API avec degré de certitude
+// =============================================================================
+
+/**
+ * Extrait la discipline depuis l'intitulé d'un niveau de pratique et retourne
+ * la commission correspondante avec un degré de certitude.
+ *
+ * NOTE : Cette fonction est utilisée pour les niveaux de pratique.
+ * Pour les groupes de compétences (GC), utiliser gc-csv-mapping.ts qui lit
+ * le fichier CSV data/groupes-competences-commissions.csv.
+ *
+ * Cette fonction est conçue pour les cas où l'activité est "SPORTS DE NEIGE"
+ * et qu'on doit déterminer la discipline (ski de rando, snowboard, raquette, etc.)
+ * en analysant l'intitulé du niveau.
+ *
+ * @param intitule - Intitulé du niveau (ex: "PERFECTIONNE en snowboard de randonnée")
+ * @param activite - Activité FFCAM (ex: "SPORTS DE NEIGE", "ESCALADE")
+ * @param options - Options de configuration
+ * @returns MappingResult avec commission, certitude et informations de debug
+ *
+ * @example
+ * getCommissionFromIntitule('PERFECTIONNE en snowboard de randonnée', 'SPORTS DE NEIGE');
+ * // → { commission: 'snowboard-rando', certainty: 98, source: 'intitule_pattern' }
+ *
+ * getCommissionFromIntitule('INITIE en alpinisme', 'ALPINISME');
+ * // → { commission: 'alpinisme', certainty: 100, source: 'activite_directe' }
+ */
+export function getCommissionFromIntitule(
+  intitule: string,
+  activite: string,
+  options: { threshold?: number } = {}
+): MappingResult {
+  const threshold = options.threshold ?? CERTAINTY_THRESHOLD;
+
+  // Cas 1: Pas d'intitulé
+  if (!intitule || intitule.trim() === '') {
+    return {
+      commission: null,
+      certainty: 0,
+      source: 'none',
+      warning: 'Intitulé vide ou manquant'
+    };
+  }
+
+  const text = intitule.trim();
+  const act = activite?.toUpperCase().trim() || '';
+
+  // Cas 2: Activité directe connue (pas SPORTS DE NEIGE, pas vide)
+  if (act && act !== 'SPORTS DE NEIGE') {
+    const directCommission = ACTIVITE_MAP[act];
+    if (directCommission) {
+      return {
+        commission: directCommission,
+        certainty: 100,
+        source: 'activite_directe',
+        matchedPattern: act
+      };
+    }
+    // Activité non reconnue - on continue pour essayer l'analyse par intitulé
+  }
+
+  // Cas 3: Analyser l'intitulé pour déterminer la commission
+  // (pour SPORTS DE NEIGE ou activité NULL/non reconnue)
+  for (const { pattern, commission, certainty, description } of INTITULE_DISCIPLINE_PATTERNS) {
+    if (pattern.test(text)) {
+      // Vérifier si la certitude est suffisante
+      if (certainty >= threshold) {
+        return {
+          commission,
+          certainty,
+          source: 'intitule_pattern',
+          matchedPattern: description
+        };
+      } else {
+        // Certitude trop faible
+        return {
+          commission: null,
+          certainty,
+          source: 'intitule_pattern',
+          matchedPattern: description,
+          warning: `Certitude trop faible (${certainty}% < ${threshold}%) pour "${description}"`
+        };
+      }
+    }
+  }
+
+  // Cas 4: Aucun pattern ne matche
+  if (!act) {
+    return {
+      commission: null,
+      certainty: 0,
+      source: 'none',
+      warning: `Compétence transversale - aucune discipline identifiée: "${text}"`
+    };
+  }
+
+  if (act === 'SPORTS DE NEIGE') {
+    return {
+      commission: null,
+      certainty: 0,
+      source: 'none',
+      warning: `Aucune discipline identifiée dans l'intitulé SPORTS DE NEIGE: "${text}"`
+    };
+  }
+
+  return {
+    commission: null,
+    certainty: 0,
+    source: 'none',
+    warning: `Activité non reconnue et aucun pattern dans l'intitulé: ${activite}`
+  };
+}
+
+/**
+ * Version simplifiée qui retourne juste la commission ou null
+ * Utile pour les cas où on veut juste le résultat sans les détails
+ */
+export function getCommissionFromIntituleSimple(
+  intitule: string,
+  activite: string
+): string | null {
+  const result = getCommissionFromIntitule(intitule, activite);
+  return result.commission;
 }
 
 /**

@@ -5,6 +5,9 @@ import * as mysql from 'mysql2/promise';
 import { DatabaseAdapter } from '../types';
 import { dbConfig } from '../config';
 
+// Timeout pour les requêtes (60 secondes)
+const QUERY_TIMEOUT_MS = 60000;
+
 class DatabaseConnection implements DatabaseAdapter {
   private connection: mysql.Connection | null = null;
 
@@ -26,13 +29,82 @@ class DatabaseConnection implements DatabaseAdapter {
   }
 
   /**
-   * Exécute une requête SQL
+   * Exécute une requête SQL avec timeout et reconnexion automatique
    */
   async execute(sql: string, params: any[] = []): Promise<[any[], any[]]> {
     if (!this.connection) {
       throw new Error('Connexion non établie. Appelez connect() d\'abord.');
     }
-    return this.connection.execute(sql, params) as Promise<[any[], any[]]>;
+
+    try {
+      return await this.executeWithTimeout(sql, params);
+    } catch (error: any) {
+      // Si la connexion est perdue ou timeout, tenter une reconnexion
+      if (this.isConnectionError(error)) {
+        console.log('⚠️  Connexion perdue, tentative de reconnexion...');
+        await this.reconnect();
+        // Retry après reconnexion
+        return this.executeWithTimeout(sql, params);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Exécute une requête avec timeout
+   */
+  private async executeWithTimeout(sql: string, params: any[]): Promise<[any[], any[]]> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('QUERY_TIMEOUT: La requête a dépassé le délai de ' + (QUERY_TIMEOUT_MS / 1000) + 's'));
+      }, QUERY_TIMEOUT_MS);
+    });
+
+    return Promise.race([
+      this.connection!.execute(sql, params) as Promise<[any[], any[]]>,
+      timeoutPromise
+    ]);
+  }
+
+  /**
+   * Vérifie si l'erreur est liée à une connexion perdue ou timeout
+   */
+  private isConnectionError(error: any): boolean {
+    const connectionErrors = [
+      'ETIMEDOUT',
+      'ECONNRESET',
+      'ENOTFOUND',
+      'PROTOCOL_CONNECTION_LOST',
+      'ER_CON_COUNT_ERROR',
+      'ECONNREFUSED',
+      'connection is in closed state',
+      'QUERY_TIMEOUT'
+    ];
+    const errorMessage = error.message || error.code || '';
+    return connectionErrors.some(code =>
+      errorMessage.includes(code) || error.code === code
+    );
+  }
+
+  /**
+   * Ferme et recrée la connexion
+   */
+  private async reconnect(): Promise<void> {
+    try {
+      if (this.connection) {
+        try {
+          await this.connection.end();
+        } catch {
+          // Ignorer les erreurs de fermeture
+        }
+        this.connection = null;
+      }
+      this.connection = await mysql.createConnection(dbConfig);
+      console.log('✅ Reconnecté à MySQL');
+    } catch (error: any) {
+      console.error('❌ Échec reconnexion MySQL:', error.message);
+      throw error;
+    }
   }
 
   /**

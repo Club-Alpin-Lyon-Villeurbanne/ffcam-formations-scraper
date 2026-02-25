@@ -1,6 +1,11 @@
 /**
- * Tests unitaires pour le mapping des commissions
+ * Tests unitaires pour le mapping des commissions (brevets, formations, niveaux)
+ *
  * Ces tests garantissent que les patterns de mapping fonctionnent correctement
+ * pour les brevets, formations et niveaux de pratique.
+ *
+ * NOTE : Pour les tests du mapping GC → Commissions (groupes de compétences),
+ * voir gc-csv-mapping.test.ts qui teste le mapping basé sur le fichier CSV.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -8,6 +13,8 @@ import {
   getCommissionForBrevet,
   getCommissionForActivite,
   getCommissionsForFormation,
+  getCommissionFromIntitule,
+  CERTAINTY_THRESHOLD,
 } from './commission-mapping';
 
 describe('commission-mapping', () => {
@@ -427,12 +434,14 @@ describe('commission-mapping', () => {
         expect(getCommissionForActivite('SPORTS DE NEIGE', discipline)).toBe(expected);
       });
 
-      it('should fallback to ski-de-randonnee when no discipline', () => {
-        expect(getCommissionForActivite('SPORTS DE NEIGE')).toBe('ski-de-randonnee');
+      it('should return null when no discipline (use getCommissionFromIntitule instead)', () => {
+        // Plus de fallback automatique - utiliser getCommissionFromIntitule pour analyser l'intitulé
+        expect(getCommissionForActivite('SPORTS DE NEIGE')).toBeNull();
       });
 
-      it('should fallback to ski-de-randonnee for unknown discipline', () => {
-        expect(getCommissionForActivite('SPORTS DE NEIGE', 'Unknown')).toBe('ski-de-randonnee');
+      it('should return null for unknown discipline', () => {
+        // Plus de fallback - discipline inconnue = pas de mapping
+        expect(getCommissionForActivite('SPORTS DE NEIGE', 'Unknown')).toBeNull();
       });
     });
 
@@ -450,6 +459,175 @@ describe('commission-mapping', () => {
       it('should be case insensitive for activities', () => {
         expect(getCommissionForActivite('escalade')).toBe('escalade');
         expect(getCommissionForActivite('Escalade')).toBe('escalade');
+      });
+    });
+  });
+
+  // ==========================================================================
+  // Tests de getCommissionFromIntitule (nouvelle API avec certitude)
+  // ==========================================================================
+  describe('getCommissionFromIntitule', () => {
+    describe('Activités directes (non SPORTS DE NEIGE)', () => {
+      it('should return escalade with 100% certainty for ESCALADE activity', () => {
+        const result = getCommissionFromIntitule('1.1 Mon niveau de pratique', 'ESCALADE');
+        expect(result.commission).toBe('escalade');
+        expect(result.certainty).toBe(100);
+        expect(result.source).toBe('activite_directe');
+      });
+
+      it('should return alpinisme with 100% certainty for ALPINISME activity', () => {
+        const result = getCommissionFromIntitule('2.1 Progression', 'ALPINISME');
+        expect(result.commission).toBe('alpinisme');
+        expect(result.certainty).toBe(100);
+        expect(result.source).toBe('activite_directe');
+      });
+    });
+
+    describe('Compétences transversales', () => {
+      it('should return null for empty activity', () => {
+        const result = getCommissionFromIntitule('2.1 Principes et techniques de base', '');
+        expect(result.commission).toBeNull();
+        expect(result.certainty).toBe(0);
+        expect(result.source).toBe('none');
+        expect(result.warning).toContain('transversale');
+      });
+    });
+
+    describe('SPORTS DE NEIGE - Snowboard', () => {
+      it.each([
+        ['3.1 Mon matériel en snowboard de randonnée 2 - pratique autonome', 98],
+        ['1.1 Mon niveau de pratique en snowboard de randonnée 2', 98],
+        ['2.1 Progression snowboard de randonnée en montée 2', 98],
+        ['Mon expérience en snowboard rando', 95],
+        ['Pratique en snowboard', 88],
+      ])('should map "%s" to snowboard-rando with certainty >= %d', (intitule, minCertainty) => {
+        const result = getCommissionFromIntitule(intitule, 'SPORTS DE NEIGE');
+        expect(result.commission).toBe('snowboard-rando');
+        expect(result.certainty).toBeGreaterThanOrEqual(minCertainty);
+        expect(result.source).toBe('intitule_pattern');
+      });
+    });
+
+    describe('SPORTS DE NEIGE - Ski de randonnée', () => {
+      it.each([
+        ['1.1 Mon niveau de pratique en ski de randonnée 1', 98],
+        ['2.1 Progression ski de randonnée en montée 1', 98],
+        ['3.1 Mon matériel - mon équipement en ski de randonnée 1', 98],
+        ['Formation ski-rando avancée', 95],
+        ['Stage ski alpinisme', 95],
+      ])('should map "%s" to ski-de-randonnee', (intitule) => {
+        const result = getCommissionFromIntitule(intitule, 'SPORTS DE NEIGE');
+        expect(result.commission).toBe('ski-de-randonnee');
+        expect(result.certainty).toBeGreaterThanOrEqual(CERTAINTY_THRESHOLD);
+        expect(result.source).toBe('intitule_pattern');
+      });
+    });
+
+    describe('SPORTS DE NEIGE - Raquettes', () => {
+      it.each([
+        ['1.1 Mon niveau de pratique en raquettes à neige 1', 98],
+        ['2.1 Progression et techniques de sécurité en raquettes à neige', 98],
+        ['Sortie en raquettes', 95],
+      ])('should map "%s" to raquette', (intitule) => {
+        const result = getCommissionFromIntitule(intitule, 'SPORTS DE NEIGE');
+        expect(result.commission).toBe('raquette');
+        expect(result.certainty).toBeGreaterThanOrEqual(CERTAINTY_THRESHOLD);
+      });
+    });
+
+    describe('SPORTS DE NEIGE - Ski de fond', () => {
+      it.each([
+        ['Formation ski de fond', 98],
+        ['Niveau en ski de fond', 98],
+      ])('should map "%s" to ski-de-fond', (intitule) => {
+        const result = getCommissionFromIntitule(intitule, 'SPORTS DE NEIGE');
+        expect(result.commission).toBe('ski-de-fond');
+      });
+    });
+
+    describe('SPORTS DE NEIGE - Non identifiable', () => {
+      it('should return null with warning for generic SN without discipline', () => {
+        const result = getCommissionFromIntitule('2.2 Progression en neige dure', 'SPORTS DE NEIGE');
+        expect(result.commission).toBeNull();
+        expect(result.warning).toBeDefined();
+        expect(result.warning).toContain('Aucune discipline identifiée');
+      });
+    });
+
+    describe('Seuil de certitude', () => {
+      it('should respect custom threshold', () => {
+        // Ce test vérifie que si on met un seuil très haut, certains patterns ne passent plus
+        const result = getCommissionFromIntitule('snowboard', 'SPORTS DE NEIGE', { threshold: 95 });
+        // "snowboard" seul a une certitude de 88, donc < 95
+        expect(result.commission).toBeNull();
+        expect(result.certainty).toBe(88);
+        expect(result.warning).toContain('Certitude trop faible');
+      });
+    });
+
+    // =========================================================================
+    // Tests pour activité NULL avec identification par intitulé
+    // =========================================================================
+    describe('Activité NULL - Escalade', () => {
+      it.each([
+        ['2.1 Escalade en moulinette', 'escalade', 95],
+        ['2.2 Escalade en tête', 'escalade', 95],
+        ['Progresser en escalade', 'escalade', 92],
+        ['Compléments techniques en escalade', 'escalade', 92],
+        ['Les bons comportements en escalade', 'escalade', 92],
+        ['Mon matériel en escalade 1', 'escalade', 92],
+      ])('should map "%s" to %s with NULL activite', (intitule, expectedCommission) => {
+        const result = getCommissionFromIntitule(intitule, '');
+        expect(result.commission).toBe(expectedCommission);
+        expect(result.certainty).toBeGreaterThanOrEqual(CERTAINTY_THRESHOLD);
+        expect(result.source).toBe('intitule_pattern');
+      });
+
+      it('should map escalade sur glace to alpinisme', () => {
+        const result = getCommissionFromIntitule('1.1 Mon niveau de pratique en escalade sur glace', '');
+        expect(result.commission).toBe('alpinisme');
+      });
+    });
+
+    describe('Activité NULL - Alpinisme', () => {
+      it.each([
+        ['Formation alpinisme', 'alpinisme', 98],
+        ['Cascade de glace niveau 1', 'alpinisme', 98],
+        ['Techniques de dry-tooling', 'alpinisme', 98],
+        ['2.2 Progression sur glacier 1', 'alpinisme', 90],
+      ])('should map "%s" to %s with NULL activite', (intitule, expectedCommission) => {
+        const result = getCommissionFromIntitule(intitule, '');
+        expect(result.commission).toBe(expectedCommission);
+        expect(result.certainty).toBeGreaterThanOrEqual(CERTAINTY_THRESHOLD);
+      });
+    });
+
+    describe('Activité NULL - Canyon', () => {
+      it.each([
+        ['Formation canyon', 'canyon', 98],
+        ['Descente de canyon', 'canyon', 98],
+        ['Techniques de canyoning', 'canyon', 98],
+      ])('should map "%s" to %s with NULL activite', (intitule, expectedCommission) => {
+        const result = getCommissionFromIntitule(intitule, '');
+        expect(result.commission).toBe(expectedCommission);
+      });
+    });
+
+    describe('Activité NULL - VTT', () => {
+      it.each([
+        ['Formation VTT', 'vtt', 98],
+        ['Vélo de montagne niveau 1', 'vtt', 98],
+      ])('should map "%s" to %s with NULL activite', (intitule, expectedCommission) => {
+        const result = getCommissionFromIntitule(intitule, '');
+        expect(result.commission).toBe(expectedCommission);
+      });
+    });
+
+    describe('Activité NULL - Compétences transversales', () => {
+      it('should return null for truly transversal competences', () => {
+        const result = getCommissionFromIntitule('3.3 Environnement de pratique - milieu montagne 1', '');
+        expect(result.commission).toBeNull();
+        expect(result.warning).toContain('transversale');
       });
     });
   });

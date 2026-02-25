@@ -1,10 +1,23 @@
 /**
  * Importeur pour les compétences dans la base de données
+ *
+ * Utilise le fichier CSV data/groupes-competences-commissions.csv comme
+ * source de vérité pour le mapping GC → Commissions.
  */
 import { Competence } from '../types';
 import BaseImporter from './base-importer';
 
 class CompetencesImporter extends BaseImporter<Competence> {
+  /**
+   * Override de la méthode import pour initialiser le mapping GC depuis le CSV
+   */
+  async import(items: Competence[], _metadata?: any): Promise<void> {
+    // Initialiser le mapping GC depuis le CSV avant l'import
+    this.commissionLinker.initGcMapping();
+
+    // Appeler la méthode parente
+    return super.import(items, _metadata);
+  }
   protected getDataKey(): 'competences' {
     return 'competences';
   }
@@ -38,6 +51,9 @@ class CompetencesImporter extends BaseImporter<Competence> {
   protected async importItemToDb(competence: Competence): Promise<void> {
     try {
       // 1. Upsert dans formation_referentiel_groupe_competence
+      // Note: On utilise '' au lieu de NULL pour code_activite car MySQL ne considère pas
+      // NULL = NULL dans les index uniques, ce qui causerait des doublons
+      const codeActivite = competence.codeActivite || '';
       await this.db.execute(
         `INSERT INTO formation_referentiel_groupe_competence
          (intitule, code_activite, activite, created_at, updated_at)
@@ -47,7 +63,7 @@ class CompetencesImporter extends BaseImporter<Competence> {
          updated_at = NOW()`,
         [
           competence.intituleCompetence,
-          competence.codeActivite || null,
+          codeActivite,
           competence.activite || null
         ]
       );
@@ -55,12 +71,11 @@ class CompetencesImporter extends BaseImporter<Competence> {
       // 2. Récupérer l'ID de la compétence depuis le référentiel
       const [competenceRows] = await this.db.execute(
         `SELECT id FROM formation_referentiel_groupe_competence
-         WHERE intitule = ? AND (code_activite = ? OR (code_activite IS NULL AND ? IS NULL))
+         WHERE intitule = ? AND code_activite = ?
          LIMIT 1`,
         [
           competence.intituleCompetence,
-          competence.codeActivite || null,
-          competence.codeActivite || null
+          codeActivite
         ]
       );
 
@@ -70,8 +85,12 @@ class CompetencesImporter extends BaseImporter<Competence> {
 
       const competenceId = competenceRows[0].id;
 
-      // 2b. Lier la compétence à sa commission (si applicable)
-      await this.commissionLinker.linkCompetence(competenceId, competence.activite);
+      // 2b. Lier la compétence à ses commissions depuis le CSV (many-to-many)
+      // Le CSV est la source de vérité pour le mapping GC → Commissions
+      await this.commissionLinker.linkCompetenceFromCsv(
+        competenceId,
+        competence.intituleCompetence
+      );
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(competence.adherentId);

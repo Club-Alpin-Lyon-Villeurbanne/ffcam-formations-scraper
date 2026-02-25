@@ -8,8 +8,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { FfcamConfig, PathsConfig, DatabaseConfig, ImportReport } from './types';
 
-// Charger les variables d'environnement
-dotenv.config();
+// Charger les variables d'environnement selon NODE_ENV
+const envFile = process.env.NODE_ENV === 'production'
+  ? '.env.production'
+  : process.env.NODE_ENV === 'staging'
+    ? '.env.staging'
+    : '.env';
+dotenv.config({ path: envFile });
 
 // =============================================================================
 // Configuration FFCAM
@@ -61,7 +66,9 @@ export const dbConfig: DatabaseConfig = {
   database: process.env.MYSQL_ADDON_DB!,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  connectTimeout: 30000, // 30s timeout pour la connexion
+  // Note: timeout des requêtes géré via query timeout MySQL
 };
 
 export default dbConfig;

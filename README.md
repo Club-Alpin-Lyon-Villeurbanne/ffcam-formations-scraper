@@ -41,7 +41,15 @@ Copiez le fichier `.env.example` en `.env` et configurez-le :
 cp .env.example .env
 ```
 
-Puis éditez le fichier `.env` :
+Le fichier `.env` chargé dépend de `NODE_ENV` :
+
+| `NODE_ENV`   | Fichier chargé      |
+|--------------|---------------------|
+| _(non défini)_ | `.env`            |
+| `staging`    | `.env.staging`      |
+| `production` | `.env.production`   |
+
+Exemple de contenu :
 
 ```env
 # OBLIGATOIRE : Session FFCAM
@@ -68,8 +76,12 @@ Pour obtenir votre session ID :
 ### Import (scraping → base de données)
 
 ```bash
-# Import complet
+# Import complet (dev, SQLite par défaut)
 npm run import
+
+# Import en staging ou production
+NODE_ENV=staging npm run import
+NODE_ENV=production npm run import
 
 # Mode test (dry-run sans importer)
 npm run import:dry
@@ -227,7 +239,9 @@ ffcam-formations-adherents-scraper/
 ├── data/                   # Données (gitignored)
 │   ├── local.db            # Base SQLite (auto-créée)
 │   └── reports/            # Rapports d'import JSON
-├── .env                    # Configuration (gitignored)
+├── .env                    # Config locale (gitignored)
+├── .env.staging            # Config staging (gitignored)
+├── .env.production         # Config production (gitignored)
 ├── .env.example            # Template
 └── tsconfig.json           # Config TypeScript
 ```
