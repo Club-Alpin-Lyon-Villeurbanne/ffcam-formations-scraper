@@ -1,7 +1,11 @@
 /**
  * Tests unitaires pour le mapping GC → Commissions depuis CSV
+ *
+ * Ces tests nécessitent le fichier data/groupes-competences-commissions.csv
+ * qui n'est pas versionné (gitignored). Ils sont automatiquement skippés en CI.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
+import * as fs from 'fs';
 import * as path from 'path';
 import {
   loadGcMapping,
@@ -12,12 +16,15 @@ import {
   GcCommissionMapping,
 } from './gc-csv-mapping';
 
-describe('gc-csv-mapping', () => {
+const csvPath = path.resolve(__dirname, '../../data/groupes-competences-commissions.csv');
+const csvExists = fs.existsSync(csvPath);
+
+const describeWithCsv = csvExists ? describe : describe.skip;
+
+describeWithCsv('gc-csv-mapping', () => {
   let mapping: GcCommissionMapping;
 
   beforeAll(() => {
-    // Charger le mapping depuis le fichier CSV réel
-    const csvPath = path.resolve(__dirname, '../../data/groupes-competences-commissions.csv');
     mapping = loadGcMapping(csvPath);
   });
 
