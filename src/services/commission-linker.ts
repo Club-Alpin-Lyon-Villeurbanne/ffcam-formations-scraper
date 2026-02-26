@@ -407,7 +407,7 @@ export class CommissionLinker {
         type: 'competence',
         id: competenceId,
         intitule: intitule || '',
-        activite: activite,
+        activite: activite || '',
         certainty: result.certainty,
         warning: result.warning,
         suggestedCommission: result.matchedPattern ? result.commission || undefined : undefined

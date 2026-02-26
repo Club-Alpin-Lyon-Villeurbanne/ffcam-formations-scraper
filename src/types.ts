@@ -159,6 +159,7 @@ export interface DatabaseConfig {
   waitForConnections: boolean;
   connectionLimit: number;
   queueLimit: number;
+  connectTimeout?: number;
 }
 
 // =============================================================================
