@@ -85,6 +85,14 @@ describe('commission-mapping', () => {
       it('should map BRV-NIVO to ski-de-randonnee', () => {
         expect(getCommissionsForBrevet('BRV-NIVO')).toContain('ski-de-randonnee');
       });
+
+      it('should map BRV-UFNA to ski-de-randonnee', () => {
+        expect(getCommissionsForBrevet('BRV-UFNA')).toContain('ski-de-randonnee');
+      });
+
+      it('should map BRV-BFST10 to snowboard-alpin', () => {
+        expect(getCommissionsForBrevet('BRV-BFST10')).toContain('snowboard-alpin');
+      });
     });
 
     describe('VTT', () => {

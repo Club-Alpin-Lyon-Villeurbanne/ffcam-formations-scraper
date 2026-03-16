@@ -69,6 +69,7 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BF\d?-SN-SWA/i, commission: 'snowboard-alpin' },
   { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
+  { pattern: /^BRV-BFST/i, commission: 'snowboard-alpin' },
 
   // VTT / Vélo de Montagne : BF1-VM-*, BF2-VM-*
   { pattern: /^BF\d?-VM-/i, commission: 'vtt' },
