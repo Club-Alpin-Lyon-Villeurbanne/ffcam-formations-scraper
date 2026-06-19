@@ -9,6 +9,7 @@
     "import:brevets": "tsx src/import.ts --brevets",
     "import:niveaux": "tsx src/import.ts --niveaux",
     "import:competences": "tsx src/import.ts --competences",
+    "diagnostic:brevets": "tsx src/diagnostic-brevets.ts",
     "dev": "npm run import:dry",
     "build": "tsc",
     "type-check": "tsc --noEmit",
