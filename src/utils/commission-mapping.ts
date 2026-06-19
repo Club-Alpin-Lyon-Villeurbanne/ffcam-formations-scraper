@@ -46,37 +46,43 @@ export const CERTAINTY_THRESHOLD = 70;
 /**
  * Patterns de codes brevets → commission (slug)
  * Les patterns sont évalués dans l'ordre, le premier qui matche gagne
+ *
+ * Préfixe : BF\d? couvre BF/BF1/BF2 (brevets fédéraux), BFM couvre les
+ * Brevets Fédéraux Moniteur (ex: BFM-AL-GV, BFM-ES-PF, BFM-SN-RN). D'où le
+ * préfixe commun /^BF(\d|M)?-/ partagé par toutes les disciplines.
  */
 const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   // Escalade : BF1-ES-*, BF2-ES-*
-  { pattern: /^BF\d?-ES-/i, commission: 'escalade' },
+  { pattern: /^BF(\d|M)?-ES-/i, commission: 'escalade' },
 
   // Alpinisme : BF1-AL-*, BF2-AL-* (inclut cascade de glace CG, alpinisme AL, grande voie GV)
-  { pattern: /^BF\d?-AL-/i, commission: 'alpinisme' },
+  { pattern: /^BF(\d|M)?-AL-/i, commission: 'alpinisme' },
 
   // Canyon : BF1-CA-*, BF2-CA-*
-  { pattern: /^BF\d?-CA-/i, commission: 'canyon' },
+  { pattern: /^BF(\d|M)?-CA-/i, commission: 'canyon' },
 
   // Randonnée : BF1-RA-*, BF2-RA-* (RM=rando montagne, RAL=rando alpine, TR=trail)
-  { pattern: /^BF\d?-RA-/i, commission: 'randonnee' },
+  { pattern: /^BF(\d|M)?-RA-/i, commission: 'randonnee' },
 
-  // Sports de Neige : BF1-SN-*, BF2-SN-*
-  // SR=Ski Rando, SA=Ski Alpin, RQ=Raquette, SW=Snowboard, SWA=Snowboard Alpin
-  { pattern: /^BF\d?-SN-SR/i, commission: 'ski-de-randonnee' },
-  { pattern: /^BF\d?-SN-SA/i, commission: 'ski-de-piste' },
-  { pattern: /^BF\d?-SN-RQ/i, commission: 'raquette' },
-  { pattern: /^BF\d?-SN-SW$/i, commission: 'snowboard-rando' },
-  { pattern: /^BF\d?-SN-SWA/i, commission: 'snowboard-alpin' },
+  // Sports de Neige : BF1-SN-*, BF2-SN-*, BFM-SN-*
+  // SR=Ski Rando, SA=Ski Alpin, RQ/RN=Raquette, SW/SWL=Snowboard, SWA=Snowboard Alpin
+  { pattern: /^BF(\d|M)?-SN-SR/i, commission: 'ski-de-randonnee' },
+  { pattern: /^BF(\d|M)?-SN-SA/i, commission: 'ski-de-piste' },
+  { pattern: /^BF(\d|M)?-SN-RQ/i, commission: 'raquette' },
+  { pattern: /^BF(\d|M)?-SN-RN/i, commission: 'raquette' },
+  { pattern: /^BF(\d|M)?-SN-SW$/i, commission: 'snowboard-rando' },
+  { pattern: /^BFM-SN-SWL/i, commission: 'snowboard-rando' },
+  { pattern: /^BF(\d|M)?-SN-SWA/i, commission: 'snowboard-alpin' },
   { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-BFST/i, commission: 'snowboard-alpin' },
 
   // VTT / Vélo de Montagne : BF1-VM-*, BF2-VM-*
-  { pattern: /^BF\d?-VM-/i, commission: 'vtt' },
+  { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
   // Trail : souvent dans RA (BF1-RA-TR) - déjà couvert par randonnée
   // Mais on peut aussi l'associer explicitement à trail
-  { pattern: /^BF\d?-RA-TR/i, commission: 'trail' },
+  { pattern: /^BF(\d|M)?-RA-TR/i, commission: 'trail' },
 ];
 
 /**

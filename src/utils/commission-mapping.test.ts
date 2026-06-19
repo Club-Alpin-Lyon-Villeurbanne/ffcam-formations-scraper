@@ -78,6 +78,18 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet('BF1-SN-SW')).toContain('snowboard-rando');
       });
 
+      it('should map BFM-SN-SWL to snowboard-rando', () => {
+        expect(getCommissionsForBrevet('BFM-SN-SWL')).toContain('snowboard-rando');
+      });
+
+      it('should map BFM-SN-SR to ski-de-randonnee', () => {
+        expect(getCommissionsForBrevet('BFM-SN-SR')).toContain('ski-de-randonnee');
+      });
+
+      it('should map BFM-SN-RN (raquettes à neige) to raquette', () => {
+        expect(getCommissionsForBrevet('BFM-SN-RN')).toContain('raquette');
+      });
+
       it('should map BF1-SN-SWA to snowboard-alpin', () => {
         expect(getCommissionsForBrevet('BF1-SN-SWA')).toContain('snowboard-alpin');
       });
@@ -109,6 +121,24 @@ describe('commission-mapping', () => {
         const commissions = getCommissionsForBrevet('BF1-RA-TR');
         expect(commissions).toContain('randonnee');
         expect(commissions).toContain('trail');
+      });
+    });
+
+    describe('Brevets Moniteur (BFM)', () => {
+      it.each([
+        ['BFM-AL-GV', 'alpinisme'],
+        ['BFM-AL-CG', 'alpinisme'],
+        ['BFM-ES-GV', 'escalade'],
+        ['BFM-ES-GVE', 'escalade'],
+        ['BFM-ES-ES', 'escalade'],
+        ['BFM-ES-PF', 'escalade'],
+        ['BFM-RA-RM', 'randonnee'],
+        ['BFM-RA-RA', 'randonnee'],
+        ['BFM-SN-SR', 'ski-de-randonnee'],
+        ['BFM-SN-RN', 'raquette'],
+        ['BFM-SN-SWL', 'snowboard-rando'],
+      ])('should map %s to %s', (code, commission) => {
+        expect(getCommissionsForBrevet(code)).toContain(commission);
       });
     });
 
