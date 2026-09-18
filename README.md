@@ -321,6 +321,7 @@ Le projet suit le principe KISS (Keep It Simple, Stupid) :
 ## Documentation technique
 
 - **[docs/FFCAM-API.md](docs/FFCAM-API.md)** : Documentation reverse-engineered de l'API FFCAM Extranet
+- **[docs/adr/](docs/adr/)** : décisions d'architecture (multi-club, import automatique)
 
 ## Notes importantes
 
