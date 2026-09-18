@@ -18,7 +18,7 @@ Les données sont importées directement dans une base de données SQLite (local
 - pnpm (v10.13.1)
 - TypeScript (installé automatiquement)
 - Accès à l'extranet FFCAM avec un compte valide
-- Base de données MySQL (optionnel, SQLite utilisé par défaut)
+- Base de données MySQL de la plateforme (`caf_commission`, `caf_user`) pour un import club ; SQLite n'est utilisé que pour développer le scraper en local
 
 ## Installation
 
@@ -46,7 +46,7 @@ Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 
 [`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque club de la matrice. Lancement manuel : onglet Actions → Import FFCAM → Run workflow (cochez « Import à blanc » pour tester).
 
-**Ajouter un club** : un mainteneur crée l'environment (`gh api -X PUT repos/<owner>/<repo>/environments/<club>`), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et la variable `CLUB_CODE` dans Settings → Environments, et on ajoute son identifiant dans `matrix.club`.
+**Ajouter un club** : un mainteneur crée l'environment (`gh api -X PUT repos/<owner>/<repo>/environments/<club>`), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute son identifiant dans `matrix.club`.
 
 **En cas d'échec** : GitHub envoie un e-mail ; le step « Vérification de la configuration » du run dit quoi corriger (mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable). Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
 
@@ -81,7 +81,7 @@ CLUB_CODE=6900
 # OBLIGATOIRE : Identifiant du club, sélectionne config/clubs/<club>/
 CLUB=lyon
 
-# OPTIONNEL : MySQL (sinon SQLite par défaut)
+# OBLIGATOIRE pour un import club (SQLite ne sert qu'au développement local du scraper)
 MYSQL_ADDON_HOST=localhost
 MYSQL_ADDON_PORT=3306
 MYSQL_ADDON_USER=votre_user
@@ -108,6 +108,9 @@ et le club actif est sélectionné par la variable `CLUB` (ex. `CLUB=lyon`).
 ### Import (scraping → base de données)
 
 ```bash
+# Vérifie la configuration avant le premier import
+npm run check
+
 # Import complet (dev, SQLite par défaut)
 npm run import
 

@@ -41,6 +41,9 @@ describe('extractSid', () => {
   it('retourne null si absent', () => {
     expect(extractSid('<html>Session expirée</html>')).toBeNull();
   });
+  it("extrait un sid contenant un tiret", () => {
+    expect(extractSid("Effectifs/accueil.php?sid=aB3-xY9-kZ&ish=100")).toBe('aB3-xY9-kZ');
+  });
 });
 
 describe('pickProfile', () => {

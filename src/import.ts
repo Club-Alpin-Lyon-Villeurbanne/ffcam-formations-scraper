@@ -26,6 +26,8 @@ import { CommissionLinker } from './services/commission-linker';
 import Logger from './utils/logger';
 import { ensureDirectories, saveImportReport, FFCAM_CONFIG, getClubCode, getClubConfigDir } from './config';
 import { getSessionId } from './auth/ffcam-sso';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Types d'import disponibles
 type ImportType = 'formations' | 'brevets' | 'niveaux' | 'competences';
@@ -170,7 +172,14 @@ async function main(): Promise<void> {
   try { getClubCode(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
 
   if (TYPES_TO_IMPORT.includes('competences')) {
-    try { getClubConfigDir(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+    try {
+      const clubDir = getClubConfigDir();
+      const csvPath = path.join(clubDir, 'groupes-competences-commissions.csv');
+      if (!fs.existsSync(csvPath)) {
+        console.error(`❌ Fichier ${path.relative(process.cwd(), csvPath)} introuvable — copiez config/clubs/lyon/groupes-competences-commissions.csv et adaptez la colonne commission`);
+        process.exit(1);
+      }
+    } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
   }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);

@@ -12,7 +12,7 @@ import { FFCAM_CONFIG, getClubCode, getClubConfigDir } from './config';
 import { FfcamSsoError } from './auth/ffcam-sso';
 import { loadGcMapping, getMappingStats } from './utils/gc-csv-mapping';
 import { getAllMappedCommissionSlugs } from './utils/commission-mapping';
-import { getDatabase } from './database/db-factory';
+import { getDatabase, determineAdapter } from './database/db-factory';
 import NiveauxScraper from './scrapers/niveaux-scraper';
 
 let failures = 0;
@@ -55,6 +55,7 @@ async function main(): Promise<void> {
       const probe = await new NiveauxScraper().probe();
       ok(`Login SSO et extranet OK : ${probe.records} niveaux de pratique visibles`);
       if (!probe.clubCode) warn("Impossible de lire le code club sur l'extranet (aucun niveau de pratique saisi ?)");
+      else if (!clubCode) { /* CLUB_CODE invalide : déjà signalé en section 1 */ }
       else if (probe.clubCode === clubCode) ok(`Le profil extranet est bien celui du club ${clubCode}`);
       else ko(`Le profil extranet est celui du club ${probe.clubCode}, pas ${clubCode}`, 'Vérifiez CLUB_CODE, ou FFCAM_PROFILE si le compte a plusieurs profils');
     } catch (error: any) {
@@ -64,35 +65,39 @@ async function main(): Promise<void> {
   }
 
   console.log('\n4. Base de données');
-  const db = getDatabase();
-  try {
-    await db.connect();
-    ok('Connexion établie');
+  if (determineAdapter() === 'sqlite') {
+    ko('Base SQLite locale sélectionnée (variables MYSQL_ADDON_* incomplètes)', "Renseignez MYSQL_ADDON_HOST, USER, PASSWORD et DB : les tables caf_commission / caf_user n'existent que dans la plateforme");
+  } else {
+    const db = getDatabase();
     try {
-      const [rows] = await db.execute('SELECT code_commission FROM caf_commission');
-      const inDb = new Set((rows as Array<{ code_commission: string }>).map(r => r.code_commission));
-      const needed = [...new Set([...getAllMappedCommissionSlugs(), ...gcCommissions])].sort();
-      const missing = needed.filter(slug => !inDb.has(slug));
-      ok(`${inDb.size} commissions en base`);
-      if (missing.length === 0) ok('Toutes les commissions attendues par le mapping existent');
-      else ko(`${missing.length} commission(s) absente(s) de caf_commission : ${missing.join(', ')}`, 'Créez-les dans la plateforme avec ce code_commission, sinon les liaisons correspondantes seront ignorées');
-    } catch (error: any) {
-      warn(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Ce contrôle nécessite la base MySQL de la plateforme (MYSQL_ADDON_*)');
-    }
-    if (clubCode) {
+      await db.connect();
+      ok('Connexion établie');
       try {
-        const [countRows] = await db.execute('SELECT COUNT(*) AS total FROM caf_user WHERE cafnum_user LIKE ?', [`${clubCode}%`]);
-        const total = (countRows as any[])[0]?.total ?? 0;
-        if (total > 0) ok(`${total} adhérents du club ${clubCode} dans caf_user`);
-        else ko(`Aucun adhérent avec un cafnum en ${clubCode}… dans caf_user`, "Vérifiez CLUB_CODE, et que les adhérents sont importés dans la plateforme");
+        const [rows] = await db.execute('SELECT code_commission FROM caf_commission');
+        const inDb = new Set((rows as Array<{ code_commission: string }>).map(r => r.code_commission));
+        const needed = [...new Set([...getAllMappedCommissionSlugs(), ...gcCommissions])].sort();
+        const missing = needed.filter(slug => !inDb.has(slug));
+        ok(`${inDb.size} commissions en base`);
+        if (missing.length === 0) ok('Toutes les commissions attendues par le mapping existent');
+        else ko(`${missing.length} commission(s) absente(s) de caf_commission : ${missing.join(', ')}`, 'Créez-les dans la plateforme avec ce code_commission, sinon les liaisons correspondantes seront ignorées');
       } catch (error: any) {
-        ko(`Lecture de caf_user impossible : ${error.message.split('\n')[0]}`);
+        warn(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Ce contrôle nécessite la base MySQL de la plateforme (MYSQL_ADDON_*)');
       }
+      if (clubCode) {
+        try {
+          const [countRows] = await db.execute('SELECT COUNT(*) AS total FROM caf_user WHERE cafnum_user LIKE ?', [`${clubCode}%`]);
+          const total = (countRows as any[])[0]?.total ?? 0;
+          if (total > 0) ok(`${total} adhérents du club ${clubCode} dans caf_user`);
+          else ko(`Aucun adhérent avec un cafnum en ${clubCode}… dans caf_user`, "Vérifiez CLUB_CODE, et que les adhérents sont importés dans la plateforme");
+        } catch (error: any) {
+          ko(`Lecture de caf_user impossible : ${error.message.split('\n')[0]}`);
+        }
+      }
+    } catch (error: any) {
+      ko(`Base de données : ${error.message.split('\n')[0]}`, 'Vérifiez les variables MYSQL_ADDON_* dans .env');
+    } finally {
+      if (db.isConnected()) await db.close();
     }
-  } catch (error: any) {
-    ko(`Base de données : ${error.message.split('\n')[0]}`, 'Vérifiez les variables MYSQL_ADDON_* dans .env');
-  } finally {
-    if (db.isConnected()) await db.close();
   }
 
   console.log(failures === 0 ? '\n✅ Configuration prête. Étape suivante : npm run import:dry' : `\n❌ ${failures} problème(s) à corriger`);

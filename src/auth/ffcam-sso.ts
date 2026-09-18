@@ -28,7 +28,7 @@ export class FfcamSsoError extends Error {
 
 /** Extrait le sid de : window.location.href = 'Effectifs/accueil.php?sid=XXX&ish=…' */
 export function extractSid(html: string): string | null {
-  const match = html.match(/accueil\.php\?sid=([A-Za-z0-9]+)/);
+  const match = html.match(/accueil\.php\?sid=([^&'"]+)/);
   return match ? match[1] : null;
 }
 
