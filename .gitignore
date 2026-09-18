@@ -29,3 +29,5 @@ pnpm-workspace.yaml
 
 # Claude Code
 .claude/
+# Espace de travail SDD (superpowers)
+.superpowers/
