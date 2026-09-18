@@ -58,8 +58,6 @@ abstract class BaseImporter<T> {
       if (!this.dryRun) {
         await this.importItemToDb(item);
       } else {
-        // En mode dry-run, simuler l'import mais résoudre quand même le mapping
-        // vers les commissions pour remonter les alertes (GC absents, certitude faible...)
         await this.checkMappingDryRun(item);
         // @ts-ignore - accès dynamique aux stats
         this.logger.stats[dataKey].imported++;

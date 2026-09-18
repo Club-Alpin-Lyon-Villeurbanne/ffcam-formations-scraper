@@ -79,8 +79,6 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       if (!this.dryRun) {
         await this.importNiveau(niveau, cursusNiveauId, niveauCourt);
       } else {
-        // En mode dry-run, simuler l'import mais résoudre quand même le mapping
-        // vers les commissions pour remonter les alertes (certitude faible...)
         await this.checkMappingDryRun(niveau);
         this.logger.stats.niveaux.imported++;
       }
