@@ -142,7 +142,7 @@ export class CommissionLinker {
   private async getCommissionId(code: string): Promise<number | null> {
     // Vérifier le cache
     if (this.commissionCache.has(code)) {
-      return this.commissionCache.get(code) || null;
+      return this.commissionCache.get(code) ?? null;
     }
 
     try {
@@ -156,16 +156,17 @@ export class CommissionLinker {
         this.commissionCache.set(code, id);
         return id;
       }
+
+      // Mémoriser l'absence pour éviter de relancer la requête
+      this.commissionCache.set(code, null);
+      return null;
     } catch (error: any) {
-      // Table n'existe peut-être pas (SQLite dev)
+      // Table n'existe peut-être pas (SQLite dev) - ne pas cacher comme absente
       if (!error.message.includes('no such table')) {
         console.error(`Erreur recherche commission ${code}:`, error.message);
       }
+      return null;
     }
-
-    // Mémoriser l'absence pour éviter de relancer la requête
-    this.commissionCache.set(code, null);
-    return null;
   }
 
   /**

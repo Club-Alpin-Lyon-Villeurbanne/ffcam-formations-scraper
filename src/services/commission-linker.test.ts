@@ -41,4 +41,22 @@ describe('CommissionLinker', () => {
     expect(log.mock.calls.flat().join('\n')).toContain('escalade');
     log.mockRestore();
   });
+
+  it('ignore les erreurs SQL (table inexistante) et ne cache pas comme absente', async () => {
+    const execute = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM caf_commission')) {
+        throw new Error('SQLITE_ERROR: no such table: caf_commission');
+      }
+      return [[], []] as [any[], any[]];
+    });
+    const db = { execute } as unknown as DatabaseAdapter;
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const linker = new CommissionLinker(db);
+    expect(await linker.linkBrevet(1, 'BF1-ES-SAE')).toBe(0);
+    expect(linker.getMissingCommissions()).toEqual([]);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+  });
 });
