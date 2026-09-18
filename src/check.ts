@@ -14,26 +14,54 @@ import { loadGcMapping, getMappingStats } from './utils/gc-csv-mapping';
 import { getAllMappedCommissionSlugs } from './utils/commission-mapping';
 import { getDatabase, determineAdapter } from './database/db-factory';
 import NiveauxScraper from './scrapers/niveaux-scraper';
+import { DatabaseAdapter } from './types';
 
-let failures = 0;
-const ok = (m: string) => console.log(`  ✅ ${m}`);
-const warn = (m: string, hint?: string) => { console.log(`  ⚠️  ${m}`); if (hint) console.log(`     👉 ${hint}`); };
-const ko = (m: string, hint?: string) => { failures++; console.log(`  ❌ ${m}`); if (hint) console.log(`     👉 ${hint}`); };
+export interface CheckDeps {
+  /** Identifiants FFCAM (par défaut FFCAM_CONFIG) */
+  config: { EMAIL: string; PASSWORD: string; PROFILE: string };
+  /** getClubCode / getClubConfigDir (lèvent une erreur si absents) */
+  getClubCode: () => string;
+  getClubConfigDir: () => string;
+  /** Sonde extranet (par défaut : () => new NiveauxScraper().probe()) */
+  probe: () => Promise<{ records: number; clubCode: string | null }>;
+  /** determineAdapter / getDatabase */
+  determineAdapter: () => 'sqlite' | 'mysql';
+  getDatabase: () => DatabaseAdapter;
+  /** Sortie (par défaut console.log) */
+  log: (line: string) => void;
+}
 
-async function main(): Promise<void> {
-  console.log('🩺 VÉRIFICATION DE LA CONFIGURATION CLUB\n');
+const defaultDeps: CheckDeps = {
+  config: FFCAM_CONFIG,
+  getClubCode,
+  getClubConfigDir,
+  probe: () => new NiveauxScraper().probe(),
+  determineAdapter,
+  getDatabase,
+  log: line => console.log(line),
+};
 
-  console.log("1. Variables d'environnement");
-  if (FFCAM_CONFIG.EMAIL && FFCAM_CONFIG.PASSWORD) ok(`FFCAM_EMAIL / FFCAM_PASSWORD définis (profil : "${FFCAM_CONFIG.PROFILE}")`);
+/** Exécute les 4 sections ; retourne le nombre de ❌ */
+export async function runCheck(overrides: Partial<CheckDeps> = {}): Promise<number> {
+  const deps: CheckDeps = { ...defaultDeps, ...overrides };
+  let failures = 0;
+  const ok = (m: string) => deps.log(`  ✅ ${m}`);
+  const warn = (m: string, hint?: string) => { deps.log(`  ⚠️  ${m}`); if (hint) deps.log(`     👉 ${hint}`); };
+  const ko = (m: string, hint?: string) => { failures++; deps.log(`  ❌ ${m}`); if (hint) deps.log(`     👉 ${hint}`); };
+
+  deps.log('🩺 VÉRIFICATION DE LA CONFIGURATION CLUB\n');
+
+  deps.log("1. Variables d'environnement");
+  if (deps.config.EMAIL && deps.config.PASSWORD) ok(`FFCAM_EMAIL / FFCAM_PASSWORD définis (profil : "${deps.config.PROFILE}")`);
   else ko('FFCAM_EMAIL / FFCAM_PASSWORD manquants', "Identifiants du portail FFCAM d'un compte ayant un profil extranet du club");
   let clubCode: string | null = null;
-  try { clubCode = getClubCode(); ok(`CLUB_CODE=${clubCode}`); }
+  try { clubCode = deps.getClubCode(); ok(`CLUB_CODE=${clubCode}`); }
   catch (error: any) { ko(error.message, "4 premiers chiffres de vos numéros d'adhérent"); }
   let clubDir: string | null = null;
-  try { clubDir = getClubConfigDir(); ok(`CLUB=${process.env.CLUB} → ${path.relative(process.cwd(), clubDir)}/`); }
+  try { clubDir = deps.getClubConfigDir(); ok(`CLUB=${process.env.CLUB} → ${path.relative(process.cwd(), clubDir)}/`); }
   catch (error: any) { ko(error.message, 'Ajoutez CLUB=<identifiant> dans .env (ex. CLUB=chambery)'); }
 
-  console.log('\n2. Mapping groupes de compétences → commissions');
+  deps.log('\n2. Mapping groupes de compétences → commissions');
   let gcCommissions = new Set<string>();
   if (clubDir) {
     const csvPath = path.join(clubDir, 'groupes-competences-commissions.csv');
@@ -49,10 +77,10 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log("\n3. Accès à l'extranet FFCAM");
-  if (FFCAM_CONFIG.EMAIL && FFCAM_CONFIG.PASSWORD) {
+  deps.log("\n3. Accès à l'extranet FFCAM");
+  if (deps.config.EMAIL && deps.config.PASSWORD) {
     try {
-      const probe = await new NiveauxScraper().probe();
+      const probe = await deps.probe();
       ok(`Login SSO et extranet OK : ${probe.records} niveaux de pratique visibles`);
       if (!probe.clubCode) warn("Impossible de lire le code club sur l'extranet (aucun niveau de pratique saisi ?)");
       else if (!clubCode) { /* CLUB_CODE invalide : déjà signalé en section 1 */ }
@@ -64,11 +92,11 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log('\n4. Base de données');
-  if (determineAdapter() === 'sqlite') {
+  deps.log('\n4. Base de données');
+  if (deps.determineAdapter() === 'sqlite') {
     ko('Base SQLite locale sélectionnée (variables MYSQL_ADDON_* incomplètes)', "Renseignez MYSQL_ADDON_HOST, USER, PASSWORD et DB : les tables caf_commission / caf_user n'existent que dans la plateforme");
   } else {
-    const db = getDatabase();
+    const db = deps.getDatabase();
     try {
       await db.connect();
       ok('Connexion établie');
@@ -100,8 +128,12 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(failures === 0 ? '\n✅ Configuration prête. Étape suivante : npm run import:dry' : `\n❌ ${failures} problème(s) à corriger`);
-  process.exit(failures === 0 ? 0 : 1);
+  deps.log(failures === 0 ? '\n✅ Configuration prête. Étape suivante : npm run import:dry' : `\n❌ ${failures} problème(s) à corriger`);
+  return failures;
 }
 
-main().catch(error => { console.error('❌ Erreur inattendue :', error.message); process.exit(1); });
+if (require.main === module) {
+  runCheck()
+    .then(failures => process.exit(failures === 0 ? 0 : 1))
+    .catch(error => { console.error('❌ Erreur inattendue :', error.message); process.exit(1); });
+}
