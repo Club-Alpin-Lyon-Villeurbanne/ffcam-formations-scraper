@@ -38,7 +38,15 @@ async function main(): Promise<void> {
   if (clubDir) {
     const csvPath = path.join(clubDir, 'groupes-competences-commissions.csv');
     if (!fs.existsSync(csvPath)) ko(`Fichier absent : ${path.relative(process.cwd(), csvPath)}`, 'Copiez config/clubs/lyon/groupes-competences-commissions.csv et adaptez la colonne commission');
-    else { const stats = getMappingStats(loadGcMapping(csvPath)); gcCommissions = stats.uniqueCommissions; ok(`${stats.totalGc} groupes de compétences, ${gcCommissions.size} commissions référencées`); }
+    else {
+      try {
+        const stats = getMappingStats(loadGcMapping(csvPath));
+        gcCommissions = stats.uniqueCommissions;
+        ok(`${stats.totalGc} groupes de compétences, ${gcCommissions.size} commissions référencées`);
+      } catch (error: any) {
+        ko(`Fichier GC illisible : ${error.message.split('\n')[0]}`, 'Vérifiez le format CSV : commission,niveau,groupe_competences');
+      }
+    }
   }
 
   console.log("\n3. Accès à l'extranet FFCAM");
@@ -72,10 +80,14 @@ async function main(): Promise<void> {
       warn(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Ce contrôle nécessite la base MySQL de la plateforme (MYSQL_ADDON_*)');
     }
     if (clubCode) {
-      const [countRows] = await db.execute('SELECT COUNT(*) AS total FROM caf_user WHERE cafnum_user LIKE ?', [`${clubCode}%`]);
-      const total = (countRows as any[])[0]?.total ?? 0;
-      if (total > 0) ok(`${total} adhérents du club ${clubCode} dans caf_user`);
-      else ko(`Aucun adhérent avec un cafnum en ${clubCode}… dans caf_user`, "Vérifiez CLUB_CODE, et que les adhérents sont importés dans la plateforme");
+      try {
+        const [countRows] = await db.execute('SELECT COUNT(*) AS total FROM caf_user WHERE cafnum_user LIKE ?', [`${clubCode}%`]);
+        const total = (countRows as any[])[0]?.total ?? 0;
+        if (total > 0) ok(`${total} adhérents du club ${clubCode} dans caf_user`);
+        else ko(`Aucun adhérent avec un cafnum en ${clubCode}… dans caf_user`, "Vérifiez CLUB_CODE, et que les adhérents sont importés dans la plateforme");
+      } catch (error: any) {
+        ko(`Lecture de caf_user impossible : ${error.message.split('\n')[0]}`);
+      }
     }
   } catch (error: any) {
     ko(`Base de données : ${error.message.split('\n')[0]}`, 'Vérifiez les variables MYSQL_ADDON_* dans .env');
