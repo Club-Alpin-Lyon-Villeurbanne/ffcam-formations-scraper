@@ -21,7 +21,9 @@ dotenv.config({ path: envFile });
 // =============================================================================
 
 export const FFCAM_CONFIG: FfcamConfig = {
-  SESSION_ID: process.env.FFCAM_SESSION_ID || '',
+  EMAIL: process.env.FFCAM_EMAIL || '',
+  PASSWORD: process.env.FFCAM_PASSWORD || '',
+  PROFILE: process.env.FFCAM_PROFILE || 'WEBMASTER',
   ROWS_PER_PAGE: 150,
   API_DELAY: 300, // Délai entre les requêtes en ms
   BASE_URL: 'https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php'

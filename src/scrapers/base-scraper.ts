@@ -3,6 +3,7 @@
  */
 import { ApiRequestParams, ApiResponse, ApiRow } from '../types';
 import { FFCAM_CONFIG, isClubMember } from '../config';
+import { getSessionId } from '../auth/ffcam-sso';
 
 /**
  * Configuration pour un scraper
@@ -21,10 +22,21 @@ abstract class BaseScraper<T = any> {
   protected baseUrl: string;
 
   constructor() {
-    this.sessionId = FFCAM_CONFIG.SESSION_ID;
+    this.sessionId = '';
     this.rowsPerPage = FFCAM_CONFIG.ROWS_PER_PAGE;
     this.apiDelay = FFCAM_CONFIG.API_DELAY;
     this.baseUrl = FFCAM_CONFIG.BASE_URL;
+  }
+
+  /** Obtient le sid (login SSO, une seule fois par processus) */
+  protected async ensureSession(): Promise<void> {
+    if (!this.sessionId) {
+      this.sessionId = await getSessionId({
+        email: FFCAM_CONFIG.EMAIL,
+        password: FFCAM_CONFIG.PASSWORD,
+        profile: FFCAM_CONFIG.PROFILE
+      });
+    }
   }
 
   /**
@@ -42,6 +54,7 @@ abstract class BaseScraper<T = any> {
    * Peut être surchargée par les sous-classes pour retourner des données enrichies
    */
   async scrape(): Promise<T[] | any> {
+    await this.ensureSession();
     const config = this.getScraperConfig();
     console.log(`\n📂 Récupération des ${config.entityNamePlural.toUpperCase()}...\n`);
 
@@ -88,12 +101,8 @@ abstract class BaseScraper<T = any> {
     const text = await response.text();
     if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
       throw new Error(
-        '❌ SESSION_ID expiré ou invalide !\n\n' +
-        '👉 Pour renouveler votre session :\n' +
-        '   1. Connectez-vous à l\'extranet FFCAM\n' +
-        '   2. Copiez le paramètre "sid" dans l\'URL\n' +
-        '      Exemple: https://extranet-clubalpin.com/...?sid=VOTRE_SESSION_ID\n' +
-        '   3. Mettez à jour FFCAM_SESSION_ID dans votre .env'
+        "❌ Session extranet refusée (réponse HTML au lieu de JSON).\n" +
+        "   Le profil extranet du compte FFCAM a peut-être changé : vérifiez FFCAM_PROFILE avec \"npm run check\"."
       );
     }
 
@@ -207,7 +216,7 @@ abstract class BaseScraper<T = any> {
         }
         
       } catch (error: any) {
-        // Sur la première page, une erreur est fatale (SESSION_ID expiré)
+        // Sur la première page, une erreur est fatale (session refusée)
         if (page === 1) {
           throw error;
         }

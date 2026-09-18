@@ -52,8 +52,9 @@ Le fichier `.env` chargé dépend de `NODE_ENV` :
 Exemple de contenu :
 
 ```env
-# OBLIGATOIRE : Session FFCAM
-FFCAM_SESSION_ID=votre_session_id_ici
+# OBLIGATOIRE : Identifiants du portail FFCAM
+FFCAM_EMAIL=votre_email
+FFCAM_PASSWORD=votre_mot_de_passe
 
 # OPTIONNEL : MySQL (sinon SQLite par défaut)
 MYSQL_ADDON_HOST=localhost
@@ -63,13 +64,13 @@ MYSQL_ADDON_PASSWORD=votre_password
 MYSQL_ADDON_DB=votre_database
 ```
 
-### 2. Obtenir votre session ID
+### 2. Authentification FFCAM
 
-Pour obtenir votre session ID :
-1. Connectez-vous à l'extranet FFCAM
-2. Copiez le paramètre **`sid`** dans l'URL de votre navigateur
-   - Exemple : `https://extranet-clubalpin.com/app/Effectifs/accueil.php?sid=VOTRE_SESSION_ID`
-3. Collez-le dans votre fichier `.env` comme valeur de `FFCAM_SESSION_ID`
+Le scraper se connecte automatiquement au portail FFCAM (https://portail.ffcam.fr)
+avec les identifiants `FFCAM_EMAIL` / `FFCAM_PASSWORD` d'un compte ayant un profil
+extranet du club (typiquement « CLUB - WEBMASTER »). Si le compte a plusieurs
+profils extranet, précisez celui à utiliser avec `FFCAM_PROFILE` (sous-chaîne
+insensible à la casse, défaut : `WEBMASTER`).
 
 ## Utilisation
 
@@ -115,8 +116,8 @@ npm run test:coverage
 ### Étapes du sync
 
 **1. Authentification**
-- Le scraper utilise un `SESSION_ID` copié manuellement depuis l'extranet FFCAM
-- Ce SID est passé en paramètre de chaque requête (`?sid=XXX`)
+- Le scraper se connecte automatiquement au portail FFCAM avec `FFCAM_EMAIL` / `FFCAM_PASSWORD` (SSO)
+- Le `sid` extranet obtenu est passé en paramètre de chaque requête (`?sid=XXX`)
 
 **2. Scraping des 4 types de données**
 
@@ -284,21 +285,18 @@ Le projet suit le principe KISS (Keep It Simple, Stupid) :
 
 ## Notes importantes
 
-- La session expire après un certain temps d'inactivité
+- Le `sid` extranet est obtenu automatiquement (SSO) au début de chaque import et expire après un certain temps d'inactivité
 - Les données sont extraites par pages de 150 enregistrements
 - Un délai de 300ms est respecté entre chaque requête
-- Le SESSION_ID n'est jamais commité (stocké dans .env)
+- `FFCAM_EMAIL` / `FFCAM_PASSWORD` ne sont jamais commités (stockés dans .env)
 - TypeScript compile automatiquement avec tsx
 
 ## Dépannage
 
-### Session expirée
-Si vous obtenez l'erreur `❌ SESSION_ID expiré ou invalide !`, votre session a expiré.
+### Identifiants refusés / profil introuvable
+Si vous obtenez l'erreur `❌ Identifiants FFCAM refusés`, vérifiez `FFCAM_EMAIL` / `FFCAM_PASSWORD` dans votre `.env`.
 
-Pour la renouveler :
-1. Reconnectez-vous à l'extranet FFCAM
-2. Copiez le nouveau `sid` dans l'URL
-3. Mettez à jour `FFCAM_SESSION_ID` dans votre `.env`
+Si l'erreur mentionne un profil introuvable ou plusieurs profils correspondants, ajustez `FFCAM_PROFILE`. Pour diagnostiquer : `npm run check`
 
 ### Erreur de connexion MySQL
 Vérifiez vos identifiants dans le fichier `.env` et assurez-vous que le serveur MySQL est accessible.

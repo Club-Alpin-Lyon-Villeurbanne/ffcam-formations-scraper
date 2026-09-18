@@ -133,7 +133,11 @@ export interface ScrapedData<T> {
  * FFCAM configuration
  */
 export interface FfcamConfig {
-  SESSION_ID: string;
+  /** Identifiants du portail FFCAM (https://portail.ffcam.fr) */
+  EMAIL: string;
+  PASSWORD: string;
+  /** Sous-chaîne du profil extranet à utiliser (défaut : WEBMASTER) */
+  PROFILE: string;
   ROWS_PER_PAGE: number;
   API_DELAY: number;
   BASE_URL: string;

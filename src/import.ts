@@ -25,6 +25,7 @@ import { getDatabase } from './database/db-factory';
 import { CommissionLinker } from './services/commission-linker';
 import Logger from './utils/logger';
 import { ensureDirectories, saveImportReport, FFCAM_CONFIG } from './config';
+import { getSessionId } from './auth/ffcam-sso';
 
 // Types d'import disponibles
 type ImportType = 'formations' | 'brevets' | 'niveaux' | 'competences';
@@ -154,23 +155,18 @@ async function main(): Promise<void> {
 
   console.log(`🏔️  IMPORT FFCAM → BASE DE DONNÉES [${typesLabel}]\n`);
 
-  // Vérifier que le SESSION_ID est configuré
-  if (!FFCAM_CONFIG.SESSION_ID) {
-    console.error('❌ SESSION_ID non configuré !');
-    console.error('');
-    console.error('👉 Pour obtenir votre session ID :');
-    console.error('   1. Connectez-vous à l\'extranet FFCAM');
-    console.error('   2. Copiez le paramètre "sid" dans l\'URL');
-    console.error('      Exemple: https://extranet-clubalpin.com/...?sid=VOTRE_SESSION_ID');
-    console.error('');
-    console.error('👉 Ajoutez-le dans votre fichier .env :');
-    console.error('   FFCAM_SESSION_ID=votre_session_id');
+  // Login SSO dès le départ : échec rapide si les identifiants sont mauvais
+  try {
+    await getSessionId({
+      email: FFCAM_CONFIG.EMAIL,
+      password: FFCAM_CONFIG.PASSWORD,
+      profile: FFCAM_CONFIG.PROFILE
+    });
+  } catch (error: any) {
+    console.error(`❌ ${error.message}`);
     process.exit(1);
   }
 
-  // Masquer le SESSION_ID pour la sécurité (afficher seulement les 4 premiers caractères)
-  const maskedSessionId = FFCAM_CONFIG.SESSION_ID.slice(0, 4) + '****' + FFCAM_CONFIG.SESSION_ID.slice(-2);
-  console.log('Session ID:', maskedSessionId);
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   console.log('Timestamp:', timestamp);
   console.log('Types:', TYPES_TO_IMPORT.join(', '));
