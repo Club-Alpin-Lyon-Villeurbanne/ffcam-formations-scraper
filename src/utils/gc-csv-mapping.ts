@@ -7,6 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { getClubConfigDir } from '../config';
 
 /** Type pour le mapping GC → commissions */
 export type GcCommissionMapping = Map<string, string[]>;
@@ -57,7 +58,7 @@ function parseCsvLine(line: string): string[] {
 /**
  * Charge le mapping GC → Commissions depuis le fichier CSV
  *
- * @param csvPath - Chemin vers le fichier CSV (par défaut: data/groupes-competences-commissions.csv)
+ * @param csvPath - Chemin vers le fichier CSV (par défaut: config/clubs/<club>/groupes-competences-commissions.csv)
  * @returns Map avec intitulé GC → liste de slugs commission
  *
  * @example
@@ -69,8 +70,7 @@ function parseCsvLine(line: string): string[] {
  * // → ['alpinisme', 'ski-randonnee-nordique', 'raquette', 'ski-de-randonnee', 'snowboard-rando', ...]
  */
 export function loadGcMapping(csvPath?: string): GcCommissionMapping {
-  const defaultPath = path.resolve(__dirname, '../../data/groupes-competences-commissions.csv');
-  const filePath = csvPath || defaultPath;
+  const filePath = csvPath || path.join(getClubConfigDir(), 'groupes-competences-commissions.csv');
 
   if (!fs.existsSync(filePath)) {
     throw new Error(`Fichier de mapping GC non trouvé: ${filePath}`);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getClubCode, isClubMember } from './config';
+import { getClubCode, isClubMember, getClubConfigDir } from './config';
 
 describe('getClubCode', () => {
   it('accepte un code à 4 chiffres', () => {
@@ -17,5 +17,15 @@ describe('isClubMember', () => {
     expect(isClubMember('652019850001', '6900')).toBe(false);
     expect(isClubMember('690120190027', '6900')).toBe(false); // autre club du Rhône
     expect(isClubMember('', '6900')).toBe(false);
+  });
+});
+
+describe('getClubConfigDir', () => {
+  it('pointe vers config/clubs/<club>', () => {
+    expect(getClubConfigDir('lyon')).toMatch(/config[\\/]clubs[\\/]lyon$/);
+  });
+  it('lève une erreur explicite si CLUB est absent', () => {
+    expect(() => getClubConfigDir(undefined)).toThrow('Variable CLUB non définie');
+    expect(() => getClubConfigDir('')).toThrow('Variable CLUB non définie');
   });
 });

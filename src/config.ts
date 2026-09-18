@@ -52,6 +52,18 @@ export function isClubMember(cafnum: string, clubCode: string = getClubCode()): 
   return Boolean(cafnum) && cafnum.startsWith(clubCode);
 }
 
+/**
+ * Dossier config/clubs/<club> ; l'identifiant vient de la variable CLUB
+ * (ex. "lyon", "chambery"), lue à l'appel pour rester testable.
+ * Pas de valeur par défaut : on refuse de charger le mapping d'un autre club.
+ */
+export function getClubConfigDir(club: string | undefined = process.env.CLUB?.trim()): string {
+  if (!club) {
+    throw new Error('Variable CLUB non définie (ex. CLUB=lyon dans .env) : elle sélectionne config/clubs/<club>/');
+  }
+  return path.resolve(__dirname, '../config/clubs', club);
+}
+
 // =============================================================================
 // Chemins des dossiers
 // =============================================================================

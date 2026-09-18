@@ -24,7 +24,7 @@ import CompetencesImporter from './importers/competences-importer';
 import { getDatabase } from './database/db-factory';
 import { CommissionLinker } from './services/commission-linker';
 import Logger from './utils/logger';
-import { ensureDirectories, saveImportReport, FFCAM_CONFIG, getClubCode } from './config';
+import { ensureDirectories, saveImportReport, FFCAM_CONFIG, getClubCode, getClubConfigDir } from './config';
 import { getSessionId } from './auth/ffcam-sso';
 
 // Types d'import disponibles
@@ -168,6 +168,10 @@ async function main(): Promise<void> {
   }
 
   try { getClubCode(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+
+  if (TYPES_TO_IMPORT.includes('competences')) {
+    try { getClubConfigDir(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+  }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   console.log('Timestamp:', timestamp);

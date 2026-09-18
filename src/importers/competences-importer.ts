@@ -1,7 +1,7 @@
 /**
  * Importeur pour les compétences dans la base de données
  *
- * Utilise le fichier CSV data/groupes-competences-commissions.csv comme
+ * Utilise le fichier CSV config/clubs/<club>/groupes-competences-commissions.csv comme
  * source de vérité pour le mapping GC → Commissions.
  */
 import { Competence } from '../types';

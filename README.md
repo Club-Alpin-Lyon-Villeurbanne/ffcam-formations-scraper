@@ -59,6 +59,9 @@ FFCAM_PASSWORD=votre_mot_de_passe
 # OBLIGATOIRE : Code du club (4 chiffres)
 CLUB_CODE=6900
 
+# OBLIGATOIRE : Identifiant du club, sélectionne config/clubs/<club>/
+CLUB=lyon
+
 # OPTIONNEL : MySQL (sinon SQLite par défaut)
 MYSQL_ADDON_HOST=localhost
 MYSQL_ADDON_PORT=3306
@@ -74,6 +77,12 @@ avec les identifiants `FFCAM_EMAIL` / `FFCAM_PASSWORD` d'un compte ayant un prof
 extranet du club (typiquement « CLUB - WEBMASTER »). Si le compte a plusieurs
 profils extranet, précisez celui à utiliser avec `FFCAM_PROFILE` (sous-chaîne
 insensible à la casse, défaut : `WEBMASTER`).
+
+### 3. Mapping groupes de compétences → commissions
+
+Le mapping des groupes de compétences (GC) vers les commissions est propre à
+chaque club : il vit dans `config/clubs/<club>/groupes-competences-commissions.csv`
+et le club actif est sélectionné par la variable `CLUB` (ex. `CLUB=lyon`).
 
 ## Utilisation
 
@@ -239,6 +248,10 @@ ffcam-formations-adherents-scraper/
 │   ├── importers/          # Logique d'import en DB
 │   ├── services/           # CommissionLinker (liaison référentiels → commissions)
 │   └── utils/              # Logger, commission-mapping (patterns hardcodés)
+├── config/
+│   └── clubs/
+│       └── lyon/
+│           └── groupes-competences-commissions.csv  # Mapping GC → commissions, propre à Lyon
 ├── dist/                   # Code compilé (gitignored)
 ├── data/                   # Données (gitignored)
 │   ├── local.db            # Base SQLite (auto-créée)

@@ -58,7 +58,7 @@ export class CommissionLinker {
   /**
    * Initialise le mapping GC depuis le fichier CSV
    *
-   * @param csvPath - Chemin optionnel vers le CSV (par défaut: data/groupes-competences-commissions.csv)
+   * @param csvPath - Chemin optionnel vers le CSV (par défaut: config/clubs/<club>/groupes-competences-commissions.csv)
    */
   initGcMapping(csvPath?: string): void {
     this.gcMapping = loadGcMapping(csvPath);
