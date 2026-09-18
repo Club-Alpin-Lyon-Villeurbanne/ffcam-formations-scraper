@@ -2,7 +2,7 @@
  * Tests du hook dry-run de BaseImporter : en dry-run, le mapping vers les
  * commissions doit être résolu (sans écrire en base) pour remonter les alertes.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as path from 'path';
 import CompetencesImporter from './competences-importer';
 import { CommissionLinker } from '../services/commission-linker';
@@ -29,6 +29,11 @@ function buildCompetence(overrides: Partial<Competence>): Competence {
 }
 
 describe('BaseImporter - checkMappingDryRun', () => {
+  // CompetencesImporter.import() charge le CSV via CLUB : ne pas dépendre du .env du développeur
+  let previousClub: string | undefined;
+  beforeEach(() => { previousClub = process.env.CLUB; process.env.CLUB = 'lyon'; });
+  afterEach(() => { if (previousClub === undefined) delete process.env.CLUB; else process.env.CLUB = previousClub; });
+
   it('résout le mapping GC en dry-run sans jamais écrire en base et remonte les alertes', async () => {
     // La DB ne doit jamais être sollicitée en dry-run : execute() lève si appelée.
     const db: DatabaseAdapter = {
