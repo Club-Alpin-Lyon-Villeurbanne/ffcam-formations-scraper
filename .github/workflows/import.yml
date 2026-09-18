@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: read
-  actions: write   # keepalive : GitHub désactive les crons après 60 jours sans commit
 
 jobs:
   import:
@@ -27,7 +26,8 @@ jobs:
       fail-fast: false
       max-parallel: 1       # un seul scraping à la fois sur l'extranet FFCAM
       matrix:
-        club: [lyon, chambery]
+        # chambery sera ajouté une fois config/clubs/chambery/ et son environment GitHub créés (cf. README, onboarding)
+        club: [lyon]
     env:
       NODE_ENV: production
       CLUB: ${{ matrix.club }}
@@ -64,6 +64,9 @@ jobs:
   keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write   # GitHub désactive les crons après 60 jours sans commit
     steps:
       - run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/import.yml/enable"
         env:
