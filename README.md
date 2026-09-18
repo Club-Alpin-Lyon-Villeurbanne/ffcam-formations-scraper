@@ -42,6 +42,14 @@ Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 5. **`npm run check`** jusqu'à « Configuration prête », puis **`npm run import:dry`** : les alertes en fin de rapport listent les GC absents de votre CSV.
 6. **`npm run import`**. Pour automatiser, voir « Import automatique ».
 
+## Import automatique (GitHub Actions)
+
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque club de la matrice. Lancement manuel : onglet Actions → Import FFCAM → Run workflow (cochez « Import à blanc » pour tester).
+
+**Ajouter un club** : un mainteneur crée l'environment (`gh api -X PUT repos/<owner>/<repo>/environments/<club>`), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et la variable `CLUB_CODE` dans Settings → Environments, et on ajoute son identifiant dans `matrix.club`.
+
+**En cas d'échec** : GitHub envoie un e-mail ; le step « Vérification de la configuration » du run dit quoi corriger (mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable). Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
+
 ## Configuration
 
 ### 1. Variables d'environnement

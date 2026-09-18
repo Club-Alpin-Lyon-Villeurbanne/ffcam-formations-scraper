@@ -1,0 +1,70 @@
+name: Import FFCAM
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'   # lundi 03:17 UTC (minute non ronde : moins de retard côté GitHub)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Import à blanc (aucune écriture en base)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: write   # keepalive : GitHub désactive les crons après 60 jours sans commit
+
+jobs:
+  import:
+    name: Import ${{ matrix.club }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: ${{ matrix.club }}
+    concurrency:
+      group: import-${{ matrix.club }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1       # un seul scraping à la fois sur l'extranet FFCAM
+      matrix:
+        club: [lyon, chambery]
+    env:
+      NODE_ENV: production
+      CLUB: ${{ matrix.club }}
+      CLUB_CODE: ${{ vars.CLUB_CODE }}
+      FFCAM_EMAIL: ${{ secrets.FFCAM_EMAIL }}
+      FFCAM_PASSWORD: ${{ secrets.FFCAM_PASSWORD }}
+      FFCAM_PROFILE: ${{ vars.FFCAM_PROFILE }}
+      MYSQL_ADDON_HOST: ${{ secrets.MYSQL_ADDON_HOST }}
+      MYSQL_ADDON_PORT: ${{ secrets.MYSQL_ADDON_PORT }}
+      MYSQL_ADDON_USER: ${{ secrets.MYSQL_ADDON_USER }}
+      MYSQL_ADDON_PASSWORD: ${{ secrets.MYSQL_ADDON_PASSWORD }}
+      MYSQL_ADDON_DB: ${{ secrets.MYSQL_ADDON_DB }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Vérification de la configuration
+        run: pnpm run check
+      - name: Import
+        run: pnpm run ${{ inputs.dry_run && 'import:dry' || 'import' }}
+      - name: Rapport
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapport-${{ matrix.club }}-${{ github.run_id }}
+          path: data/reports/*.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/import.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
