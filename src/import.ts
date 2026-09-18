@@ -238,6 +238,7 @@ async function main(): Promise<void> {
 
     // Afficher le rapport final
     logger.printFinalReport(timestamp, DRY_RUN);
+    commissionLinker.printWarningsReport();
 
     // Sauvegarder le rapport
     const rapport: ImportReport = {

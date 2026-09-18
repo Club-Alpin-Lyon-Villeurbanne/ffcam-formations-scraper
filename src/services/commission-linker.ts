@@ -36,7 +36,7 @@ export interface MappingWarning {
 export class CommissionLinker {
   private db: DatabaseAdapter;
   private dryRun: boolean;
-  private commissionCache: Map<string, number> = new Map();
+  private commissionCache: Map<string, number | null> = new Map();
 
   /** Mapping GC → Commissions chargé depuis le CSV */
   private gcMapping: GcCommissionMapping | null = null;
@@ -91,9 +91,21 @@ export class CommissionLinker {
   }
 
   /**
+   * Slugs demandés par les mappings mais absents de caf_commission
+   */
+  getMissingCommissions(): string[] {
+    return [...this.commissionCache.entries()].filter(([, id]) => id === null).map(([slug]) => slug).sort();
+  }
+
+  /**
    * Affiche un rapport des alertes
    */
   printWarningsReport(): void {
+    const missing = this.getMissingCommissions();
+    if (missing.length > 0) {
+      console.log(`\n⚠️  ${missing.length} COMMISSION(S) ABSENTE(S) de caf_commission : ${missing.join(', ')}`);
+      console.log('   👉 Créez-les dans la plateforme avec ce code_commission (les liaisons correspondantes ont été ignorées).');
+    }
     if (this.warnings.length === 0) {
       console.log('\n✅ Aucune alerte de mapping');
       return;
@@ -110,16 +122,12 @@ export class CommissionLinker {
 
     for (const [type, warnings] of Object.entries(byType)) {
       console.log(`  ${type.toUpperCase()} (${warnings.length}):`);
-      // Afficher les 5 premières
-      for (const w of warnings.slice(0, 5)) {
+      for (const w of warnings) {
         console.log(`    - "${w.intitule.substring(0, 50)}..." (${w.activite})`);
         console.log(`      → ${w.warning}`);
         if (w.suggestedCommission) {
           console.log(`      💡 Suggestion: ${w.suggestedCommission} (${w.certainty}%)`);
         }
-      }
-      if (warnings.length > 5) {
-        console.log(`    ... et ${warnings.length - 5} autres`);
       }
     }
 
@@ -155,6 +163,8 @@ export class CommissionLinker {
       }
     }
 
+    // Mémoriser l'absence pour éviter de relancer la requête
+    this.commissionCache.set(code, null);
     return null;
   }
 
