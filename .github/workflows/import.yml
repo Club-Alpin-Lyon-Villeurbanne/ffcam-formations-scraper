@@ -15,22 +15,21 @@ permissions:
 
 jobs:
   import:
-    name: Import ${{ matrix.club }}
+    name: Import ${{ matrix.environment }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: ${{ matrix.club }}
+    environment: ${{ matrix.environment }}
     concurrency:
-      group: import-${{ matrix.club }}
+      group: import-${{ matrix.environment }}
       cancel-in-progress: false
     strategy:
       fail-fast: false
       max-parallel: 1       # un seul scraping à la fois sur l'extranet FFCAM
       matrix:
-        # chambery sera ajouté une fois config/clubs/chambery/ et son environment GitHub créés (cf. README, onboarding)
-        club: [lyon]
+        environment: [lyon-staging]   # un environment GitHub par base cible (lyon = production, à ajouter une fois le staging validé)
     env:
       NODE_ENV: production
-      CLUB: ${{ matrix.club }}
+      CLUB: ${{ vars.CLUB }}
       CLUB_CODE: ${{ vars.CLUB_CODE }}
       FFCAM_EMAIL: ${{ secrets.FFCAM_EMAIL }}
       FFCAM_PASSWORD: ${{ secrets.FFCAM_PASSWORD }}
@@ -56,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rapport-${{ matrix.club }}-${{ github.run_id }}
+          name: rapport-${{ matrix.environment }}-${{ github.run_id }}
           path: data/reports/*.json
           if-no-files-found: ignore
           retention-days: 90

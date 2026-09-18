@@ -44,9 +44,9 @@ Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 
 ## Import automatique (GitHub Actions)
 
-[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque club de la matrice. Lancement manuel : onglet Actions → Import FFCAM → Run workflow (cochez « Import à blanc » pour tester).
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice. Lancement manuel : onglet Actions → Import FFCAM → Run workflow (cochez « Import à blanc » pour tester).
 
-**Ajouter un club** : un mainteneur crée l'environment (`gh api -X PUT repos/<owner>/<repo>/environments/<club>`), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute son identifiant dans `matrix.club`.
+**Ajouter un club ou une base** : un mainteneur crée l'environment GitHub (ex. `chambery`, ou `lyon-staging` pour une base de test), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB`, `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute le nom de l'environment dans `matrix.environment`.
 
 **En cas d'échec** : GitHub envoie un e-mail ; le step « Vérification de la configuration » du run dit quoi corriger (mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable). Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
 
