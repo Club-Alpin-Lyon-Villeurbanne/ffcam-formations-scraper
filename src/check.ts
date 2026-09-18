@@ -109,7 +109,7 @@ export async function runCheck(overrides: Partial<CheckDeps> = {}): Promise<numb
         if (missing.length === 0) ok('Toutes les commissions attendues par le mapping existent');
         else ko(`${missing.length} commission(s) absente(s) de caf_commission : ${missing.join(', ')}`, 'Créez-les dans la plateforme avec ce code_commission, sinon les liaisons correspondantes seront ignorées');
       } catch (error: any) {
-        warn(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Ce contrôle nécessite la base MySQL de la plateforme (MYSQL_ADDON_*)');
+        ko(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Vérifiez que caf_commission existe dans la base MySQL de la plateforme et que le compte possède le droit SELECT');
       }
       if (clubCode) {
         try {

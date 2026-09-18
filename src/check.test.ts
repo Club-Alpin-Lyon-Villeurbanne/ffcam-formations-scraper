@@ -172,9 +172,12 @@ describe('runCheck', () => {
     expect(close).not.toHaveBeenCalled();
   });
 
-  it('13. caf_commission illisible : avertissement, pas un échec', async () => {
+  it.each([
+    "Table 'caf_commission' doesn't exist",
+    "SELECT command denied to user for table 'caf_commission'",
+  ])('13. caf_commission illisible bloque le contrôle : %s', async (message) => {
     const execute = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM caf_commission')) throw new Error('SQLITE_ERROR: no such table: caf_commission');
+      if (sql.includes('FROM caf_commission')) throw new Error(message);
       if (sql.includes('FROM caf_user')) return [[{ total: 3027 }], []];
       return [[], []];
     });
@@ -182,7 +185,9 @@ describe('runCheck', () => {
     const { base, lines } = deps({ getDatabase: () => db });
     const failures = await runCheck(base);
     const out = output(lines);
-    expect(failures).toBe(0);
-    expect(out).toContain('caf_commission illisible');
+    expect(failures).toBe(1);
+    expect(out).toContain('❌ caf_commission illisible');
+    expect(out).not.toContain('Configuration prête');
+    expect(db.close).toHaveBeenCalledOnce();
   });
 });
