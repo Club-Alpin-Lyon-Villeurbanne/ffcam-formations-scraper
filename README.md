@@ -56,6 +56,9 @@ Exemple de contenu :
 FFCAM_EMAIL=votre_email
 FFCAM_PASSWORD=votre_mot_de_passe
 
+# OBLIGATOIRE : Code du club (4 chiffres)
+CLUB_CODE=6900
+
 # OPTIONNEL : MySQL (sinon SQLite par défaut)
 MYSQL_ADDON_HOST=localhost
 MYSQL_ADDON_PORT=3306
