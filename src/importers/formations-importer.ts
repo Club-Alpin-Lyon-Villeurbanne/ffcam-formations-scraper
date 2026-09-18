@@ -54,6 +54,13 @@ class FormationsImporter extends BaseImporter<Formation> {
   }
 
   /**
+   * En dry-run : résout le mapping formation → commission sans écrire
+   */
+  protected async checkMappingDryRun(formation: Formation): Promise<void> {
+    await this.commissionLinker.linkFormation(0, formation.codeFormation);
+  }
+
+  /**
    * Importe une formation dans la base de données
    */
   protected async importItemToDb(formation: Formation): Promise<void> {

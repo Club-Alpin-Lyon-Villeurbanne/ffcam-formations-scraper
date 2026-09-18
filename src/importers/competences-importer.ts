@@ -46,6 +46,13 @@ class CompetencesImporter extends BaseImporter<Competence> {
   }
 
   /**
+   * En dry-run : résout le mapping GC → Commissions depuis le CSV sans écrire
+   */
+  protected async checkMappingDryRun(competence: Competence): Promise<void> {
+    await this.commissionLinker.linkCompetenceFromCsv(0, competence.intituleCompetence);
+  }
+
+  /**
    * Importe une compétence dans la base de données
    */
   protected async importItemToDb(competence: Competence): Promise<void> {
