@@ -73,6 +73,18 @@ abstract class BaseScraper<T = any> {
   }
 
   /**
+   * Login + page 1 avec une seule ligne : valide la session.
+   * `clubCode` = col_2 de la première ligne (code du club sur les grilles compétences et niveaux).
+   */
+  async probe(): Promise<{ records: number; clubCode: string | null }> {
+    await this.ensureSession();
+    const config = this.getScraperConfig();
+    const url = this.buildUrl({ def: config.def, mode: 'liste', sidx: config.sidx || `jqGrid_${config.def}_NOMCOMPLET`, sord: 'asc', page: 1, rows: 1 });
+    const data = await this.fetchData(url);
+    return { records: parseInt(data.records.toString(), 10), clubCode: data.rows[0]?.cell?.col_2 || null };
+  }
+
+  /**
    * Construit l'URL avec les paramètres
    */
   protected buildUrl(params: ApiRequestParams): string {

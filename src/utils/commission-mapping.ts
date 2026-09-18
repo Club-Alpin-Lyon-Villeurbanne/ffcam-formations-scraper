@@ -843,3 +843,14 @@ export const COMMISSIONS = [
 ] as const;
 
 export type Commission = typeof COMMISSIONS[number];
+
+/** Tous les slugs de commission référencés par les mappings (pour `npm run check`) */
+export function getAllMappedCommissionSlugs(): string[] {
+  const slugs = new Set<string>();
+  for (const { commission } of BREVET_PATTERNS) slugs.add(commission);
+  for (const { commission } of FORMATION_PATTERNS) slugs.add(commission);
+  for (const commission of Object.values(ACTIVITE_MAP)) slugs.add(commission);
+  for (const commission of Object.values(SPORTS_NEIGE_DISCIPLINE_MAP)) slugs.add(commission);
+  for (const { commission } of INTITULE_DISCIPLINE_PATTERNS) slugs.add(commission);
+  return [...slugs].sort();
+}
