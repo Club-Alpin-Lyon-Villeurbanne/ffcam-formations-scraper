@@ -56,6 +56,22 @@ describe('pickProfile', () => {
   it('échoue si plusieurs profils correspondent', () => {
     expect(() => pickProfile(PROFILES, 'C')).toThrow(/plusieurs profils/i);
   });
+  it('sélectionne un profil par son extranetId', () => {
+    expect(pickProfile(PROFILES, '21465').profile).toBe('SIEGE - CONSULTATION');
+  });
+  it("départage deux libellés identiques par l'id", () => {
+    const list = [
+      { extranetId: '15230', profile: 'CLUB - WEBMASTER' },
+      { extranetId: '99999', profile: 'CLUB - WEBMASTER' },
+    ];
+    expect(() => pickProfile(list, 'WEBMASTER')).toThrow(/plusieurs profils/i);
+    try {
+      pickProfile(list, 'WEBMASTER');
+    } catch (error: any) {
+      expect(error.message).toContain('(id 15230)');
+    }
+    expect(pickProfile(list, '99999').extranetId).toBe('99999');
+  });
 });
 
 describe('obtainSessionId', () => {

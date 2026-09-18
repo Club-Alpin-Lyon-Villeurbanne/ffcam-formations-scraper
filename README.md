@@ -35,7 +35,7 @@ pnpm install
 
 Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 
-1. **`.env`** (depuis `.env.example`) : `FFCAM_EMAIL` / `FFCAM_PASSWORD` (compte du portail FFCAM avec un profil extranet du club, ex. « CLUB - WEBMASTER » ; `FFCAM_PROFILE` si le compte en a plusieurs), `MYSQL_ADDON_*` de votre plateforme, `CLUB=chambery` (nom du dossier `config/clubs/`), `CLUB_CODE` (4 premiers chiffres de vos numéros d'adhérent).
+1. **`.env`** (depuis `.env.example`) : `FFCAM_EMAIL` / `FFCAM_PASSWORD` (compte du portail FFCAM avec un profil extranet du club, ex. « CLUB - WEBMASTER » ; `FFCAM_PROFILE` si le compte en a plusieurs — accepte un bout du libellé ou l'identifiant du profil affiché dans le message d'erreur), `MYSQL_ADDON_*` de votre plateforme, `CLUB=chambery` (nom du dossier `config/clubs/`), `CLUB_CODE` (4 premiers chiffres de vos numéros d'adhérent).
 2. **`npm run check`** : chaque ❌ dit quoi corriger. Il vérifie notamment que le profil extranet du compte et la base MySQL correspondent bien au même club (`CLUB_CODE`). Au premier lancement il signale aussi le fichier GC manquant et, éventuellement, des commissions absentes de `caf_commission`.
 3. **Commissions** : le code utilise les slugs `escalade`, `alpinisme`, `ski-de-randonnee`, `snowboard-rando`, … Créez dans la plateforme celles qui vous manquent avec ce `code_commission` (ou dites-le nous si vos slugs diffèrent : on ajoutera une table de correspondance).
 4. **Groupes de compétences** : copiez `config/clubs/lyon/groupes-competences-commissions.csv` dans `config/clubs/chambery/` et adaptez la colonne `commission` (un GC peut être sur plusieurs lignes). Versionnez ce fichier.
@@ -95,7 +95,8 @@ Le scraper se connecte automatiquement au portail FFCAM (https://portail.ffcam.f
 avec les identifiants `FFCAM_EMAIL` / `FFCAM_PASSWORD` d'un compte ayant un profil
 extranet du club (typiquement « CLUB - WEBMASTER »). Si le compte a plusieurs
 profils extranet, précisez celui à utiliser avec `FFCAM_PROFILE` (sous-chaîne
-insensible à la casse, défaut : `WEBMASTER`).
+insensible à la casse, défaut : `WEBMASTER`). `FFCAM_PROFILE` accepte aussi un
+bout du libellé ou l'identifiant du profil affiché dans le message d'erreur.
 
 ### 3. Mapping groupes de compétences → commissions
 

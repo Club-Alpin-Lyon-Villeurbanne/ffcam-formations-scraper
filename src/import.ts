@@ -169,7 +169,16 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  try { getClubCode(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+  let clubCode: string;
+  try { clubCode = getClubCode(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+
+  try {
+    const probe = await new NiveauxScraper().probe();
+    if (probe.clubCode && probe.clubCode !== clubCode) {
+      console.error(`❌ Le profil extranet est celui du club ${probe.clubCode}, pas ${clubCode} — vérifiez CLUB_CODE ou FFCAM_PROFILE`);
+      process.exit(1);
+    }
+  } catch (error: any) { console.error(`❌ Extranet : ${error.message.split('\n')[0]}`); process.exit(1); }
 
   if (TYPES_TO_IMPORT.includes('competences')) {
     try {

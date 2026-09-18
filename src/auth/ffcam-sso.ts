@@ -32,16 +32,25 @@ export function extractSid(html: string): string | null {
   return match ? match[1] : null;
 }
 
-/** Choisit le profil contenant `wanted` (insensible à la casse) ; erreur si 0 ou plusieurs */
+/**
+ * Choisit un profil parmi ceux du compte. `wanted` est d'abord comparé exactement à
+ * l'`extranetId` d'un profil (utile quand deux clubs ont le même libellé) ; à défaut,
+ * on cherche un profil dont le libellé contient `wanted` (insensible à la casse).
+ * Erreur si 0 ou plusieurs correspondances.
+ */
 export function pickProfile(profiles: SsoProfile[], wanted: string): SsoProfile {
-  const needle = wanted.trim().toUpperCase();
+  const trimmed = wanted.trim();
+  const byId = profiles.find(p => p.extranetId === trimmed);
+  if (byId) return byId;
+
+  const needle = trimmed.toUpperCase();
   const matches = profiles.filter(p => p.profile.toUpperCase().includes(needle));
-  const list = profiles.map(p => `"${p.profile}"`).join(', ') || '(aucun)';
+  const list = profiles.map(p => `"${p.profile}" (id ${p.extranetId})`).join(', ') || '(aucun)';
   if (matches.length === 1) return matches[0];
   if (matches.length === 0) {
     throw new FfcamSsoError('select-profile', `Aucun profil extranet ne contient "${wanted}". Profils disponibles : ${list}. Ajustez FFCAM_PROFILE.`);
   }
-  throw new FfcamSsoError('select-profile', `Plusieurs profils contiennent "${wanted}" : ${matches.map(p => `"${p.profile}"`).join(', ')}. Précisez FFCAM_PROFILE.`);
+  throw new FfcamSsoError('select-profile', `Plusieurs profils contiennent "${wanted}" : ${matches.map(p => `"${p.profile}" (id ${p.extranetId})`).join(', ')}. Précisez FFCAM_PROFILE (libellé plus précis ou id).`);
 }
 
 interface AuthorizeResponse {
