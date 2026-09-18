@@ -81,7 +81,7 @@ describe('obtainSessionId', () => {
 
   it('signale des identifiants refusés sans réessayer', async () => {
     const { impl, calls } = fakeFetch({ 'user/logged': () => new Response('{}', { status: 401 }) });
-    await expect(obtainSessionId(creds, impl)).rejects.toMatchObject({ step: 'login' });
+    await expect(obtainSessionId(creds, impl)).rejects.toMatchObject({ step: 'login', message: expect.stringContaining('refusés') });
     expect(calls).toHaveLength(1);
   });
 
@@ -89,7 +89,12 @@ describe('obtainSessionId', () => {
     const { impl } = fakeFetch({
       'user/logged': () => new Response(JSON.stringify({ namespace: 'user', status: 400, code: 'authenticationFailed', data: {} }), { status: 400 }),
     });
-    await expect(obtainSessionId(creds, impl)).rejects.toMatchObject({ step: 'login' });
+    await expect(obtainSessionId(creds, impl)).rejects.toMatchObject({ step: 'login', message: expect.stringContaining('refusés') });
+  });
+
+  it('ne confond pas un HTTP 500 du login avec des identifiants refusés', async () => {
+    const { impl } = fakeFetch({ 'user/logged': () => new Response('{}', { status: 500 }) });
+    await expect(obtainSessionId(creds, impl)).rejects.toMatchObject({ step: 'login', message: expect.not.stringContaining('refusés') });
   });
 
   it("signale une action inattendue de l'API", async () => {
