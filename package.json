@@ -18,7 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "author": "Club Alpin Lyon",
+  "author": "Club Alpin Lyon-Villeurbanne et clubs contributeurs",
   "license": "MIT",
   "repository": {
     "type": "git",

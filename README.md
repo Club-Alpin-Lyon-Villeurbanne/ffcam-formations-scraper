@@ -31,6 +31,17 @@ cd ffcam-formations-adherents-scraper
 pnpm install
 ```
 
+## Onboarding d'un nouveau club
+
+Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
+
+1. **`.env`** (depuis `.env.example`) : `FFCAM_EMAIL` / `FFCAM_PASSWORD` (compte du portail FFCAM avec un profil extranet du club, ex. « CLUB - WEBMASTER » ; `FFCAM_PROFILE` si le compte en a plusieurs), `MYSQL_ADDON_*` de votre plateforme, `CLUB=chambery` (nom du dossier `config/clubs/`), `CLUB_CODE` (4 premiers chiffres de vos numéros d'adhérent).
+2. **`npm run check`** : chaque ❌ dit quoi corriger. Il vérifie notamment que le profil extranet du compte et la base MySQL correspondent bien au même club (`CLUB_CODE`). Au premier lancement il signale aussi le fichier GC manquant et, éventuellement, des commissions absentes de `caf_commission`.
+3. **Commissions** : le code utilise les slugs `escalade`, `alpinisme`, `ski-de-randonnee`, `snowboard-rando`, … Créez dans la plateforme celles qui vous manquent avec ce `code_commission` (ou dites-le nous si vos slugs diffèrent : on ajoutera une table de correspondance).
+4. **Groupes de compétences** : copiez `config/clubs/lyon/groupes-competences-commissions.csv` dans `config/clubs/chambery/` et adaptez la colonne `commission` (un GC peut être sur plusieurs lignes). Versionnez ce fichier.
+5. **`npm run check`** jusqu'à « Configuration prête », puis **`npm run import:dry`** : les alertes en fin de rapport listent les GC absents de votre CSV.
+6. **`npm run import`**. Pour automatiser, voir « Import automatique ».
+
 ## Configuration
 
 ### 1. Variables d'environnement
