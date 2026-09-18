@@ -11,15 +11,32 @@ https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php
 
 ## Authentification
 
-L'API utilise une authentification par session. Le `SESSION_ID` doit être passé en paramètre `sid` de chaque requête.
+L'API extranet utilise une authentification par session. Le `sid` obtenu doit être
+passé en paramètre `sid` de chaque requête.
 
-### Obtention du SESSION_ID
+Ce `sid` est obtenu via un flux SSO sur le portail FFCAM (`portail.ffcam.fr`), en 4 requêtes :
 
-1. Se connecter à l'extranet FFCAM via le navigateur
-2. Copier le paramètre `sid` depuis l'URL
-3. Le session ID expire après quelques heures d'inactivité
+```
+POST https://api.portail.ffcam.fr/user/logged                         {email, password}
+  → {success: true, sessionToken: "JWT …"}
+POST https://api.portail.ffcam.fr/for-session/auth/select-app-id      {appId: "extranet.xyntxutqx1"}   Authorization: JWT …
+  → {action: "selectExtranet", extranetIds: [{extranetId: "15230", profile: "CLUB - WEBMASTER"}, …]}
+     (ou directement {action: "redirect", …} si le compte n'a qu'un profil)
+POST https://api.portail.ffcam.fr/for-session/auth/select-extranet-id {appId, extranetId}
+  → {action: "redirect", redirectUri: "https://extranet-clubalpin.com/app/login_sso.php", accessToken, refreshToken}
+GET  {redirectUri}?refreshToken=…&accessToken=…
+  → HTML contenant : window.location.href = 'Effectifs/accueil.php?sid=XXXX&ish=…'
+```
 
-**Exemple d'URL après connexion :**
+`appId` est l'identifiant de l'application Extranet côté FFCAM, commun à tous les
+clubs. Pas de captcha, CSRF ni 2FA.
+
+**Durées de vie observées :**
+- session (`sessionToken`) : 100 jours
+- `refreshToken` : 30 jours
+- `accessToken` : 5 minutes
+
+**Exemple d'URL après échange des tokens :**
 ```
 https://extranet-clubalpin.com/app/Effectifs/accueil.php?sid=ABC123XYZ
 ```

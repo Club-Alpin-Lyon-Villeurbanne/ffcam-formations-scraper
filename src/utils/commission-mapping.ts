@@ -8,7 +8,7 @@
  * - Les intitulés de niveaux → slugs de commissions CAF (avec degré de certitude)
  *
  * IMPORTANT : Pour les groupes de compétences (GC), le mapping est géré par le fichier CSV
- * data/groupes-competences-commissions.csv via gc-csv-mapping.ts.
+ * config/clubs/<club>/groupes-competences-commissions.csv via gc-csv-mapping.ts.
  * Ce fichier ne gère que les brevets, formations et niveaux.
  *
  * Usage :
@@ -489,7 +489,7 @@ export function getCommissionForActivite(
  *
  * NOTE : Cette fonction est utilisée pour les niveaux de pratique.
  * Pour les groupes de compétences (GC), utiliser gc-csv-mapping.ts qui lit
- * le fichier CSV data/groupes-competences-commissions.csv.
+ * le fichier CSV config/clubs/<club>/groupes-competences-commissions.csv.
  *
  * Cette fonction est conçue pour les cas où l'activité est "SPORTS DE NEIGE"
  * et qu'on doit déterminer la discipline (ski de rando, snowboard, raquette, etc.)
@@ -843,3 +843,14 @@ export const COMMISSIONS = [
 ] as const;
 
 export type Commission = typeof COMMISSIONS[number];
+
+/** Tous les slugs de commission référencés par les mappings (pour `npm run check`) */
+export function getAllMappedCommissionSlugs(): string[] {
+  const slugs = new Set<string>();
+  for (const { commission } of BREVET_PATTERNS) slugs.add(commission);
+  for (const { commission } of FORMATION_PATTERNS) slugs.add(commission);
+  for (const commission of Object.values(ACTIVITE_MAP)) slugs.add(commission);
+  for (const commission of Object.values(SPORTS_NEIGE_DISCIPLINE_MAP)) slugs.add(commission);
+  for (const { commission } of INTITULE_DISCIPLINE_PATTERNS) slugs.add(commission);
+  return [...slugs].sort();
+}

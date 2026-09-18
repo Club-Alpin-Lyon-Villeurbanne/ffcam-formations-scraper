@@ -10,6 +10,7 @@
     "import:niveaux": "tsx src/import.ts --niveaux",
     "import:competences": "tsx src/import.ts --competences",
     "diagnostic:brevets": "tsx src/diagnostic-brevets.ts",
+    "check": "tsx src/check.ts",
     "dev": "npm run import:dry",
     "build": "tsc",
     "type-check": "tsc --noEmit",
@@ -17,7 +18,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "author": "Club Alpin Lyon",
+  "author": "Club Alpin Lyon-Villeurbanne et clubs contributeurs",
   "license": "MIT",
   "repository": {
     "type": "git",

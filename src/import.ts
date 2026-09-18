@@ -24,7 +24,10 @@ import CompetencesImporter from './importers/competences-importer';
 import { getDatabase } from './database/db-factory';
 import { CommissionLinker } from './services/commission-linker';
 import Logger from './utils/logger';
-import { ensureDirectories, saveImportReport, FFCAM_CONFIG } from './config';
+import { ensureDirectories, saveImportReport, FFCAM_CONFIG, getClubCode, getClubConfigDir } from './config';
+import { getSessionId } from './auth/ffcam-sso';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Types d'import disponibles
 type ImportType = 'formations' | 'brevets' | 'niveaux' | 'competences';
@@ -154,23 +157,40 @@ async function main(): Promise<void> {
 
   console.log(`🏔️  IMPORT FFCAM → BASE DE DONNÉES [${typesLabel}]\n`);
 
-  // Vérifier que le SESSION_ID est configuré
-  if (!FFCAM_CONFIG.SESSION_ID) {
-    console.error('❌ SESSION_ID non configuré !');
-    console.error('');
-    console.error('👉 Pour obtenir votre session ID :');
-    console.error('   1. Connectez-vous à l\'extranet FFCAM');
-    console.error('   2. Copiez le paramètre "sid" dans l\'URL');
-    console.error('      Exemple: https://extranet-clubalpin.com/...?sid=VOTRE_SESSION_ID');
-    console.error('');
-    console.error('👉 Ajoutez-le dans votre fichier .env :');
-    console.error('   FFCAM_SESSION_ID=votre_session_id');
+  // Login SSO dès le départ : échec rapide si les identifiants sont mauvais
+  try {
+    await getSessionId({
+      email: FFCAM_CONFIG.EMAIL,
+      password: FFCAM_CONFIG.PASSWORD,
+      profile: FFCAM_CONFIG.PROFILE
+    });
+  } catch (error: any) {
+    console.error(`❌ ${error.message}`);
     process.exit(1);
   }
 
-  // Masquer le SESSION_ID pour la sécurité (afficher seulement les 4 premiers caractères)
-  const maskedSessionId = FFCAM_CONFIG.SESSION_ID.slice(0, 4) + '****' + FFCAM_CONFIG.SESSION_ID.slice(-2);
-  console.log('Session ID:', maskedSessionId);
+  let clubCode: string;
+  try { clubCode = getClubCode(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+
+  try {
+    const probe = await new NiveauxScraper().probe();
+    if (probe.clubCode && probe.clubCode !== clubCode) {
+      console.error(`❌ Le profil extranet est celui du club ${probe.clubCode}, pas ${clubCode} — vérifiez CLUB_CODE ou FFCAM_PROFILE`);
+      process.exit(1);
+    }
+  } catch (error: any) { console.error(`❌ Extranet : ${error.message.split('\n')[0]}`); process.exit(1); }
+
+  if (TYPES_TO_IMPORT.includes('competences')) {
+    try {
+      const clubDir = getClubConfigDir();
+      const csvPath = path.join(clubDir, 'groupes-competences-commissions.csv');
+      if (!fs.existsSync(csvPath)) {
+        console.error(`❌ Fichier ${path.relative(process.cwd(), csvPath)} introuvable — copiez config/clubs/lyon/groupes-competences-commissions.csv et adaptez la colonne commission`);
+        process.exit(1);
+      }
+    } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+  }
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   console.log('Timestamp:', timestamp);
   console.log('Types:', TYPES_TO_IMPORT.join(', '));
@@ -236,6 +256,7 @@ async function main(): Promise<void> {
 
     // Afficher le rapport final
     logger.printFinalReport(timestamp, DRY_RUN);
+    commissionLinker.printWarningsReport();
 
     // Sauvegarder le rapport
     const rapport: ImportReport = {

@@ -9,6 +9,7 @@ node_modules/
 # Données extraites et rapports
 /data/
 *.csv
+!config/clubs/**/*.csv
 
 # Build TypeScript
 /dist/
@@ -29,3 +30,5 @@ pnpm-workspace.yaml
 
 # Claude Code
 .claude/
+# Espace de travail SDD (superpowers)
+.superpowers/

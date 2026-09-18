@@ -29,6 +29,11 @@ abstract class BaseImporter<T> {
   protected abstract printReport(dryRun: boolean): void;
 
   /**
+   * En dry-run : résout le mapping vers les commissions sans écrire (collecte les alertes)
+   */
+  protected async checkMappingDryRun(_item: T): Promise<void> {}
+
+  /**
    * Template method pour l'import de données
    * Implémente la boucle commune à tous les importeurs
    * @param items - Les items à importer
@@ -53,7 +58,7 @@ abstract class BaseImporter<T> {
       if (!this.dryRun) {
         await this.importItemToDb(item);
       } else {
-        // En mode dry-run, simuler l'import
+        await this.checkMappingDryRun(item);
         // @ts-ignore - accès dynamique aux stats
         this.logger.stats[dataKey].imported++;
       }

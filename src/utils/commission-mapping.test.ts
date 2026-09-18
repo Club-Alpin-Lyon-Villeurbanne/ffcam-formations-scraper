@@ -14,6 +14,7 @@ import {
   getCommissionForActivite,
   getCommissionsForFormation,
   getCommissionFromIntitule,
+  getAllMappedCommissionSlugs,
   CERTAINTY_THRESHOLD,
 } from './commission-mapping';
 
@@ -667,6 +668,16 @@ describe('commission-mapping', () => {
         expect(result.commission).toBeNull();
         expect(result.warning).toContain('transversale');
       });
+    });
+  });
+
+  describe('getAllMappedCommissionSlugs', () => {
+    it('liste tous les slugs des mappings, triés, sans doublon', () => {
+      const slugs = getAllMappedCommissionSlugs();
+      expect(slugs).toContain('escalade');
+      expect(slugs).toContain('ski-de-fond');   // SPORTS_NEIGE_DISCIPLINE_MAP uniquement
+      expect(slugs).toContain('vie-du-club');   // FORMATION_PATTERNS uniquement
+      expect(slugs).toEqual([...new Set(slugs)].sort());
     });
   });
 });

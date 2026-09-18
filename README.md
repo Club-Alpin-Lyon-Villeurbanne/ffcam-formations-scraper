@@ -18,7 +18,7 @@ Les données sont importées directement dans une base de données SQLite (local
 - pnpm (v10.13.1)
 - TypeScript (installé automatiquement)
 - Accès à l'extranet FFCAM avec un compte valide
-- Base de données MySQL (optionnel, SQLite utilisé par défaut)
+- Base de données MySQL de la plateforme (`caf_commission`, `caf_user`) pour un import club ; SQLite n'est utilisé que pour développer le scraper en local
 
 ## Installation
 
@@ -30,6 +30,25 @@ cd ffcam-formations-adherents-scraper
 # Installer les dépendances
 pnpm install
 ```
+
+## Onboarding d'un nouveau club
+
+Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
+
+1. **`.env`** (depuis `.env.example`) : `FFCAM_EMAIL` / `FFCAM_PASSWORD` (compte du portail FFCAM avec un profil extranet du club, ex. « CLUB - WEBMASTER » ; `FFCAM_PROFILE` si le compte en a plusieurs — accepte un bout du libellé ou l'identifiant du profil affiché dans le message d'erreur), `MYSQL_ADDON_*` de votre plateforme, `CLUB=chambery` (nom du dossier `config/clubs/`), `CLUB_CODE` (4 premiers chiffres de vos numéros d'adhérent).
+2. **`npm run check`** : chaque ❌ dit quoi corriger. Il vérifie notamment que le profil extranet du compte et la base MySQL correspondent bien au même club (`CLUB_CODE`). Au premier lancement il signale aussi le fichier GC manquant et, éventuellement, des commissions absentes de `caf_commission`.
+3. **Commissions** : le code utilise les slugs `escalade`, `alpinisme`, `ski-de-randonnee`, `snowboard-rando`, … Créez dans la plateforme celles qui vous manquent avec ce `code_commission` (ou dites-le nous si vos slugs diffèrent : on ajoutera une table de correspondance).
+4. **Groupes de compétences** : copiez `config/clubs/lyon/groupes-competences-commissions.csv` dans `config/clubs/chambery/` et adaptez la colonne `commission` (un GC peut être sur plusieurs lignes). Versionnez ce fichier.
+5. **`npm run check`** jusqu'à « Configuration prête », puis **`npm run import:dry`** : les alertes en fin de rapport listent les GC absents de votre CSV et les mappings à faible certitude (les commissions absentes de `caf_commission`, elles, sont détectées par `npm run check`, pas par le dry-run qui ne consulte jamais la base).
+6. **`npm run import`**. Pour automatiser, voir « Import automatique ».
+
+## Import automatique (GitHub Actions)
+
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice. Lancement manuel : onglet Actions → Import FFCAM → Run workflow (cochez « Import à blanc » pour tester).
+
+**Ajouter un club ou une base** : un mainteneur crée l'environment GitHub (ex. `chambery`, ou `lyon-staging` pour une base de test), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB`, `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute le nom de l'environment dans `matrix.environment`.
+
+**En cas d'échec** : GitHub envoie un e-mail ; le step « Vérification de la configuration » du run dit quoi corriger (mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable). Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
 
 ## Configuration
 
@@ -52,10 +71,17 @@ Le fichier `.env` chargé dépend de `NODE_ENV` :
 Exemple de contenu :
 
 ```env
-# OBLIGATOIRE : Session FFCAM
-FFCAM_SESSION_ID=votre_session_id_ici
+# OBLIGATOIRE : Identifiants du portail FFCAM
+FFCAM_EMAIL=votre_email
+FFCAM_PASSWORD=votre_mot_de_passe
 
-# OPTIONNEL : MySQL (sinon SQLite par défaut)
+# OBLIGATOIRE : Code du club (4 chiffres)
+CLUB_CODE=6900
+
+# OBLIGATOIRE : Identifiant du club, sélectionne config/clubs/<club>/
+CLUB=lyon
+
+# OBLIGATOIRE pour un import club (SQLite ne sert qu'au développement local du scraper)
 MYSQL_ADDON_HOST=localhost
 MYSQL_ADDON_PORT=3306
 MYSQL_ADDON_USER=votre_user
@@ -63,19 +89,29 @@ MYSQL_ADDON_PASSWORD=votre_password
 MYSQL_ADDON_DB=votre_database
 ```
 
-### 2. Obtenir votre session ID
+### 2. Authentification FFCAM
 
-Pour obtenir votre session ID :
-1. Connectez-vous à l'extranet FFCAM
-2. Copiez le paramètre **`sid`** dans l'URL de votre navigateur
-   - Exemple : `https://extranet-clubalpin.com/app/Effectifs/accueil.php?sid=VOTRE_SESSION_ID`
-3. Collez-le dans votre fichier `.env` comme valeur de `FFCAM_SESSION_ID`
+Le scraper se connecte automatiquement au portail FFCAM (https://portail.ffcam.fr)
+avec les identifiants `FFCAM_EMAIL` / `FFCAM_PASSWORD` d'un compte ayant un profil
+extranet du club (typiquement « CLUB - WEBMASTER »). Si le compte a plusieurs
+profils extranet, précisez celui à utiliser avec `FFCAM_PROFILE` (sous-chaîne
+insensible à la casse, défaut : `WEBMASTER`). `FFCAM_PROFILE` accepte aussi un
+bout du libellé ou l'identifiant du profil affiché dans le message d'erreur.
+
+### 3. Mapping groupes de compétences → commissions
+
+Le mapping des groupes de compétences (GC) vers les commissions est propre à
+chaque club : il vit dans `config/clubs/<club>/groupes-competences-commissions.csv`
+et le club actif est sélectionné par la variable `CLUB` (ex. `CLUB=lyon`).
 
 ## Utilisation
 
 ### Import (scraping → base de données)
 
 ```bash
+# Vérifie la configuration avant le premier import
+npm run check
+
 # Import complet (dev, SQLite par défaut)
 npm run import
 
@@ -115,8 +151,8 @@ npm run test:coverage
 ### Étapes du sync
 
 **1. Authentification**
-- Le scraper utilise un `SESSION_ID` copié manuellement depuis l'extranet FFCAM
-- Ce SID est passé en paramètre de chaque requête (`?sid=XXX`)
+- Le scraper se connecte automatiquement au portail FFCAM avec `FFCAM_EMAIL` / `FFCAM_PASSWORD` (SSO)
+- Le `sid` extranet obtenu est passé en paramètre de chaque requête (`?sid=XXX`)
 
 **2. Scraping des 4 types de données**
 
@@ -235,6 +271,10 @@ ffcam-formations-adherents-scraper/
 │   ├── importers/          # Logique d'import en DB
 │   ├── services/           # CommissionLinker (liaison référentiels → commissions)
 │   └── utils/              # Logger, commission-mapping (patterns hardcodés)
+├── config/
+│   └── clubs/
+│       └── lyon/
+│           └── groupes-competences-commissions.csv  # Mapping GC → commissions, propre à Lyon
 ├── dist/                   # Code compilé (gitignored)
 ├── data/                   # Données (gitignored)
 │   ├── local.db            # Base SQLite (auto-créée)
@@ -281,24 +321,22 @@ Le projet suit le principe KISS (Keep It Simple, Stupid) :
 ## Documentation technique
 
 - **[docs/FFCAM-API.md](docs/FFCAM-API.md)** : Documentation reverse-engineered de l'API FFCAM Extranet
+- **[docs/adr/](docs/adr/)** : décisions d'architecture (multi-club, import automatique)
 
 ## Notes importantes
 
-- La session expire après un certain temps d'inactivité
+- Le `sid` extranet est obtenu automatiquement (SSO) au début de chaque import et expire après un certain temps d'inactivité
 - Les données sont extraites par pages de 150 enregistrements
 - Un délai de 300ms est respecté entre chaque requête
-- Le SESSION_ID n'est jamais commité (stocké dans .env)
+- `FFCAM_EMAIL` / `FFCAM_PASSWORD` ne sont jamais commités (stockés dans .env)
 - TypeScript compile automatiquement avec tsx
 
 ## Dépannage
 
-### Session expirée
-Si vous obtenez l'erreur `❌ SESSION_ID expiré ou invalide !`, votre session a expiré.
+### Identifiants refusés / profil introuvable
+Si vous obtenez l'erreur `❌ Identifiants FFCAM refusés`, vérifiez `FFCAM_EMAIL` / `FFCAM_PASSWORD` dans votre `.env`.
 
-Pour la renouveler :
-1. Reconnectez-vous à l'extranet FFCAM
-2. Copiez le nouveau `sid` dans l'URL
-3. Mettez à jour `FFCAM_SESSION_ID` dans votre `.env`
+Si l'erreur mentionne un profil introuvable ou plusieurs profils correspondants, ajustez `FFCAM_PROFILE`. Pour diagnostiquer : `npm run check`
 
 ### Erreur de connexion MySQL
 Vérifiez vos identifiants dans le fichier `.env` et assurez-vous que le serveur MySQL est accessible.

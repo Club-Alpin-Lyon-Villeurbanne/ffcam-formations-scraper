@@ -50,6 +50,13 @@ class BrevetsImporter extends BaseImporter<Brevet> {
   }
 
   /**
+   * En dry-run : résout le mapping brevet → commission sans écrire
+   */
+  protected async checkMappingDryRun(brevet: Brevet): Promise<void> {
+    await this.commissionLinker.linkBrevet(0, brevet.codeBrevet);
+  }
+
+  /**
    * Importe un brevet dans la base de données
    */
   protected async importItemToDb(brevet: Brevet): Promise<void> {

@@ -21,7 +21,9 @@ dotenv.config({ path: envFile });
 // =============================================================================
 
 export const FFCAM_CONFIG: FfcamConfig = {
-  SESSION_ID: process.env.FFCAM_SESSION_ID || '',
+  EMAIL: process.env.FFCAM_EMAIL || '',
+  PASSWORD: process.env.FFCAM_PASSWORD || '',
+  PROFILE: process.env.FFCAM_PROFILE || 'WEBMASTER',
   ROWS_PER_PAGE: 150,
   API_DELAY: 300, // Délai entre les requêtes en ms
   BASE_URL: 'https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php'
@@ -32,17 +34,34 @@ export const FFCAM_CONFIG: FfcamConfig = {
 // =============================================================================
 
 /**
- * Préfixes des numéros CAF du club de Lyon
- * Format: 69002XXXXXXX (département 69, structure 002)
+ * Code FFCAM du club (4 chiffres), ex. 6900 pour Lyon-Villeurbanne.
+ * Un cafnum = code club (4) + année (4) + numéro (4) : le code sert à ne garder
+ * que les adhérents du club dans les grilles nationales (brevets, formations).
+ * Lu à l'appel (et non à l'import) pour rester testable.
  */
-export const CLUB_CAFNUM_PREFIXES = ['6900', '690'];
+export function getClubCode(code: string | undefined = process.env.CLUB_CODE): string {
+  const trimmed = (code || '').trim();
+  if (!/^\d{4}$/.test(trimmed)) {
+    throw new Error(`Variable CLUB_CODE non définie ou invalide ("${trimmed}") : 4 chiffres attendus, ex. CLUB_CODE=6900`);
+  }
+  return trimmed;
+}
+
+/** Vérifie qu'un cafnum appartient au club */
+export function isClubMember(cafnum: string, clubCode: string = getClubCode()): boolean {
+  return Boolean(cafnum) && cafnum.startsWith(clubCode);
+}
 
 /**
- * Vérifie si un cafnum appartient au club de Lyon
+ * Dossier config/clubs/<club> ; l'identifiant vient de la variable CLUB
+ * (ex. "lyon", "chambery"), lue à l'appel pour rester testable.
+ * Pas de valeur par défaut : on refuse de charger le mapping d'un autre club.
  */
-export function isClubMember(cafnum: string): boolean {
-  if (!cafnum) return false;
-  return CLUB_CAFNUM_PREFIXES.some(prefix => cafnum.startsWith(prefix));
+export function getClubConfigDir(club: string | undefined = process.env.CLUB?.trim()): string {
+  if (!club) {
+    throw new Error('Variable CLUB non définie (ex. CLUB=lyon dans .env) : elle sélectionne config/clubs/<club>/');
+  }
+  return path.resolve(__dirname, '../config/clubs', club);
 }
 
 // =============================================================================

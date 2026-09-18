@@ -1,27 +1,13 @@
 /**
- * Tests unitaires pour le mapping GC → Commissions depuis CSV
- *
- * Ces tests nécessitent le fichier data/groupes-competences-commissions.csv
- * qui n'est pas versionné (gitignored). Ils sont automatiquement skippés en CI.
+ * Tests du mapping GC → Commissions depuis le CSV versionné de Lyon.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import * as fs from 'fs';
 import * as path from 'path';
-import {
-  loadGcMapping,
-  getCommissionsForGc,
-  hasGcInMapping,
-  normalizeGcIntitule,
-  getMappingStats,
-  GcCommissionMapping,
-} from './gc-csv-mapping';
+import { loadGcMapping, getCommissionsForGc, hasGcInMapping, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
 
-const csvPath = path.resolve(__dirname, '../../data/groupes-competences-commissions.csv');
-const csvExists = fs.existsSync(csvPath);
+const csvPath = path.resolve(__dirname, '../../config/clubs/lyon/groupes-competences-commissions.csv');
 
-const describeWithCsv = csvExists ? describe : describe.skip;
-
-describeWithCsv('gc-csv-mapping', () => {
+describe('gc-csv-mapping', () => {
   let mapping: GcCommissionMapping;
 
   beforeAll(() => {
@@ -36,6 +22,25 @@ describeWithCsv('gc-csv-mapping', () => {
 
     it('should throw error for non-existent file', () => {
       expect(() => loadGcMapping('/nonexistent/path.csv')).toThrow('Fichier de mapping GC non trouvé');
+    });
+
+    it('charge config/clubs/<CLUB>/… sans argument', () => {
+      const previous = process.env.CLUB;
+      process.env.CLUB = 'lyon';
+      try {
+        expect(loadGcMapping().size).toBe(mapping.size);
+      } finally {
+        if (previous === undefined) delete process.env.CLUB; else process.env.CLUB = previous;
+      }
+    });
+    it('lève une erreur explicite sans CLUB', () => {
+      const previous = process.env.CLUB;
+      delete process.env.CLUB;
+      try {
+        expect(() => loadGcMapping()).toThrow('Variable CLUB non définie');
+      } finally {
+        if (previous !== undefined) process.env.CLUB = previous;
+      }
     });
   });
 

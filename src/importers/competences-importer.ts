@@ -1,7 +1,7 @@
 /**
  * Importeur pour les compétences dans la base de données
  *
- * Utilise le fichier CSV data/groupes-competences-commissions.csv comme
+ * Utilise le fichier CSV config/clubs/<club>/groupes-competences-commissions.csv comme
  * source de vérité pour le mapping GC → Commissions.
  */
 import { Competence } from '../types';
@@ -43,6 +43,13 @@ class CompetencesImporter extends BaseImporter<Competence> {
     if (!competence.intituleCompetence || competence.intituleCompetence.trim() === '') {
       throw new Error(`Compétence sans intitulé pour ${competence.nom}`);
     }
+  }
+
+  /**
+   * En dry-run : résout le mapping GC → Commissions depuis le CSV sans écrire
+   */
+  protected async checkMappingDryRun(competence: Competence): Promise<void> {
+    await this.commissionLinker.linkCompetenceFromCsv(0, competence.intituleCompetence);
   }
 
   /**

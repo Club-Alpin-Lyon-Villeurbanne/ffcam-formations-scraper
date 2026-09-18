@@ -30,6 +30,13 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
     throw new Error('Use import() with metadata instead');
   }
 
+  /**
+   * En dry-run : résout le mapping niveau → commission sans écrire
+   */
+  protected async checkMappingDryRun(niveau: NiveauPratique): Promise<void> {
+    await this.commissionLinker.linkNiveau(0, niveau.activite, niveau.discipline, niveau.niveau);
+  }
+
   protected printReport(dryRun: boolean): void {
     this.logger.printNiveauReport(dryRun);
 
@@ -72,7 +79,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       if (!this.dryRun) {
         await this.importNiveau(niveau, cursusNiveauId, niveauCourt);
       } else {
-        // En mode dry-run, simuler l'import
+        await this.checkMappingDryRun(niveau);
         this.logger.stats.niveaux.imported++;
       }
       
