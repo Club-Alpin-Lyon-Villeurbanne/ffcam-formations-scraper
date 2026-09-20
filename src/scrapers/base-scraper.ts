@@ -3,7 +3,7 @@
  */
 import { ApiRequestParams, ApiResponse, ApiRow } from '../types';
 import { FFCAM_CONFIG, isClubMember } from '../config';
-import { getSessionId } from '../auth/ffcam-sso';
+import { getSessionId, resetSessionCache } from '../auth/ffcam-sso';
 
 /**
  * Configuration pour un scraper
@@ -13,6 +13,22 @@ export interface ScraperConfig {
   entityNamePlural: string;  // Ex: "formations"
   def: string;               // Ex: "adh_formations"
   sidx?: string;             // Optionnel, auto-généré si absent
+}
+
+/** Le sid n'est plus accepté par l'extranet (réponse HTML au lieu de JSON) */
+export class SessionRejectedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionRejectedError';
+  }
+}
+
+/** Body de réponse illisible (ni HTML, ni JSON valide) : peut être transitoire (ex. 503) */
+export class InvalidResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidResponseError';
+  }
 }
 
 abstract class BaseScraper<T = any> {
@@ -112,7 +128,7 @@ abstract class BaseScraper<T = any> {
     // Vérifier si la réponse est bien du JSON
     const text = await response.text();
     if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-      throw new Error(
+      throw new SessionRejectedError(
         "❌ Session extranet refusée (réponse HTML au lieu de JSON).\n" +
         "   Le profil extranet du compte FFCAM a peut-être changé : vérifiez FFCAM_PROFILE avec \"npm run check\"."
       );
@@ -121,7 +137,7 @@ abstract class BaseScraper<T = any> {
     try {
       return JSON.parse(text) as ApiResponse;
     } catch (error) {
-      throw new Error(`Réponse invalide de l'API FFCAM`);
+      throw new InvalidResponseError(`Réponse invalide de l'API FFCAM`);
     }
   }
 
@@ -197,6 +213,7 @@ abstract class BaseScraper<T = any> {
     const allData: T[] = [];
     let page = 1;
     let totalPages = 1;
+    let hasReloggedThisCall = false;
 
     while (page <= totalPages) {
       try {
@@ -210,7 +227,7 @@ abstract class BaseScraper<T = any> {
           totalPages = parseInt(data.total.toString());
           console.log(`📊 ${data.records} enregistrements sur ${totalPages} pages\n`);
         }
-        
+
         // Traiter chaque ligne
         for (const row of data.rows) {
           const processedData = processRow(row);
@@ -218,26 +235,42 @@ abstract class BaseScraper<T = any> {
             allData.push(processedData);
           }
         }
-        
+
         console.log(`✓ Page ${page}/${totalPages} (${allData.length} enregistrements)`);
         page++;
-        
+
         // Délai entre les pages
         if (page <= totalPages) {
           await this.delay();
         }
-        
+
       } catch (error: any) {
+        const isSessionRejected = error instanceof SessionRejectedError;
+        const isInvalidResponse = error instanceof InvalidResponseError;
+
+        if ((isSessionRejected || isInvalidResponse) && !hasReloggedThisCall) {
+          // Le sid a peut-être été rejeté : on se reconnecte une seule fois puis on rejoue la même page
+          hasReloggedThisCall = true;
+          resetSessionCache();
+          this.sessionId = '';
+          await this.ensureSession();
+          console.log('🔁 Session extranet refusée, reconnexion…');
+          continue;
+        }
         // Sur la première page, une erreur est fatale (session refusée)
         if (page === 1) {
           throw error;
         }
-        // Sur les pages suivantes, on continue (erreur temporaire possible)
+        // Une session HTML rejetée sur une page suivante reste fatale (pas de saut silencieux)
+        if (isSessionRejected) {
+          throw error;
+        }
+        // Sur les pages suivantes, une autre erreur (y compris un body illisible après reconnexion) est temporaire : on continue
         console.error(`✗ Erreur page ${page}:`, error.message);
         page++;
       }
     }
-    
+
     return allData;
   }
 }

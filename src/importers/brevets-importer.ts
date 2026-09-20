@@ -6,6 +6,9 @@ import BaseImporter from './base-importer';
 
 class BrevetsImporter extends BaseImporter<Brevet> {
   private errorsByType = new Map<string, number>();
+  /** Id référentiel par code_brevet, pour n'upserter/lier qu'une fois par code */
+  private referentielIds = new Map<string, number>();
+  private seenReferentiels = new Set<string>();
 
   protected getDataKey(): 'brevets' {
     return 'brevets';
@@ -53,6 +56,8 @@ class BrevetsImporter extends BaseImporter<Brevet> {
    * En dry-run : résout le mapping brevet → commission sans écrire
    */
   protected async checkMappingDryRun(brevet: Brevet): Promise<void> {
+    if (this.seenReferentiels.has(brevet.codeBrevet)) return;
+    this.seenReferentiels.add(brevet.codeBrevet);
     await this.commissionLinker.linkBrevet(0, brevet.codeBrevet);
   }
 
@@ -61,28 +66,34 @@ class BrevetsImporter extends BaseImporter<Brevet> {
    */
   protected async importItemToDb(brevet: Brevet): Promise<void> {
     try {
-      // 1. Upsert dans formation_referentiel_brevet
-      await this.db.execute(
-        `INSERT INTO formation_referentiel_brevet (code_brevet, intitule)
-         VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE intitule = VALUES(intitule)`,
-        [brevet.codeBrevet, brevet.intituleBrevet]
-      );
+      let brevetId = this.referentielIds.get(brevet.codeBrevet);
 
-      // 2. Récupérer l'ID du brevet depuis le référentiel
-      const [brevetRows] = await this.db.execute(
-        `SELECT id FROM formation_referentiel_brevet WHERE code_brevet = ? LIMIT 1`,
-        [brevet.codeBrevet]
-      );
+      if (brevetId === undefined) {
+        // 1. Upsert dans formation_referentiel_brevet
+        await this.db.execute(
+          `INSERT INTO formation_referentiel_brevet (code_brevet, intitule)
+           VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE intitule = VALUES(intitule)`,
+          [brevet.codeBrevet, brevet.intituleBrevet]
+        );
 
-      if (!brevetRows || brevetRows.length === 0) {
-        throw new Error(`Impossible de récupérer l'ID du brevet ${brevet.codeBrevet}`);
+        // 2. Récupérer l'ID du brevet depuis le référentiel
+        const [brevetRows] = await this.db.execute(
+          `SELECT id FROM formation_referentiel_brevet WHERE code_brevet = ? LIMIT 1`,
+          [brevet.codeBrevet]
+        );
+
+        if (!brevetRows || brevetRows.length === 0) {
+          throw new Error(`Impossible de récupérer l'ID du brevet ${brevet.codeBrevet}`);
+        }
+
+        brevetId = brevetRows[0].id as number;
+
+        // 2b. Lier le brevet à sa commission (si applicable)
+        await this.commissionLinker.linkBrevet(brevetId, brevet.codeBrevet);
+
+        this.referentielIds.set(brevet.codeBrevet, brevetId);
       }
-
-      const brevetId = brevetRows[0].id;
-
-      // 2b. Lier le brevet à sa commission (si applicable)
-      await this.commissionLinker.linkBrevet(brevetId, brevet.codeBrevet);
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(brevet.adherentId);

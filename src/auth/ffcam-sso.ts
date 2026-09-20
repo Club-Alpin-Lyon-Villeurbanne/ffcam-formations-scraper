@@ -158,3 +158,8 @@ export function getSessionId(creds: { email: string; password: string; profile?:
   }
   return cached;
 }
+
+/** Force une nouvelle authentification au prochain appel de `getSessionId` */
+export function resetSessionCache(): void {
+  cached = null;
+}

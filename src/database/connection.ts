@@ -11,6 +11,9 @@ const QUERY_TIMEOUT_MS = 60000;
 class DatabaseConnection implements DatabaseAdapter {
   private connection: mysql.Connection | null = null;
 
+  /** Cache par préfixe de cafnum, pour éviter une requête par ligne (~90 ms depuis GitHub Actions vers Clever Cloud) */
+  private usersByCafnum: Map<string, Map<string, number>> = new Map();
+
   /**
    * Initialise la connexion à la base de données
    */
@@ -111,19 +114,25 @@ class DatabaseConnection implements DatabaseAdapter {
    * Récupère un utilisateur par son cafnum
    */
   async getUserIdFromCafnum(cafnum: string): Promise<number | null> {
+    cafnum = String(cafnum ?? '').trim();
     if (!this.connection) return null;
+    if (!cafnum || cafnum.length < 4) return null;
+
+    const prefix = cafnum.slice(0, 4);
 
     try {
-      const [rows] = await this.execute(
-        'SELECT id_user FROM caf_user WHERE cafnum_user = ? LIMIT 1',
-        [cafnum]
-      );
+      let usersForPrefix = this.usersByCafnum.get(prefix);
 
-      if (rows.length > 0) {
-        return rows[0].id_user;
+      if (!usersForPrefix) {
+        const [rows] = await this.execute(
+          'SELECT id_user, cafnum_user FROM caf_user WHERE cafnum_user LIKE ?',
+          [`${prefix}%`]
+        );
+        usersForPrefix = new Map(rows.map((row: any) => [String(row.cafnum_user).trim(), row.id_user]));
+        this.usersByCafnum.set(prefix, usersForPrefix);
       }
 
-      return null;
+      return usersForPrefix.get(cafnum) ?? null;
     } catch (error: any) {
       console.error(`Erreur recherche user ${cafnum}:`, error.message);
       return null;

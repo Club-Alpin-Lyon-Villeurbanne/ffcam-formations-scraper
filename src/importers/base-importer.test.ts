@@ -2,12 +2,13 @@
  * Tests du hook dry-run de BaseImporter : en dry-run, le mapping vers les
  * commissions doit être résolu (sans écrire en base) pour remonter les alertes.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as path from 'path';
 import CompetencesImporter from './competences-importer';
+import BrevetsImporter from './brevets-importer';
 import { CommissionLinker } from '../services/commission-linker';
 import Logger from '../utils/logger';
-import { DatabaseAdapter, Competence } from '../types';
+import { DatabaseAdapter, Competence, Brevet } from '../types';
 
 const csvPath = path.resolve(__dirname, '../../config/clubs/lyon/groupes-competences-commissions.csv');
 
@@ -67,5 +68,74 @@ describe('BaseImporter - checkMappingDryRun', () => {
     const warnings = linker.getWarnings();
     expect(warnings).toHaveLength(1);
     expect(warnings[0].warning).toContain('GC non trouvé dans le CSV: "GC inexistant"');
+  });
+});
+
+/**
+ * Test réel (non dry-run) : le référentiel et la liaison commission ne doivent être
+ * traités qu'une fois par code_brevet, même si plusieurs adhérents valident le même brevet.
+ */
+describe('BaseImporter - cache référentiel en import réel', () => {
+  function buildBrevet(overrides: Partial<Brevet>): Brevet {
+    return {
+      id: '1',
+      adherentId: '690020190001',
+      nom: 'Test Adherent',
+      codeBrevet: 'BF1-ES-SAE',
+      intituleBrevet: 'Initiateur escalade SAE',
+      dateObtention: '2020-01-01',
+      dateRecyclage: '',
+      dateEdition: '',
+      dateFormationContinue: '',
+      dateMigration: '',
+      ...overrides
+    };
+  }
+
+  it('un seul upsert/SELECT référentiel et une seule liaison commission pour 3 brevets de même code, 2 adhérents distincts', async () => {
+    const users: Record<string, number> = {
+      '690020190001': 11,
+      '690020190002': 12
+    };
+
+    const execute = vi.fn(async (sql: string, _params: any[] = []) => {
+      if (sql.includes('SELECT id FROM formation_referentiel_brevet')) {
+        return [[{ id: 7 }], []] as [any[], any[]];
+      }
+      if (sql.includes('FROM caf_commission')) {
+        return [[{ id_commission: 3 }], []] as [any[], any[]];
+      }
+      return [[], []] as [any[], any[]];
+    });
+
+    const db: DatabaseAdapter = {
+      connect: async () => {},
+      close: async () => {},
+      isConnected: () => true,
+      execute,
+      getUserIdFromCafnum: vi.fn(async (cafnum: string) => users[cafnum] ?? null),
+      updateLastSync: async () => {}
+    };
+
+    const linker = new CommissionLinker(db, false);
+    const logger = new Logger();
+    const importer = new BrevetsImporter(db, logger, linker, false);
+
+    const brevets: Brevet[] = [
+      buildBrevet({ adherentId: '690020190001' }),
+      buildBrevet({ adherentId: '690020190002' }),
+      buildBrevet({ adherentId: '690020190001' })
+    ];
+
+    await importer.import(brevets);
+
+    const callsMatching = (pattern: string) =>
+      execute.mock.calls.filter(([sql]) => (sql as string).includes(pattern));
+
+    expect(callsMatching('INSERT INTO formation_referentiel_brevet')).toHaveLength(1);
+    expect(callsMatching('SELECT id FROM formation_referentiel_brevet')).toHaveLength(1);
+    expect(callsMatching('INSERT IGNORE INTO formation_commission_brevet')).toHaveLength(1);
+    expect(callsMatching('INSERT INTO formation_validation_brevet')).toHaveLength(3);
+    expect(logger.stats.brevets.imported).toBe(3);
   });
 });

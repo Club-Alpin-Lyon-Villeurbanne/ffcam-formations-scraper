@@ -6,6 +6,9 @@ import BaseImporter from './base-importer';
 
 class NiveauxImporter extends BaseImporter<NiveauPratique> {
   private errorsByType = new Map<string, number>();
+  /** Id référentiel par cursus_niveau_id, pour n'upserter/lier qu'une fois par niveau */
+  private referentielIds = new Map<string, number>();
+  private seenReferentiels = new Set<string>();
 
   protected getDataKey(): 'niveaux' {
     return 'niveaux';
@@ -33,7 +36,11 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
   /**
    * En dry-run : résout le mapping niveau → commission sans écrire
    */
-  protected async checkMappingDryRun(niveau: NiveauPratique): Promise<void> {
+  protected async checkMappingDryRun(niveau: NiveauPratique, cursusNiveauId?: string): Promise<void> {
+    if (cursusNiveauId) {
+      if (this.seenReferentiels.has(cursusNiveauId)) return;
+      this.seenReferentiels.add(cursusNiveauId);
+    }
     await this.commissionLinker.linkNiveau(0, niveau.activite, niveau.discipline, niveau.niveau);
   }
 
@@ -79,7 +86,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       if (!this.dryRun) {
         await this.importNiveau(niveau, cursusNiveauId, niveauCourt);
       } else {
-        await this.checkMappingDryRun(niveau);
+        await this.checkMappingDryRun(niveau, cursusNiveauId);
         this.logger.stats.niveaux.imported++;
       }
       
@@ -112,47 +119,53 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
    */
   private async importNiveau(niveau: NiveauPratique, cursusNiveauId: string, niveauCourt: string | null): Promise<void> {
     try {
-      // 1. Upsert dans formation_referentiel_niveau_pratique
-      await this.db.execute(
-        `INSERT INTO formation_referentiel_niveau_pratique
-         (cursus_niveau_id, code_activite, activite, niveau, libelle, niveau_court, discipline)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE
-         libelle = VALUES(libelle),
-         niveau_court = VALUES(niveau_court),
-         discipline = VALUES(discipline)`,
-        [
-          parseInt(cursusNiveauId),
-          niveau.codeActivite,
+      let niveauRefId = this.referentielIds.get(cursusNiveauId);
+
+      if (niveauRefId === undefined) {
+        // 1. Upsert dans formation_referentiel_niveau_pratique
+        await this.db.execute(
+          `INSERT INTO formation_referentiel_niveau_pratique
+           (cursus_niveau_id, code_activite, activite, niveau, libelle, niveau_court, discipline)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+           libelle = VALUES(libelle),
+           niveau_court = VALUES(niveau_court),
+           discipline = VALUES(discipline)`,
+          [
+            parseInt(cursusNiveauId),
+            niveau.codeActivite,
+            niveau.activite,
+            niveau.niveau,
+            niveau.niveau,
+            niveauCourt,
+            niveau.discipline || null
+          ]
+        );
+
+        // 2. Récupérer l'ID du niveau depuis le référentiel
+        const [niveauRows] = await this.db.execute(
+          `SELECT id FROM formation_referentiel_niveau_pratique WHERE cursus_niveau_id = ? LIMIT 1`,
+          [parseInt(cursusNiveauId)]
+        );
+
+        if (!niveauRows || niveauRows.length === 0) {
+          throw new Error(`Impossible de récupérer l'ID du niveau pour cursus_niveau_id ${cursusNiveauId}`);
+        }
+
+        niveauRefId = niveauRows[0].id as number;
+
+        // 2b. Lier à sa commission
+        // Utilise le niveau complet (ex: "PERFECTIONNE en snowboard de randonnée")
+        // pour déterminer la discipline si non disponible dans les métadonnées
+        await this.commissionLinker.linkNiveau(
+          niveauRefId,
           niveau.activite,
-          niveau.niveau,
-          niveau.niveau,
-          niveauCourt,
-          niveau.discipline || null
-        ]
-      );
+          niveau.discipline,
+          niveau.niveau  // Intitulé complet du niveau pour analyse
+        );
 
-      // 2. Récupérer l'ID du niveau depuis le référentiel
-      const [niveauRows] = await this.db.execute(
-        `SELECT id FROM formation_referentiel_niveau_pratique WHERE cursus_niveau_id = ? LIMIT 1`,
-        [parseInt(cursusNiveauId)]
-      );
-
-      if (!niveauRows || niveauRows.length === 0) {
-        throw new Error(`Impossible de récupérer l'ID du niveau pour cursus_niveau_id ${cursusNiveauId}`);
+        this.referentielIds.set(cursusNiveauId, niveauRefId);
       }
-
-      const niveauRefId = niveauRows[0].id;
-
-      // 2b. Lier à sa commission
-      // Utilise le niveau complet (ex: "PERFECTIONNE en snowboard de randonnée")
-      // pour déterminer la discipline si non disponible dans les métadonnées
-      await this.commissionLinker.linkNiveau(
-        niveauRefId,
-        niveau.activite,
-        niveau.discipline,
-        niveau.niveau  // Intitulé complet du niveau pour analyse
-      );
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(niveau.adherentId);
