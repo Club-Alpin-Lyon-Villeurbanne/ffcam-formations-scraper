@@ -280,6 +280,7 @@ class SQLiteAdapter implements DatabaseAdapter {
    */
   async getUserIdFromCafnum(cafnum: string): Promise<number | null> {
     if (!this.db) return null;
+    if (!cafnum || cafnum.length < 4) return null;
 
     const prefix = cafnum.slice(0, 4);
 

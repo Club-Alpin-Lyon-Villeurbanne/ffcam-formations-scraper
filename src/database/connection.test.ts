@@ -29,4 +29,16 @@ describe('DatabaseConnection - cache des adhérents par préfixe de cafnum', () 
     expect(execute).toHaveBeenCalledTimes(1);
     expect(execute).toHaveBeenCalledWith(expect.stringContaining('LIKE'), ['6900%']);
   });
+
+  it('cafnum vide ou trop court → null sans requête', async () => {
+    const execute = vi.fn(async () => [[], []] as [any[], any[]]);
+
+    const adapter = getInstance();
+    Object.assign(adapter, { execute, connection: {} });
+
+    expect(await adapter.getUserIdFromCafnum('')).toBeNull();
+    expect(await adapter.getUserIdFromCafnum('690')).toBeNull();
+
+    expect(execute).not.toHaveBeenCalled();
+  });
 });

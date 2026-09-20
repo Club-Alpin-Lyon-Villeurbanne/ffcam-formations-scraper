@@ -5,8 +5,9 @@ import { Formation } from '../types';
 import BaseImporter from './base-importer';
 
 class FormationsImporter extends BaseImporter<Formation> {
-  /** Id référentiel par code_formation, pour n'upserter/lier qu'une fois par code (aussi utilisée pour dédupliquer le dry-run) */
+  /** Id référentiel par code_formation, pour n'upserter/lier qu'une fois par code */
   private referentielIds = new Map<string, number>();
+  private seenReferentiels = new Set<string>();
 
   protected getDataKey(): 'formations' {
     return 'formations';
@@ -60,8 +61,8 @@ class FormationsImporter extends BaseImporter<Formation> {
    * En dry-run : résout le mapping formation → commission sans écrire
    */
   protected async checkMappingDryRun(formation: Formation): Promise<void> {
-    if (this.referentielIds.has(formation.codeFormation)) return;
-    this.referentielIds.set(formation.codeFormation, 0);
+    if (this.seenReferentiels.has(formation.codeFormation)) return;
+    this.seenReferentiels.add(formation.codeFormation);
     await this.commissionLinker.linkFormation(0, formation.codeFormation);
   }
 

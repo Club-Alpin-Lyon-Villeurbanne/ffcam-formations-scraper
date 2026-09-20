@@ -6,8 +6,9 @@ import BaseImporter from './base-importer';
 
 class BrevetsImporter extends BaseImporter<Brevet> {
   private errorsByType = new Map<string, number>();
-  /** Id référentiel par code_brevet, pour n'upserter/lier qu'une fois par code (aussi utilisée pour dédupliquer le dry-run) */
+  /** Id référentiel par code_brevet, pour n'upserter/lier qu'une fois par code */
   private referentielIds = new Map<string, number>();
+  private seenReferentiels = new Set<string>();
 
   protected getDataKey(): 'brevets' {
     return 'brevets';
@@ -55,8 +56,8 @@ class BrevetsImporter extends BaseImporter<Brevet> {
    * En dry-run : résout le mapping brevet → commission sans écrire
    */
   protected async checkMappingDryRun(brevet: Brevet): Promise<void> {
-    if (this.referentielIds.has(brevet.codeBrevet)) return;
-    this.referentielIds.set(brevet.codeBrevet, 0);
+    if (this.seenReferentiels.has(brevet.codeBrevet)) return;
+    this.seenReferentiels.add(brevet.codeBrevet);
     await this.commissionLinker.linkBrevet(0, brevet.codeBrevet);
   }
 

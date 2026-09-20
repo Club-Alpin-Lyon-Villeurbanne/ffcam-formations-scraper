@@ -6,8 +6,9 @@ import BaseImporter from './base-importer';
 
 class NiveauxImporter extends BaseImporter<NiveauPratique> {
   private errorsByType = new Map<string, number>();
-  /** Id référentiel par cursus_niveau_id, pour n'upserter/lier qu'une fois par niveau (aussi utilisée pour dédupliquer le dry-run) */
+  /** Id référentiel par cursus_niveau_id, pour n'upserter/lier qu'une fois par niveau */
   private referentielIds = new Map<string, number>();
+  private seenReferentiels = new Set<string>();
 
   protected getDataKey(): 'niveaux' {
     return 'niveaux';
@@ -37,8 +38,8 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
    */
   protected async checkMappingDryRun(niveau: NiveauPratique, cursusNiveauId?: string): Promise<void> {
     if (cursusNiveauId) {
-      if (this.referentielIds.has(cursusNiveauId)) return;
-      this.referentielIds.set(cursusNiveauId, 0);
+      if (this.seenReferentiels.has(cursusNiveauId)) return;
+      this.seenReferentiels.add(cursusNiveauId);
     }
     await this.commissionLinker.linkNiveau(0, niveau.activite, niveau.discipline, niveau.niveau);
   }

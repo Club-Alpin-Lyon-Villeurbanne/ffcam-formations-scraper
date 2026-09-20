@@ -8,8 +8,9 @@ import { Competence } from '../types';
 import BaseImporter from './base-importer';
 
 class CompetencesImporter extends BaseImporter<Competence> {
-  /** Id référentiel par clé (intitulé + code_activite), pour n'upserter/lier qu'une fois par GC (aussi utilisée pour dédupliquer le dry-run) */
+  /** Id référentiel par clé (intitulé + code_activite), pour n'upserter/lier qu'une fois par GC */
   private referentielIds = new Map<string, number>();
+  private seenReferentiels = new Set<string>();
 
   /**
    * Override de la méthode import pour initialiser le mapping GC depuis le CSV
@@ -53,8 +54,8 @@ class CompetencesImporter extends BaseImporter<Competence> {
    */
   protected async checkMappingDryRun(competence: Competence): Promise<void> {
     const key = this.getReferentielKey(competence);
-    if (this.referentielIds.has(key)) return;
-    this.referentielIds.set(key, 0);
+    if (this.seenReferentiels.has(key)) return;
+    this.seenReferentiels.add(key);
     await this.commissionLinker.linkCompetenceFromCsv(0, competence.intituleCompetence);
   }
 
