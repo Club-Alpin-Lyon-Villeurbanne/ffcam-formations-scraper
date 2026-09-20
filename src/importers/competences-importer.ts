@@ -8,6 +8,9 @@ import { Competence } from '../types';
 import BaseImporter from './base-importer';
 
 class CompetencesImporter extends BaseImporter<Competence> {
+  /** Id référentiel par clé (intitulé + code_activite), pour n'upserter/lier qu'une fois par GC (aussi utilisée pour dédupliquer le dry-run) */
+  private referentielIds = new Map<string, number>();
+
   /**
    * Override de la méthode import pour initialiser le mapping GC depuis le CSV
    */
@@ -49,6 +52,9 @@ class CompetencesImporter extends BaseImporter<Competence> {
    * En dry-run : résout le mapping GC → Commissions depuis le CSV sans écrire
    */
   protected async checkMappingDryRun(competence: Competence): Promise<void> {
+    const key = this.getReferentielKey(competence);
+    if (this.referentielIds.has(key)) return;
+    this.referentielIds.set(key, 0);
     await this.commissionLinker.linkCompetenceFromCsv(0, competence.intituleCompetence);
   }
 
@@ -57,47 +63,54 @@ class CompetencesImporter extends BaseImporter<Competence> {
    */
   protected async importItemToDb(competence: Competence): Promise<void> {
     try {
-      // 1. Upsert dans formation_referentiel_groupe_competence
       // Note: On utilise '' au lieu de NULL pour code_activite car MySQL ne considère pas
       // NULL = NULL dans les index uniques, ce qui causerait des doublons
       const codeActivite = competence.codeActivite || '';
-      await this.db.execute(
-        `INSERT INTO formation_referentiel_groupe_competence
-         (intitule, code_activite, activite, created_at, updated_at)
-         VALUES (?, ?, ?, NOW(), NOW())
-         ON DUPLICATE KEY UPDATE
-         activite = VALUES(activite),
-         updated_at = NOW()`,
-        [
-          competence.intituleCompetence,
-          codeActivite,
-          competence.activite || null
-        ]
-      );
+      const key = this.getReferentielKey(competence);
+      let competenceId = this.referentielIds.get(key);
 
-      // 2. Récupérer l'ID de la compétence depuis le référentiel
-      const [competenceRows] = await this.db.execute(
-        `SELECT id FROM formation_referentiel_groupe_competence
-         WHERE intitule = ? AND code_activite = ?
-         LIMIT 1`,
-        [
-          competence.intituleCompetence,
-          codeActivite
-        ]
-      );
+      if (competenceId === undefined) {
+        // 1. Upsert dans formation_referentiel_groupe_competence
+        await this.db.execute(
+          `INSERT INTO formation_referentiel_groupe_competence
+           (intitule, code_activite, activite, created_at, updated_at)
+           VALUES (?, ?, ?, NOW(), NOW())
+           ON DUPLICATE KEY UPDATE
+           activite = VALUES(activite),
+           updated_at = NOW()`,
+          [
+            competence.intituleCompetence,
+            codeActivite,
+            competence.activite || null
+          ]
+        );
 
-      if (!competenceRows || competenceRows.length === 0) {
-        throw new Error(`Impossible de récupérer l'ID de la compétence ${competence.intituleCompetence}`);
+        // 2. Récupérer l'ID de la compétence depuis le référentiel
+        const [competenceRows] = await this.db.execute(
+          `SELECT id FROM formation_referentiel_groupe_competence
+           WHERE intitule = ? AND code_activite = ?
+           LIMIT 1`,
+          [
+            competence.intituleCompetence,
+            codeActivite
+          ]
+        );
+
+        if (!competenceRows || competenceRows.length === 0) {
+          throw new Error(`Impossible de récupérer l'ID de la compétence ${competence.intituleCompetence}`);
+        }
+
+        competenceId = competenceRows[0].id as number;
+
+        // 2b. Lier la compétence à ses commissions depuis le CSV (many-to-many)
+        // Le CSV est la source de vérité pour le mapping GC → Commissions
+        await this.commissionLinker.linkCompetenceFromCsv(
+          competenceId,
+          competence.intituleCompetence
+        );
+
+        this.referentielIds.set(key, competenceId);
       }
-
-      const competenceId = competenceRows[0].id;
-
-      // 2b. Lier la compétence à ses commissions depuis le CSV (many-to-many)
-      // Le CSV est la source de vérité pour le mapping GC → Commissions
-      await this.commissionLinker.linkCompetenceFromCsv(
-        competenceId,
-        competence.intituleCompetence
-      );
 
       // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(competence.adherentId);

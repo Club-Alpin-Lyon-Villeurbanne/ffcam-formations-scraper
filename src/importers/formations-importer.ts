@@ -5,6 +5,9 @@ import { Formation } from '../types';
 import BaseImporter from './base-importer';
 
 class FormationsImporter extends BaseImporter<Formation> {
+  /** Id référentiel par code_formation, pour n'upserter/lier qu'une fois par code (aussi utilisée pour dédupliquer le dry-run) */
+  private referentielIds = new Map<string, number>();
+
   protected getDataKey(): 'formations' {
     return 'formations';
   }
@@ -57,6 +60,8 @@ class FormationsImporter extends BaseImporter<Formation> {
    * En dry-run : résout le mapping formation → commission sans écrire
    */
   protected async checkMappingDryRun(formation: Formation): Promise<void> {
+    if (this.referentielIds.has(formation.codeFormation)) return;
+    this.referentielIds.set(formation.codeFormation, 0);
     await this.commissionLinker.linkFormation(0, formation.codeFormation);
   }
 
@@ -65,25 +70,33 @@ class FormationsImporter extends BaseImporter<Formation> {
    */
   protected async importItemToDb(formation: Formation): Promise<void> {
     try {
-      // 1. Upsert dans formation_referentiel_formation
-      await this.db.execute(
-        `INSERT INTO formation_referentiel_formation (code_formation, intitule)
-         VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE intitule = VALUES(intitule)`,
-        [formation.codeFormation, formation.intituleFormation]
-      );
+      let formationId = this.referentielIds.get(formation.codeFormation);
 
-      // 2. Récupérer l'ID de la formation et lier à sa commission
-      const [formationRows] = await this.db.execute(
-        `SELECT id FROM formation_referentiel_formation WHERE code_formation = ? LIMIT 1`,
-        [formation.codeFormation]
-      );
-
-      if (formationRows && formationRows.length > 0) {
-        await this.commissionLinker.linkFormation(
-          formationRows[0].id,
-          formation.codeFormation
+      if (formationId === undefined) {
+        // 1. Upsert dans formation_referentiel_formation
+        await this.db.execute(
+          `INSERT INTO formation_referentiel_formation (code_formation, intitule)
+           VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE intitule = VALUES(intitule)`,
+          [formation.codeFormation, formation.intituleFormation]
         );
+
+        // 2. Récupérer l'ID de la formation et lier à sa commission
+        const [formationRows] = await this.db.execute(
+          `SELECT id FROM formation_referentiel_formation WHERE code_formation = ? LIMIT 1`,
+          [formation.codeFormation]
+        );
+
+        if (!formationRows || formationRows.length === 0) {
+          this.logger.stats.formations.errors++;
+          return;
+        }
+
+        formationId = formationRows[0].id as number;
+
+        await this.commissionLinker.linkFormation(formationId, formation.codeFormation);
+
+        this.referentielIds.set(formation.codeFormation, formationId);
       }
 
       // 3. Chercher l'user_id
@@ -93,14 +106,7 @@ class FormationsImporter extends BaseImporter<Formation> {
         return;
       }
 
-      // 4. Récupérer l'ID de la formation depuis le référentiel
-      const formationId = formationRows && formationRows.length > 0 ? formationRows[0].id : null;
-      if (!formationId) {
-        this.logger.stats.formations.errors++;
-        return;
-      }
-
-      // 5. Insert dans formation_validation_formation
+      // 4. Insert dans formation_validation_formation
       await this.db.execute(
         `INSERT INTO formation_validation_formation
          (user_id, formation_id, valide, date_validation, numero_formation,
