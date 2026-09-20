@@ -41,4 +41,20 @@ describe('DatabaseConnection - cache des adhérents par préfixe de cafnum', () 
 
     expect(execute).not.toHaveBeenCalled();
   });
+
+  it('trouve un cafnum malgré un espace de fin renvoyé par MySQL (LIKE ignore les espaces, Map.get non)', async () => {
+    const rows = [{ id_user: 5, cafnum_user: '690020190005 ' }];
+    const execute = vi.fn(async (sql: string, _params: any[] = []) => {
+      if (sql.includes('LIKE')) {
+        return [rows, []] as [any[], any[]];
+      }
+      return [[], []] as [any[], any[]];
+    });
+
+    const adapter = getInstance();
+    // Cache vidé pour ne pas dépendre du préfixe déjà rempli par les tests précédents
+    Object.assign(adapter, { execute, connection: {}, usersByCafnum: new Map() });
+
+    expect(await adapter.getUserIdFromCafnum('690020190005')).toBe(5);
+  });
 });

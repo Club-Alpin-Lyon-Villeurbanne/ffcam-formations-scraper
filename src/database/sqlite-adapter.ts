@@ -292,7 +292,7 @@ class SQLiteAdapter implements DatabaseAdapter {
           'SELECT id_user, cafnum_user FROM caf_user WHERE cafnum_user LIKE ?',
           [`${prefix}%`]
         );
-        usersForPrefix = new Map(rows.map((row: any) => [row.cafnum_user, row.id_user]));
+        usersForPrefix = new Map(rows.map((row: any) => [String(row.cafnum_user).trim(), row.id_user]));
         this.usersByCafnum.set(prefix, usersForPrefix);
       }
 

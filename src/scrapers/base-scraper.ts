@@ -15,11 +15,19 @@ export interface ScraperConfig {
   sidx?: string;             // Optionnel, auto-généré si absent
 }
 
-/** Le sid n'est plus accepté par l'extranet (réponse HTML ou body illisible) */
+/** Le sid n'est plus accepté par l'extranet (réponse HTML au lieu de JSON) */
 export class SessionRejectedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'SessionRejectedError';
+  }
+}
+
+/** Body de réponse illisible (ni HTML, ni JSON valide) : peut être transitoire (ex. 503) */
+export class InvalidResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidResponseError';
   }
 }
 
@@ -129,7 +137,7 @@ abstract class BaseScraper<T = any> {
     try {
       return JSON.parse(text) as ApiResponse;
     } catch (error) {
-      throw new SessionRejectedError(`Réponse invalide de l'API FFCAM`);
+      throw new InvalidResponseError(`Réponse invalide de l'API FFCAM`);
     }
   }
 
@@ -237,8 +245,11 @@ abstract class BaseScraper<T = any> {
         }
 
       } catch (error: any) {
-        if (error instanceof SessionRejectedError && !hasReloggedThisCall) {
-          // Le sid a été rejeté : on se reconnecte une seule fois puis on rejoue la même page
+        const isSessionRejected = error instanceof SessionRejectedError;
+        const isInvalidResponse = error instanceof InvalidResponseError;
+
+        if ((isSessionRejected || isInvalidResponse) && !hasReloggedThisCall) {
+          // Le sid a peut-être été rejeté : on se reconnecte une seule fois puis on rejoue la même page
           hasReloggedThisCall = true;
           resetSessionCache();
           this.sessionId = '';
@@ -250,11 +261,11 @@ abstract class BaseScraper<T = any> {
         if (page === 1) {
           throw error;
         }
-        // Une session rejetée sur une page suivante reste fatale (pas de saut silencieux)
-        if (error instanceof SessionRejectedError) {
+        // Une session HTML rejetée sur une page suivante reste fatale (pas de saut silencieux)
+        if (isSessionRejected) {
           throw error;
         }
-        // Sur les pages suivantes, une autre erreur est temporaire : on continue
+        // Sur les pages suivantes, une autre erreur (y compris un body illisible après reconnexion) est temporaire : on continue
         console.error(`✗ Erreur page ${page}:`, error.message);
         page++;
       }

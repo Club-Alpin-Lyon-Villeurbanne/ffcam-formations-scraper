@@ -2,12 +2,13 @@
  * Tests de la reconnexion automatique de BaseScraper quand l'extranet rejette le sid.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import BaseScraper, { SessionRejectedError, ScraperConfig } from './base-scraper';
+import BaseScraper, { SessionRejectedError, InvalidResponseError, ScraperConfig } from './base-scraper';
 import { ApiRow, ApiResponse } from '../types';
 import * as sso from '../auth/ffcam-sso';
 
 type FetchBehavior =
-  | { type: 'reject' }
+  | { type: 'html' }
+  | { type: 'invalid' }
   | { type: 'error'; message: string }
   | { type: 'data'; rows: ApiRow[]; total: number };
 
@@ -47,8 +48,11 @@ class TestScraper extends BaseScraper<string> {
 
     const behavior = this.behaviors[this.behaviorIndex++];
     if (!behavior) throw new Error('Pas de comportement simulé pour cet appel de fetchData');
-    if (behavior.type === 'reject') {
-      throw new SessionRejectedError("Réponse invalide de l'API FFCAM");
+    if (behavior.type === 'html') {
+      throw new SessionRejectedError('❌ Session extranet refusée (réponse HTML au lieu de JSON).');
+    }
+    if (behavior.type === 'invalid') {
+      throw new InvalidResponseError("Réponse invalide de l'API FFCAM");
     }
     if (behavior.type === 'error') {
       throw new Error(behavior.message);
@@ -74,7 +78,7 @@ describe('BaseScraper - reconnexion sur session extranet refusée', () => {
   it('se reconnecte une fois et rejoue la même page après un rejet de session', async () => {
     const resetSpy = vi.spyOn(sso, 'resetSessionCache');
     const scraper = new TestScraper([
-      { type: 'reject' },
+      { type: 'html' },
       { type: 'data', rows: [row('1', 'A')], total: 1 }
     ]);
 
@@ -89,9 +93,9 @@ describe('BaseScraper - reconnexion sur session extranet refusée', () => {
     expect(scraper.fetchCalls[1].sid).not.toBe(scraper.fetchCalls[0].sid);
   });
 
-  it('échoue avec SessionRejectedError si la session est refusée deux fois de suite', async () => {
+  it('échoue avec SessionRejectedError si la session (HTML) est refusée deux fois de suite', async () => {
     const resetSpy = vi.spyOn(sso, 'resetSessionCache');
-    const scraper = new TestScraper([{ type: 'reject' }, { type: 'reject' }]);
+    const scraper = new TestScraper([{ type: 'html' }, { type: 'html' }]);
 
     await expect(scraper.scrape()).rejects.toBeInstanceOf(SessionRejectedError);
     expect(scraper.ensureSessionCalls).toBe(2);
@@ -111,5 +115,21 @@ describe('BaseScraper - reconnexion sur session extranet refusée', () => {
     expect(results).toEqual(['A', 'C']);
     expect(scraper.ensureSessionCalls).toBe(1);
     expect(resetSpy).not.toHaveBeenCalled();
+  });
+
+  it('un body illisible sur la page 2, après une reconnexion déjà utilisée en page 1, est ignoré (pas fatal)', async () => {
+    const resetSpy = vi.spyOn(sso, 'resetSessionCache');
+    const scraper = new TestScraper([
+      { type: 'html' },                                    // page 1, 1er essai : session rejetée → reconnexion
+      { type: 'data', rows: [row('1', 'A')], total: 3 },    // page 1, rejoué après reconnexion
+      { type: 'invalid' },                                  // page 2 : body illisible, reconnexion déjà utilisée
+      { type: 'data', rows: [row('3', 'C')], total: 3 }     // page 3
+    ]);
+
+    const results = await scraper.scrape();
+
+    expect(results).toEqual(['A', 'C']);
+    expect(scraper.ensureSessionCalls).toBe(2);
+    expect(resetSpy).toHaveBeenCalledTimes(1);
   });
 });
