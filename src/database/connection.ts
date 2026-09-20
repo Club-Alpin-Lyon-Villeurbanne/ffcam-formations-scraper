@@ -114,6 +114,7 @@ class DatabaseConnection implements DatabaseAdapter {
    * Récupère un utilisateur par son cafnum
    */
   async getUserIdFromCafnum(cafnum: string): Promise<number | null> {
+    cafnum = String(cafnum ?? '').trim();
     if (!this.connection) return null;
     if (!cafnum || cafnum.length < 4) return null;
 

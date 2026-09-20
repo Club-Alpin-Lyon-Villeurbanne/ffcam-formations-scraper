@@ -56,5 +56,7 @@ describe('DatabaseConnection - cache des adhérents par préfixe de cafnum', () 
     Object.assign(adapter, { execute, connection: {}, usersByCafnum: new Map() });
 
     expect(await adapter.getUserIdFromCafnum('690020190005')).toBe(5);
+    expect(await adapter.getUserIdFromCafnum(' 690020190005 ')).toBe(5);
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 });

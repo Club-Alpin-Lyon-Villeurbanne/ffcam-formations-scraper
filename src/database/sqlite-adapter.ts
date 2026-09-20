@@ -279,6 +279,7 @@ class SQLiteAdapter implements DatabaseAdapter {
    * Récupère un utilisateur par son cafnum
    */
   async getUserIdFromCafnum(cafnum: string): Promise<number | null> {
+    cafnum = String(cafnum ?? '').trim();
     if (!this.db) return null;
     if (!cafnum || cafnum.length < 4) return null;
 
