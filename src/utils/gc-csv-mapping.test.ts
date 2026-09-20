@@ -2,6 +2,7 @@
  * Tests du mapping GC → Commissions depuis le CSV versionné de Lyon.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
+import * as fs from 'fs';
 import * as path from 'path';
 import { loadGcMapping, getCommissionsForGc, hasGcInMapping, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
 
@@ -15,6 +16,13 @@ describe('gc-csv-mapping', () => {
   });
 
   describe('loadGcMapping', () => {
+    it('aucune ligne du CSV de Lyon ne perd un morceau d\'intitulé sur une virgule non protégée', () => {
+      const header = 'commission,niveau,groupe_competences';
+      const lines = fs.readFileSync(csvPath, 'utf-8').split('\n').filter(l => l.trim() && l !== header);
+      const suspicious = lines.filter(l => !l.includes('"') && l.split(',').length > 3);
+      expect(suspicious).toEqual([]);
+    });
+
     it('should load mapping from CSV file', () => {
       expect(mapping).toBeDefined();
       expect(mapping.size).toBeGreaterThan(0);
