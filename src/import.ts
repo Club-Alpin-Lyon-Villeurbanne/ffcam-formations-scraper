@@ -66,7 +66,7 @@ async function importFormations(
   db: DatabaseAdapter,
   logger: LoggerType,
   commissionLinker: CommissionLinker
-): Promise<void> {
+): Promise<number[]> {
   const scraper = new FormationsScraper();
   const formations: Formation[] = await scraper.scrape();
 
@@ -77,6 +77,7 @@ async function importFormations(
 
   const importer = new FormationsImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(formations);
+  return scraper.missingPages;
 }
 
 /**
@@ -86,7 +87,7 @@ async function importBrevets(
   db: DatabaseAdapter,
   logger: LoggerType,
   commissionLinker: CommissionLinker
-): Promise<void> {
+): Promise<number[]> {
   const scraper = new BrevetsScraper();
   const brevets: Brevet[] = await scraper.scrape();
 
@@ -97,6 +98,7 @@ async function importBrevets(
 
   const importer = new BrevetsImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(brevets);
+  return scraper.missingPages;
 }
 
 /**
@@ -106,7 +108,7 @@ async function importNiveaux(
   db: DatabaseAdapter,
   logger: LoggerType,
   commissionLinker: CommissionLinker
-): Promise<void> {
+): Promise<number[]> {
   const scraper = new NiveauxScraper();
   const { data: niveaux, metadata }: ScrapedData<NiveauPratique> = await scraper.scrape();
 
@@ -117,6 +119,7 @@ async function importNiveaux(
 
   const importer = new NiveauxImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(niveaux, metadata || {});
+  return scraper.missingPages;
 }
 
 /**
@@ -126,7 +129,7 @@ async function importCompetences(
   db: DatabaseAdapter,
   logger: LoggerType,
   commissionLinker: CommissionLinker
-): Promise<void> {
+): Promise<number[]> {
   const scraper = new CompetencesScraper();
   const competences: Competence[] = await scraper.scrape();
 
@@ -137,6 +140,7 @@ async function importCompetences(
 
   const importer = new CompetencesImporter(db, logger, commissionLinker, DRY_RUN);
   await importer.import(competences);
+  return scraper.missingPages;
 }
 
 /**
@@ -213,43 +217,48 @@ async function main(): Promise<void> {
 
     // Import selon les types sélectionnés
     let isFirst = true;
+    const pagesManquantes: Partial<Record<'formations' | 'brevets' | 'niveaux' | 'competences', number[]>> = {};
 
     if (TYPES_TO_IMPORT.includes('formations')) {
       if (!isFirst) await pause();
       isFirst = false;
-      await importFormations(db, logger, commissionLinker);
+      const missing = await importFormations(db, logger, commissionLinker);
+      if (missing.length > 0) pagesManquantes.formations = missing;
     }
 
     if (TYPES_TO_IMPORT.includes('brevets')) {
       if (!isFirst) await pause();
       isFirst = false;
-      await importBrevets(db, logger, commissionLinker);
+      const missing = await importBrevets(db, logger, commissionLinker);
+      if (missing.length > 0) pagesManquantes.brevets = missing;
     }
 
     if (TYPES_TO_IMPORT.includes('niveaux')) {
       if (!isFirst) await pause();
       isFirst = false;
-      await importNiveaux(db, logger, commissionLinker);
+      const missing = await importNiveaux(db, logger, commissionLinker);
+      if (missing.length > 0) pagesManquantes.niveaux = missing;
     }
 
     if (TYPES_TO_IMPORT.includes('competences')) {
       if (!isFirst) await pause();
       isFirst = false;
-      await importCompetences(db, logger, commissionLinker);
+      const missing = await importCompetences(db, logger, commissionLinker);
+      if (missing.length > 0) pagesManquantes.competences = missing;
     }
 
-    // Mise à jour du tracking de sync
+    // Mise à jour du tracking de sync (jamais pour un type avec des pages manquantes : le sync ne serait pas complet)
     if (!DRY_RUN && db.isConnected()) {
-      if (TYPES_TO_IMPORT.includes('formations')) {
+      if (TYPES_TO_IMPORT.includes('formations') && !pagesManquantes.formations) {
         await db.updateLastSync('formations', logger.stats.formations.imported);
       }
-      if (TYPES_TO_IMPORT.includes('brevets')) {
+      if (TYPES_TO_IMPORT.includes('brevets') && !pagesManquantes.brevets) {
         await db.updateLastSync('brevets', logger.stats.brevets.imported);
       }
-      if (TYPES_TO_IMPORT.includes('niveaux')) {
+      if (TYPES_TO_IMPORT.includes('niveaux') && !pagesManquantes.niveaux) {
         await db.updateLastSync('niveaux_pratique', logger.stats.niveaux.imported);
       }
-      if (TYPES_TO_IMPORT.includes('competences')) {
+      if (TYPES_TO_IMPORT.includes('competences') && !pagesManquantes.competences) {
         await db.updateLastSync('competences', logger.stats.competences.imported);
       }
     }
@@ -297,7 +306,8 @@ async function main(): Promise<void> {
           niveaux_count: logger.stats.referentiels.niveaux.size,
           competences_count: logger.stats.referentiels.competences.size
         }
-      }
+      },
+      ...(Object.keys(pagesManquantes).length > 0 ? { pages_manquantes: pagesManquantes } : {})
     };
 
     const reportPath = saveImportReport(rapport, timestamp);
@@ -306,6 +316,16 @@ async function main(): Promise<void> {
     // Fermer la connexion
     if (db.isConnected()) {
       await db.close();
+    }
+
+    if (Object.keys(pagesManquantes).length > 0) {
+      const liste = Object.entries(pagesManquantes)
+        .map(([type, pages]) => `${type} ${pages!.join(', ')}`)
+        .join(' ; ');
+      console.log(`\n⚠️ IMPORT PARTIEL — pages manquantes : ${liste}`);
+      console.log('⚠️ Import terminé avec des pages manquantes (relancer)');
+      process.exitCode = 1;
+      return;
     }
 
     console.log('\n✅ Import terminé avec succès !');

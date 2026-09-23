@@ -36,6 +36,11 @@ abstract class BaseScraper<T = any> {
   protected rowsPerPage: number;
   protected apiDelay: number;
   protected baseUrl: string;
+  /** Délais avant chaque réessai d'une page en erreur (ms) */
+  protected retryDelays = [1000, 2000, 4000];
+  /** Pages abandonnées après épuisement des réessais, réinitialisé à chaque fetchAllPages */
+  public missingPages: number[] = [];
+  public totalPages = 1;
 
   constructor() {
     this.sessionId = '';
@@ -84,6 +89,9 @@ abstract class BaseScraper<T = any> {
     const results = await this.fetchAllPages(baseParams, this.processRow.bind(this));
 
     console.log(`\n✅ ${results.length} ${config.entityName} récupérés\n`);
+    if (this.missingPages.length > 0) {
+      console.log(`⚠️ ${this.missingPages.length} page(s) manquante(s) sur ${this.totalPages} : ${this.missingPages.join(', ')}`);
+    }
 
     return results;
   }
@@ -120,7 +128,7 @@ abstract class BaseScraper<T = any> {
    * Effectue une requête HTTP
    */
   protected async fetchData(url: string): Promise<ApiResponse> {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
@@ -146,6 +154,10 @@ abstract class BaseScraper<T = any> {
    */
   protected async delay(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, this.apiDelay));
+  }
+
+  protected async sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -204,6 +216,20 @@ abstract class BaseScraper<T = any> {
   }
 
   /**
+   * Une erreur HTTP 4xx est définitive (page inexistante, requête rejetée) : pas de réessai,
+   * sauf 408 (timeout serveur) et 429 (rate limiting), pour lesquels le backoff a justement du sens.
+   * Réseau, timeout (`AbortSignal.timeout`) et body illisible sont aussi considérés transitoires.
+   */
+  protected isRetryable(error: any): boolean {
+    const httpStatus = /^Erreur HTTP: (\d+)$/.exec(error?.message ?? '');
+    if (httpStatus) {
+      const status = parseInt(httpStatus[1], 10);
+      return status >= 500 || status === 408 || status === 429;
+    }
+    return true;
+  }
+
+  /**
    * Récupère toutes les pages de données
    */
   protected async fetchAllPages<T>(
@@ -212,10 +238,14 @@ abstract class BaseScraper<T = any> {
   ): Promise<T[]> {
     const allData: T[] = [];
     let page = 1;
-    let totalPages = 1;
-    let hasReloggedThisCall = false;
+    this.totalPages = 1;
+    this.missingPages = [];
+    let reloginCount = 0;
+    const maxRelogins = 2;
+    let attempt = 0;
+    const maxAttempts = this.retryDelays.length + 1; // 1 essai initial + les réessais
 
-    while (page <= totalPages) {
+    while (page <= this.totalPages) {
       try {
         const url = this.buildUrl({ ...baseParams, page } as ApiRequestParams);
         const data = await this.fetchData(url);
@@ -224,23 +254,27 @@ abstract class BaseScraper<T = any> {
         this.onDataFetched(data);
 
         if (page === 1) {
-          totalPages = parseInt(data.total.toString());
-          console.log(`📊 ${data.records} enregistrements sur ${totalPages} pages\n`);
+          this.totalPages = parseInt(data.total.toString());
+          console.log(`📊 ${data.records} enregistrements sur ${this.totalPages} pages\n`);
         }
 
-        // Traiter chaque ligne
+        // Traiter chaque ligne dans un tableau local : si une ligne échoue, la page est
+        // rejouée en entier sans que les lignes déjà traitées ne soient conservées
+        const pageData: T[] = [];
         for (const row of data.rows) {
           const processedData = processRow(row);
           if (processedData) {
-            allData.push(processedData);
+            pageData.push(processedData);
           }
         }
+        allData.push(...pageData);
 
-        console.log(`✓ Page ${page}/${totalPages} (${allData.length} enregistrements)`);
+        console.log(`✓ Page ${page}/${this.totalPages} (${allData.length} enregistrements)`);
+        attempt = 0;
         page++;
 
         // Délai entre les pages
-        if (page <= totalPages) {
+        if (page <= this.totalPages) {
           await this.delay();
         }
 
@@ -248,26 +282,45 @@ abstract class BaseScraper<T = any> {
         const isSessionRejected = error instanceof SessionRejectedError;
         const isInvalidResponse = error instanceof InvalidResponseError;
 
-        if ((isSessionRejected || isInvalidResponse) && !hasReloggedThisCall) {
-          // Le sid a peut-être été rejeté : on se reconnecte une seule fois puis on rejoue la même page
-          hasReloggedThisCall = true;
+        if ((isSessionRejected || isInvalidResponse) && reloginCount < maxRelogins) {
+          // Le sid a peut-être été rejeté : on se reconnecte (jusqu'à maxRelogins fois par appel) puis on rejoue la même page
+          reloginCount++;
           resetSessionCache();
           this.sessionId = '';
           await this.ensureSession();
           console.log('🔁 Session extranet refusée, reconnexion…');
           continue;
         }
-        // Sur la première page, une erreur est fatale (session refusée)
-        if (page === 1) {
-          throw error;
-        }
-        // Une session HTML rejetée sur une page suivante reste fatale (pas de saut silencieux)
+
         if (isSessionRejected) {
+          // Le budget de reconnexions de cet appel est épuisé : le sid reste invalide, inutile de réessayer
           throw error;
         }
-        // Sur les pages suivantes, une autre erreur (y compris un body illisible après reconnexion) est temporaire : on continue
-        console.error(`✗ Erreur page ${page}:`, error.message);
+
+        const cause = error.cause?.code ?? error.message;
+
+        if (this.isRetryable(error) && attempt < this.retryDelays.length) {
+          const delai = this.retryDelays[attempt] / 1000;
+          console.error(`↻ Page ${page} : essai ${attempt + 2}/${maxAttempts} dans ${delai}s (${cause})`);
+          await this.sleep(this.retryDelays[attempt]);
+          attempt++;
+          continue;
+        }
+
+        if (page === 1) {
+          // Sans la page 1, on ne connaît même pas totalPages : rien n'est récupérable pour ce type
+          throw new Error(`Page 1 injoignable après ${maxAttempts} tentatives (${cause}) : ${this.getScraperConfig().entityNamePlural} non récupérés`, { cause: error });
+        }
+
+        console.error(`✗ Page ${page} abandonnée après ${maxAttempts} tentatives (${cause})`);
+        this.missingPages.push(page);
+        attempt = 0;
         page++;
+
+        // Délai avant la page suivante, comme sur le chemin de succès
+        if (page <= this.totalPages) {
+          await this.delay();
+        }
       }
     }
 
