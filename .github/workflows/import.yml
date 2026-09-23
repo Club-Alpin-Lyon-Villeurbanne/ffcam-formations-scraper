@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       max-parallel: 1       # un seul scraping à la fois sur l'extranet FFCAM
       matrix:
-        environment: [lyon-staging]   # un environment GitHub par base cible (lyon = production, à ajouter une fois le staging validé)
+        environment: [lyon-staging, lyon-prod]   # un environment GitHub par base cible
     env:
       NODE_ENV: production
       CLUB: ${{ vars.CLUB }}
