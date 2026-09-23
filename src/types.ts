@@ -257,6 +257,7 @@ export interface ImportReport {
       competences_count: number;
     };
   };
+  pages_manquantes?: Record<string, number[]>;
 }
 
 /**
