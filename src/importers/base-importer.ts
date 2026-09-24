@@ -10,6 +10,7 @@ abstract class BaseImporter<T> {
   protected logger: Logger;
   protected dryRun: boolean;
   protected commissionLinker: CommissionLinker;
+  private errorsByType = new Map<string, number>();
 
   constructor(db: DatabaseAdapter, logger: Logger, commissionLinker: CommissionLinker, dryRun: boolean = false) {
     this.db = db;
@@ -34,6 +35,32 @@ abstract class BaseImporter<T> {
   protected async checkMappingDryRun(_item: T): Promise<void> {}
 
   /**
+   * Compte une erreur d'écriture et détaille les premières. Seul l'id de ligne est affiché :
+   * les logs GitHub Actions d'un dépôt public sont publics.
+   */
+  protected recordError(rowId: string, error: any): void {
+    const stats = this.logger.stats[this.getDataKey()];
+    const type = error.errno ? `SQL-${error.errno}` : String(error.message).substring(0, 50);
+    this.errorsByType.set(type, (this.errorsByType.get(type) || 0) + 1);
+
+    if (stats.errors < 3) {
+      const sql = error.sqlState ? ` [SQLSTATE ${error.sqlState}, errno ${error.errno}]` : '';
+      console.log(`\n   ❌ Erreur d'écriture (ligne ${rowId}) : ${error.message}${sql}`);
+    } else if (stats.errors === 3) {
+      console.log('\n   … erreurs suivantes masquées, voir la répartition en fin de section');
+    }
+    stats.errors++;
+  }
+
+  protected printErrorBreakdown(): void {
+    if (this.errorsByType.size === 0) return;
+    console.log('\n📊 Répartition des erreurs par type:');
+    [...this.errorsByType.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([type, count]) => console.log(`   - ${type}: ${count}`));
+  }
+
+  /**
    * Template method pour l'import de données
    * Implémente la boucle commune à tous les importeurs
    * @param items - Les items à importer
@@ -47,8 +74,14 @@ abstract class BaseImporter<T> {
       // @ts-ignore - accès dynamique aux stats
       this.logger.stats[dataKey].total++;
 
-      // Validation des données
-      this.validateItem(item);
+      try {
+        this.validateItem(item);
+      } catch (error: any) {
+        this.logger.error(`${error.message} : ligne ignorée`);
+        // @ts-ignore - accès dynamique aux stats
+        this.logger.stats[dataKey].ignored++;
+        continue;
+      }
 
       // Alimenter le référentiel
       const refKey = this.getReferentielKey(item);

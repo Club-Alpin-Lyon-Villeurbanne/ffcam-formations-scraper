@@ -23,6 +23,7 @@ class FormationsImporter extends BaseImporter<Formation> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printFormationReport(dryRun);
+    this.printErrorBreakdown();
   }
 
   /**
@@ -52,8 +53,7 @@ class FormationsImporter extends BaseImporter<Formation> {
     
     // Vérifier le code formation (critique)
     if (!formation.codeFormation) {
-      this.logger.logFormationIssue(formation, 'sans_code');
-      throw new Error(`Formation sans code pour ${formation.nom}`);
+      throw new Error(`Formation sans code (ligne ${formation.id})`);
     }
   }
 
@@ -89,8 +89,7 @@ class FormationsImporter extends BaseImporter<Formation> {
         );
 
         if (!formationRows || formationRows.length === 0) {
-          this.logger.stats.formations.errors++;
-          return;
+          throw new Error(`Impossible de récupérer l'ID de la formation ${formation.codeFormation}`);
         }
 
         formationId = formationRows[0].id as number;
@@ -134,7 +133,7 @@ class FormationsImporter extends BaseImporter<Formation> {
       this.logger.stats.formations.imported++;
 
     } catch (error: any) {
-      this.logger.stats.formations.errors++;
+      this.recordError(formation.id, error);
     }
   }
 }

@@ -246,10 +246,10 @@ export interface ImportReport {
   date: string;
   mode: 'dry-run' | 'production';
   stats: {
-    formations: Omit<ImportStats['formations'], 'errors'>;
-    niveaux: Omit<ImportStats['niveaux'], 'errors'>;
-    brevets: Omit<ImportStats['brevets'], 'errors'>;
-    competences: Omit<ImportStats['competences'], 'errors'>;
+    formations: ImportStats['formations'];
+    niveaux: ImportStats['niveaux'];
+    brevets: ImportStats['brevets'];
+    competences: ImportStats['competences'];
     referentiels: {
       formations_count: number;
       niveaux_count: number;

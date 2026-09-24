@@ -331,6 +331,8 @@ Le projet suit le principe KISS (Keep It Simple, Stupid) :
 - `FFCAM_EMAIL` / `FFCAM_PASSWORD` ne sont jamais commités (stockés dans .env)
 - TypeScript compile automatiquement avec tsx
 - Une page injoignable après 4 tentatives est signalée dans le rapport (« pages manquantes ») et l'import se termine en erreur (code 1) ; les données des autres pages sont conservées, relancer l'import
+- Une erreur d'écriture en base (colonne renommée, droits…) fait aussi terminer l'import en erreur (code 1), avec le détail des premières erreurs ; une ligne FFCAM invalide (sans code) est seulement ignorée
+- Les logs ne contiennent ni nom ni numéro d'adhérent (seulement l'id de ligne) : les logs GitHub Actions d'un dépôt public sont publics
 
 ## Dépannage
 

@@ -24,5 +24,5 @@ Le scraper n'était utilisable que par Lyon : préfixes de cafnum hardcodés, ma
 
 - Onboarder un club = un `.env`, un dossier `config/clubs/<club>/` et un environment GitHub. Voir README.
 - Une modification de l'API du portail casse l'import ; on le saura au run suivant, avec l'étape en cause.
-- Une page injoignable après 4 tentatives est signalée comme page manquante dans le rapport, et l'import se termine en erreur pour forcer une relance.
+- Une page injoignable après 4 tentatives ou une erreur d'écriture en base fait terminer l'import en erreur (rapport + code 1) : un import incomplet ne doit jamais passer pour un succès.
 - Écarté tant que le besoin n'est pas prouvé : alias de slugs, génération automatique du CSV des GC, issue GitHub automatique en cas d'échec, filtrage côté serveur de la grille des brevets.

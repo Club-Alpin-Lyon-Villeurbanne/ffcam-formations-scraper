@@ -13,47 +13,50 @@ on:
 permissions:
   contents: read
 
+# Un seul run à la fois : deux runs simultanés avec le même compte FFCAM se volent la session extranet
+concurrency:
+  group: import-ffcam
+  cancel-in-progress: false
+
 jobs:
   import:
     name: Import ${{ matrix.environment }}
     runs-on: ubuntu-latest
-    timeout-minutes: 240   # ~2 h 30 observées : les écritures MySQL ligne à ligne depuis un runner US vers Clever Cloud (Paris)
+    timeout-minutes: 120
     environment: ${{ matrix.environment }}
-    concurrency:
-      group: import-${{ matrix.environment }}
-      cancel-in-progress: false
     strategy:
       fail-fast: false
       max-parallel: 1       # un seul scraping à la fois sur l'extranet FFCAM
       matrix:
         environment: [lyon-staging, lyon-prod]   # un environment GitHub par base cible
-    env:
-      NODE_ENV: production
-      CLUB: ${{ vars.CLUB }}
-      CLUB_CODE: ${{ vars.CLUB_CODE }}
-      FFCAM_EMAIL: ${{ secrets.FFCAM_EMAIL }}
-      FFCAM_PASSWORD: ${{ secrets.FFCAM_PASSWORD }}
-      FFCAM_PROFILE: ${{ vars.FFCAM_PROFILE }}
-      MYSQL_ADDON_HOST: ${{ secrets.MYSQL_ADDON_HOST }}
-      MYSQL_ADDON_PORT: ${{ secrets.MYSQL_ADDON_PORT }}
-      MYSQL_ADDON_USER: ${{ secrets.MYSQL_ADDON_USER }}
-      MYSQL_ADDON_PASSWORD: ${{ secrets.MYSQL_ADDON_PASSWORD }}
-      MYSQL_ADDON_DB: ${{ secrets.MYSQL_ADDON_DB }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Vérification de la configuration
-        run: pnpm run check
-      - name: Import
-        run: pnpm run ${{ inputs.dry_run && 'import:dry' || 'import' }}
+      # Secrets exposés à ce seul step, jamais à l'installation des dépendances ; bash s'arrête si check échoue
+      - name: Vérification de la configuration puis import
+        run: |
+          pnpm run check
+          pnpm run ${{ inputs.dry_run && 'import:dry' || 'import' }}
+        env:
+          NODE_ENV: production
+          CLUB: ${{ vars.CLUB }}
+          CLUB_CODE: ${{ vars.CLUB_CODE }}
+          FFCAM_EMAIL: ${{ secrets.FFCAM_EMAIL }}
+          FFCAM_PASSWORD: ${{ secrets.FFCAM_PASSWORD }}
+          FFCAM_PROFILE: ${{ vars.FFCAM_PROFILE }}
+          MYSQL_ADDON_HOST: ${{ secrets.MYSQL_ADDON_HOST }}
+          MYSQL_ADDON_PORT: ${{ secrets.MYSQL_ADDON_PORT }}
+          MYSQL_ADDON_USER: ${{ secrets.MYSQL_ADDON_USER }}
+          MYSQL_ADDON_PASSWORD: ${{ secrets.MYSQL_ADDON_PASSWORD }}
+          MYSQL_ADDON_DB: ${{ secrets.MYSQL_ADDON_DB }}
       - name: Rapport
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rapport-${{ matrix.environment }}-${{ github.run_id }}
           path: data/reports/*.json

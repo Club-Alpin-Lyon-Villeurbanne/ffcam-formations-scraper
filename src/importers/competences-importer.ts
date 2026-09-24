@@ -37,6 +37,7 @@ class CompetencesImporter extends BaseImporter<Competence> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printCompetenceReport(dryRun);
+    this.printErrorBreakdown();
   }
 
   /**
@@ -45,7 +46,7 @@ class CompetencesImporter extends BaseImporter<Competence> {
   protected validateItem(competence: Competence): void {
     // Vérifier l'intitulé (critique)
     if (!competence.intituleCompetence || competence.intituleCompetence.trim() === '') {
-      throw new Error(`Compétence sans intitulé pour ${competence.nom}`);
+      throw new Error(`Compétence sans intitulé (ligne ${competence.id})`);
     }
   }
 
@@ -147,7 +148,7 @@ class CompetencesImporter extends BaseImporter<Competence> {
       this.logger.stats.competences.imported++;
 
     } catch (error: any) {
-      this.logger.stats.competences.errors++;
+      this.recordError(competence.id, error);
     }
   }
 }

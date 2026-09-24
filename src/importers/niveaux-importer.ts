@@ -5,7 +5,6 @@ import { NiveauPratique, NiveauxMetadata } from '../types';
 import BaseImporter from './base-importer';
 
 class NiveauxImporter extends BaseImporter<NiveauPratique> {
-  private errorsByType = new Map<string, number>();
   /** Id référentiel par cursus_niveau_id, pour n'upserter/lier qu'une fois par niveau */
   private referentielIds = new Map<string, number>();
   private seenReferentiels = new Set<string>();
@@ -46,16 +45,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printNiveauReport(dryRun);
-
-    // Afficher les types d'erreurs rencontrées
-    if (this.errorsByType.size > 0) {
-      console.log(`\n📊 Répartition des erreurs par type:`);
-      const sortedErrors = Array.from(this.errorsByType.entries())
-        .sort((a, b) => b[1] - a[1]);
-      sortedErrors.forEach(([type, count]) => {
-        console.log(`   - ${type}: ${count}`);
-      });
-    }
+    this.printErrorBreakdown();
   }
 
   /**
@@ -193,23 +183,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
       this.logger.stats.niveaux.imported++;
 
     } catch (error: any) {
-      // Catégoriser l'erreur
-      const errorType = error.errno ? `SQL-${error.errno}` : error.message.substring(0, 50);
-      this.errorsByType.set(errorType, (this.errorsByType.get(errorType) || 0) + 1);
-
-      // Log détaillé des premières erreurs seulement
-      if (this.logger.stats.niveaux.errors < 3) {
-        console.log(`\n   ❌ ERREUR import niveau: ${niveau.adherentId}`);
-        console.log(`      Activité: ${niveau.activite}`);
-        console.log(`      Niveau: ${niveau.niveau}`);
-        console.log(`      cursus_niveau_id: ${cursusNiveauId}`);
-        console.log(`      Message: ${error.message}`);
-        console.log(`      SQL State: ${error.sqlState || 'N/A'}`);
-        console.log(`      Errno: ${error.errno || 'N/A'}\n`);
-      } else if (this.logger.stats.niveaux.errors === 3) {
-        console.log(`\n   ... (erreurs supplémentaires masquées, voir résumé à la fin)\n`);
-      }
-      this.logger.stats.niveaux.errors++;
+      this.recordError(niveau.id, error);
     }
   }
 }
