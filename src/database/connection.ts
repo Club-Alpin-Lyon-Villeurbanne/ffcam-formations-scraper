@@ -57,16 +57,21 @@ class DatabaseConnection implements DatabaseAdapter {
    * Exécute une requête avec timeout
    */
   private async executeWithTimeout(sql: string, params: any[]): Promise<[any[], any[]]> {
+    let timer: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         reject(new Error('QUERY_TIMEOUT: La requête a dépassé le délai de ' + (QUERY_TIMEOUT_MS / 1000) + 's'));
       }, QUERY_TIMEOUT_MS);
     });
 
-    return Promise.race([
-      this.connection!.execute(sql, params) as Promise<[any[], any[]]>,
-      timeoutPromise
-    ]);
+    try {
+      return await Promise.race([
+        this.connection!.execute(sql, params) as Promise<[any[], any[]]>,
+        timeoutPromise
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /**
@@ -120,23 +125,20 @@ class DatabaseConnection implements DatabaseAdapter {
 
     const prefix = cafnum.slice(0, 4);
 
-    try {
-      let usersForPrefix = this.usersByCafnum.get(prefix);
+    // Une erreur SQL remonte à l'importer (comptée en erreur) : la transformer en null
+    // ferait passer toutes les lignes pour des adhérents introuvables
+    let usersForPrefix = this.usersByCafnum.get(prefix);
 
-      if (!usersForPrefix) {
-        const [rows] = await this.execute(
-          'SELECT id_user, cafnum_user FROM caf_user WHERE cafnum_user LIKE ?',
-          [`${prefix}%`]
-        );
-        usersForPrefix = new Map(rows.map((row: any) => [String(row.cafnum_user).trim(), row.id_user]));
-        this.usersByCafnum.set(prefix, usersForPrefix);
-      }
-
-      return usersForPrefix.get(cafnum) ?? null;
-    } catch (error: any) {
-      console.error(`Erreur recherche user ${cafnum}:`, error.message);
-      return null;
+    if (!usersForPrefix) {
+      const [rows] = await this.execute(
+        'SELECT id_user, cafnum_user FROM caf_user WHERE cafnum_user LIKE ?',
+        [`${prefix}%`]
+      );
+      usersForPrefix = new Map(rows.map((row: any) => [String(row.cafnum_user).trim(), row.id_user]));
+      this.usersByCafnum.set(prefix, usersForPrefix);
     }
+
+    return usersForPrefix.get(cafnum) ?? null;
   }
 
   /**

@@ -68,7 +68,7 @@ class Logger implements LoggerInterface {
     console.log('\n=====================================');
   }
 
-  logFormationIssue(formation: Formation, issue: string): void {
+  logFormationIssue(_formation: Formation, issue: string): void {
     switch(issue) {
       case 'sans_numero':
         this.stats.formations.sans_numero++;
@@ -81,10 +81,6 @@ class Logger implements LoggerInterface {
         break;
       case 'sans_dates':
         this.stats.formations.sans_dates++;
-        break;
-      case 'sans_code':
-        this.stats.formations.errors++;
-        this.error(`Formation sans code pour ${formation.nom} - ID: ${formation.id}`);
         break;
     }
   }
@@ -100,11 +96,10 @@ class Logger implements LoggerInterface {
     }
   }
 
-  logBrevetIssue(brevet: Brevet, issue: string): void {
+  logBrevetIssue(_brevet: Brevet, issue: string): void {
     switch(issue) {
       case 'sans_code':
         this.stats.brevets.sans_code++;
-        this.error(`Brevet sans code pour ${brevet.nom} - ID: ${brevet.id}`);
         break;
       case 'sans_date_obtention':
         this.stats.brevets.sans_date_obtention++;

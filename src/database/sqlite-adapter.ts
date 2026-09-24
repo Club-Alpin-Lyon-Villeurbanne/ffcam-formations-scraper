@@ -285,23 +285,20 @@ class SQLiteAdapter implements DatabaseAdapter {
 
     const prefix = cafnum.slice(0, 4);
 
-    try {
-      let usersForPrefix = this.usersByCafnum.get(prefix);
+    // Une erreur SQL remonte à l'importer (comptée en erreur) : la transformer en null
+    // ferait passer toutes les lignes pour des adhérents introuvables
+    let usersForPrefix = this.usersByCafnum.get(prefix);
 
-      if (!usersForPrefix) {
-        const [rows] = await this.execute(
-          'SELECT id_user, cafnum_user FROM caf_user WHERE cafnum_user LIKE ?',
-          [`${prefix}%`]
-        );
-        usersForPrefix = new Map(rows.map((row: any) => [String(row.cafnum_user).trim(), row.id_user]));
-        this.usersByCafnum.set(prefix, usersForPrefix);
-      }
-
-      return usersForPrefix.get(cafnum) ?? null;
-    } catch (error: any) {
-      console.error(`Erreur recherche user ${cafnum}:`, error.message);
-      return null;
+    if (!usersForPrefix) {
+      const [rows] = await this.execute(
+        'SELECT id_user, cafnum_user FROM caf_user WHERE cafnum_user LIKE ?',
+        [`${prefix}%`]
+      );
+      usersForPrefix = new Map(rows.map((row: any) => [String(row.cafnum_user).trim(), row.id_user]));
+      this.usersByCafnum.set(prefix, usersForPrefix);
     }
+
+    return usersForPrefix.get(cafnum) ?? null;
   }
 
   /**

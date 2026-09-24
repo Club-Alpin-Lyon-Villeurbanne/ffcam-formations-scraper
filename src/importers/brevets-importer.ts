@@ -5,7 +5,6 @@ import { Brevet } from '../types';
 import BaseImporter from './base-importer';
 
 class BrevetsImporter extends BaseImporter<Brevet> {
-  private errorsByType = new Map<string, number>();
   /** Id référentiel par code_brevet, pour n'upserter/lier qu'une fois par code */
   private referentielIds = new Map<string, number>();
   private seenReferentiels = new Set<string>();
@@ -24,16 +23,7 @@ class BrevetsImporter extends BaseImporter<Brevet> {
 
   protected printReport(dryRun: boolean): void {
     this.logger.printBrevetReport(dryRun);
-
-    // Afficher les types d'erreurs rencontrées (seulement si vraies erreurs SQL)
-    if (this.errorsByType.size > 0) {
-      console.log(`\n📊 Répartition des erreurs par type:`);
-      const sortedErrors = Array.from(this.errorsByType.entries())
-        .sort((a, b) => b[1] - a[1]);
-      sortedErrors.forEach(([type, count]) => {
-        console.log(`   - ${type}: ${count}`);
-      });
-    }
+    this.printErrorBreakdown();
   }
 
   /**
@@ -43,7 +33,7 @@ class BrevetsImporter extends BaseImporter<Brevet> {
     // Vérifier le code brevet (critique)
     if (!brevet.codeBrevet || brevet.codeBrevet.trim() === '') {
       this.logger.logBrevetIssue(brevet, 'sans_code');
-      throw new Error(`Brevet sans code pour ${brevet.nom}`);
+      throw new Error(`Brevet sans code (ligne ${brevet.id})`);
     }
 
     // Vérifier la date d'obtention
@@ -131,21 +121,7 @@ class BrevetsImporter extends BaseImporter<Brevet> {
       this.logger.stats.brevets.imported++;
 
     } catch (error: any) {
-      // Catégoriser l'erreur
-      const errorType = error.errno ? `SQL-${error.errno}` : error.message.substring(0, 50);
-      this.errorsByType.set(errorType, (this.errorsByType.get(errorType) || 0) + 1);
-
-      // Log détaillé des premières erreurs seulement
-      if (this.logger.stats.brevets.errors < 3) {
-        console.log(`\n   ❌ ERREUR import brevet: ${brevet.nom} (cafnum: ${brevet.adherentId})`);
-        console.log(`      Code brevet: ${brevet.codeBrevet}`);
-        console.log(`      Message: ${error.message}`);
-        console.log(`      SQL State: ${error.sqlState || 'N/A'}`);
-        console.log(`      Errno: ${error.errno || 'N/A'}\n`);
-      } else if (this.logger.stats.brevets.errors === 3) {
-        console.log(`\n   ... (erreurs supplémentaires masquées, voir résumé à la fin)\n`);
-      }
-      this.logger.stats.brevets.errors++;
+      this.recordError(brevet.id, error);
     }
   }
 }

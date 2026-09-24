@@ -247,20 +247,14 @@ async function main(): Promise<void> {
       if (missing.length > 0) pagesManquantes.competences = missing;
     }
 
-    // Mise à jour du tracking de sync (jamais pour un type avec des pages manquantes : le sync ne serait pas complet)
+    // Tracking de sync seulement pour un type complet : ni page manquante, ni erreur d'écriture
     if (!DRY_RUN && db.isConnected()) {
-      if (TYPES_TO_IMPORT.includes('formations') && !pagesManquantes.formations) {
-        await db.updateLastSync('formations', logger.stats.formations.imported);
-      }
-      if (TYPES_TO_IMPORT.includes('brevets') && !pagesManquantes.brevets) {
-        await db.updateLastSync('brevets', logger.stats.brevets.imported);
-      }
-      if (TYPES_TO_IMPORT.includes('niveaux') && !pagesManquantes.niveaux) {
-        await db.updateLastSync('niveaux_pratique', logger.stats.niveaux.imported);
-      }
-      if (TYPES_TO_IMPORT.includes('competences') && !pagesManquantes.competences) {
-        await db.updateLastSync('competences', logger.stats.competences.imported);
-      }
+      const complet = (type: ImportType) =>
+        TYPES_TO_IMPORT.includes(type) && !pagesManquantes[type] && logger.stats[type].errors === 0;
+      if (complet('formations')) await db.updateLastSync('formations', logger.stats.formations.imported);
+      if (complet('brevets')) await db.updateLastSync('brevets', logger.stats.brevets.imported);
+      if (complet('niveaux')) await db.updateLastSync('niveaux_pratique', logger.stats.niveaux.imported);
+      if (complet('competences')) await db.updateLastSync('competences', logger.stats.competences.imported);
     }
 
     // Afficher le rapport final
@@ -277,6 +271,7 @@ async function main(): Promise<void> {
           total: logger.stats.formations.total,
           imported: logger.stats.formations.imported,
           ignored: logger.stats.formations.ignored,
+          errors: logger.stats.formations.errors,
           sans_numero: logger.stats.formations.sans_numero,
           sans_formateur: logger.stats.formations.sans_formateur,
           sans_lieu: logger.stats.formations.sans_lieu,
@@ -286,6 +281,7 @@ async function main(): Promise<void> {
           total: logger.stats.brevets.total,
           imported: logger.stats.brevets.imported,
           ignored: logger.stats.brevets.ignored,
+          errors: logger.stats.brevets.errors,
           sans_code: logger.stats.brevets.sans_code,
           sans_date_obtention: logger.stats.brevets.sans_date_obtention
         },
@@ -293,12 +289,14 @@ async function main(): Promise<void> {
           total: logger.stats.niveaux.total,
           imported: logger.stats.niveaux.imported,
           ignored: logger.stats.niveaux.ignored,
+          errors: logger.stats.niveaux.errors,
           sans_cursus_id: logger.stats.niveaux.sans_cursus_id
         },
         competences: {
           total: logger.stats.competences.total,
           imported: logger.stats.competences.imported,
-          ignored: logger.stats.competences.ignored
+          ignored: logger.stats.competences.ignored,
+          errors: logger.stats.competences.errors
         },
         referentiels: {
           formations_count: logger.stats.referentiels.formations.size,
@@ -318,12 +316,22 @@ async function main(): Promise<void> {
       await db.close();
     }
 
+    const problemes: string[] = [];
     if (Object.keys(pagesManquantes).length > 0) {
       const liste = Object.entries(pagesManquantes)
         .map(([type, pages]) => `${type} ${pages!.join(', ')}`)
         .join(' ; ');
-      console.log(`\n⚠️ IMPORT PARTIEL — pages manquantes : ${liste}`);
-      console.log('⚠️ Import terminé avec des pages manquantes (relancer)');
+      problemes.push(`pages manquantes : ${liste}`);
+    }
+    const erreurs = ALL_TYPES.filter(type => logger.stats[type].errors > 0)
+      .map(type => `${type} ${logger.stats[type].errors}`);
+    if (erreurs.length > 0) {
+      problemes.push(`erreurs d'écriture en base : ${erreurs.join(' ; ')}`);
+    }
+
+    if (problemes.length > 0) {
+      console.log(`\n⚠️ IMPORT INCOMPLET — ${problemes.join(' — ')}`);
+      console.log("⚠️ Voir le détail ci-dessus, corriger puis relancer l'import");
       process.exitCode = 1;
       return;
     }

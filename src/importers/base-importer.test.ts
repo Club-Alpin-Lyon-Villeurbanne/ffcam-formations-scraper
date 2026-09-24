@@ -139,3 +139,76 @@ describe('BaseImporter - cache référentiel en import réel', () => {
     expect(logger.stats.brevets.imported).toBe(3);
   });
 });
+
+describe('BaseImporter - erreurs', () => {
+  function buildBrevet(overrides: Partial<Brevet>): Brevet {
+    return {
+      id: '1',
+      adherentId: '690020190001',
+      nom: 'DUPONT Jean',
+      codeBrevet: 'BF1-ES-SAE',
+      intituleBrevet: 'Initiateur escalade SAE',
+      dateObtention: '2020-01-01',
+      dateRecyclage: '',
+      dateEdition: '',
+      dateFormationContinue: '',
+      dateMigration: '',
+      ...overrides
+    };
+  }
+
+  function fakeDb(onValidationInsert: () => void = () => {}): DatabaseAdapter {
+    return {
+      connect: async () => {},
+      close: async () => {},
+      isConnected: () => true,
+      execute: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT id FROM formation_referentiel_brevet')) return [[{ id: 7 }], []] as [any[], any[]];
+        if (sql.includes('FROM caf_commission')) return [[{ id_commission: 3 }], []] as [any[], any[]];
+        if (sql.includes('INSERT INTO formation_validation_brevet')) onValidationInsert();
+        return [[], []] as [any[], any[]];
+      }),
+      getUserIdFromCafnum: async () => 11,
+      updateLastSync: async () => {}
+    };
+  }
+
+  let log: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => { log = vi.spyOn(console, 'log').mockImplementation(() => {}); });
+  afterEach(() => { log.mockRestore(); });
+
+  it("une ligne FFCAM invalide est ignorée sans interrompre l'import des suivantes", async () => {
+    const db = fakeDb();
+    const logger = new Logger();
+    const importer = new BrevetsImporter(db, logger, new CommissionLinker(db, false), false);
+
+    await importer.import([
+      buildBrevet({ id: '1' }),
+      buildBrevet({ id: '2', codeBrevet: '' }),
+      buildBrevet({ id: '3' })
+    ]);
+
+    expect(logger.stats.brevets.imported).toBe(2);
+    expect(logger.stats.brevets.ignored).toBe(1);
+    expect(logger.stats.brevets.errors).toBe(0);
+  });
+
+  it("compte une erreur d'écriture et la journalise avec l'id de ligne, sans nom ni cafnum", async () => {
+    const db = fakeDb(() => {
+      throw Object.assign(new Error("Unknown column 'date_obtention' in 'field list'"), { errno: 1054, sqlState: '42S22' });
+    });
+    const logger = new Logger();
+    const importer = new BrevetsImporter(db, logger, new CommissionLinker(db, false), false);
+
+    await importer.import([buildBrevet({ id: '42' })]);
+
+    const output = log.mock.calls.flat().join('\n');
+    expect(logger.stats.brevets.errors).toBe(1);
+    expect(logger.stats.brevets.imported).toBe(0);
+    expect(output).toContain('ligne 42');
+    expect(output).toContain('Unknown column');
+    expect(output).toContain('SQL-1054');
+    expect(output).not.toContain('DUPONT');
+    expect(output).not.toContain('690020190001');
+  });
+});

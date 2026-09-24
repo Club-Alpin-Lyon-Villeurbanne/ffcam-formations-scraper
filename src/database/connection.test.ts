@@ -60,3 +60,30 @@ describe('DatabaseConnection - cache des adhérents par préfixe de cafnum', () 
     expect(execute).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('DatabaseConnection - timeout des requêtes', () => {
+  it('annule le minuteur de timeout dès que la requête répond', async () => {
+    vi.useFakeTimers();
+    try {
+      const adapter = getInstance();
+      delete (adapter as any).execute;
+      Object.assign(adapter, { connection: { execute: vi.fn(async () => [[], []]) } });
+
+      await adapter.execute('SELECT 1');
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('DatabaseConnection - erreur SQL sur caf_user', () => {
+  it("propage l'erreur au lieu de répondre « adhérent introuvable »", async () => {
+    const adapter = getInstance();
+    const execute = vi.fn(async () => { throw new Error('QUERY_TIMEOUT: La requête a dépassé le délai de 60s'); });
+    Object.assign(adapter, { execute, connection: {}, usersByCafnum: new Map() });
+
+    await expect(adapter.getUserIdFromCafnum('690020190001')).rejects.toThrow('QUERY_TIMEOUT');
+  });
+});
