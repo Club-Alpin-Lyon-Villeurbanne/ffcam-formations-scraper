@@ -2,15 +2,7 @@
 
 [![CI](https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper/actions/workflows/ci.yml/badge.svg)](https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper/actions/workflows/ci.yml)
 
-Extracteur de données TypeScript pour récupérer les formations et niveaux de pratique des adhérents depuis l'extranet de la Fédération des Clubs Alpin et de Montagne (FFCAM).
-
-## Description
-
-Ce scraper TypeScript permet d'extraire automatiquement :
-- Les **formations validées** des adhérents (brevets, diplômes, certifications)
-- Les **niveaux de pratique** validés dans différentes activités (escalade, ski, alpinisme, etc.)
-
-Les données sont importées directement dans une base de données SQLite (local) ou MySQL (production).
+Importe chaque semaine, depuis l'extranet de la FFCAM, les **formations**, **brevets**, **niveaux de pratique** et **groupes de compétences** validés des adhérents d'un club, dans la base MySQL de sa plateforme (plateforme-club-alpin), avec leur rattachement aux commissions du club. Utilisable par plusieurs clubs.
 
 ## Prérequis
 
@@ -24,8 +16,8 @@ Les données sont importées directement dans une base de données SQLite (local
 
 ```bash
 # Cloner le repository
-git clone [url-du-repo]
-cd ffcam-formations-adherents-scraper
+git clone https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper.git
+cd ffcam-formations-scraper
 
 # Installer les dépendances
 pnpm install
@@ -44,11 +36,13 @@ Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 
 ## Import automatique (GitHub Actions)
 
-[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging` puis `lyon-prod`). Lancement manuel : onglet Actions → Import FFCAM → Run workflow (cochez « Import à blanc » pour tester).
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`), un seul à la fois (~1 h 30 au total). L'ordre entre les environments n'est pas garanti.
+
+Lancement manuel : onglet Actions → Import FFCAM → Run workflow. ⚠️ Il enchaîne **tous** les environments, **production comprise** : cochez « Import à blanc » pour vérifier sans rien écrire.
 
 **Ajouter un club ou une base** : un mainteneur crée l'environment GitHub (ex. `chambery`, ou `lyon-staging` pour une base de test), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB`, `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute le nom de l'environment dans `matrix.environment`.
 
-**En cas d'échec** : GitHub envoie un e-mail ; le step « Vérification de la configuration » du run dit quoi corriger (mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable). Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
+**En cas d'échec** : GitHub envoie un e-mail. Le step « Vérification de la configuration puis import » du run dit quoi corriger : mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable, ou `⚠️ IMPORT INCOMPLET` (pages manquantes, erreurs d'écriture). Les rapports JSON sont conservés 90 jours en artifacts. Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
 
 ## Configuration
 
@@ -112,7 +106,7 @@ et le club actif est sélectionné par la variable `CLUB` (ex. `CLUB=lyon`).
 # Vérifie la configuration avant le premier import
 npm run check
 
-# Import complet (dev, SQLite par défaut)
+# Import complet (base de .env)
 npm run import
 
 # Import en staging ou production
@@ -122,6 +116,9 @@ NODE_ENV=production npm run import
 # Mode test (dry-run sans importer)
 npm run import:dry
 npm run dev  # alias de import:dry
+
+# Brevets en base sans commission rattachée (base MySQL)
+npm run diagnostic:brevets -- --mysql
 ```
 
 ### Tests
@@ -165,44 +162,34 @@ Pour chaque type (formations, brevets, niveaux, compétences) :
 └── Requête page N → Parse JSON
 ```
 
-Les données viennent d'URLs comme :
+Les données viennent de l'API jqGrid de l'extranet (150 lignes par page, 300 ms entre deux pages, 3 réessais par page en erreur) :
 ```
-https://extranet-clubalpin.com/app/Effectifs/exportXXX.php?sid=...&page=1
+https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php?sid=...&def=adh_brevets&page=1
 ```
+Les grilles brevets et formations sont nationales : seules les lignes dont le cafnum commence par `CLUB_CODE` sont gardées.
 
 **3. Import en base de données**
 
-Pour chaque élément scrapé :
+Pour chaque élément scrapé (exemple des brevets) :
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. UPSERT dans le référentiel                                   │
-│    Ex: formation_brevet_referentiel (code_brevet, intitule)     │
-├─────────────────────────────────────────────────────────────────┤
-│ 2. Mapping vers les commissions CAF                             │
-│    Ex: BF1-ESC → commission Escalade                            │
-│    INSERT INTO formation_brevet_commission (brevet_id, comm_id) │
-├─────────────────────────────────────────────────────────────────┤
-│ 3. Chercher l'adhérent (cafnum → user_id)                       │
-│    SELECT id_user FROM caf_user WHERE cafnum_user = ?                     │
-├─────────────────────────────────────────────────────────────────┤
-│ 4. UPSERT dans la table de liaison adhérent                     │
-│    Ex: formation_brevet (user_id, brevet_id, date_obtention)    │
-└─────────────────────────────────────────────────────────────────┘
-```
+1. **Référentiel** : upsert dans `formation_referentiel_brevet` puis liaison aux commissions dans `formation_commission_brevet` — une seule fois par code distinct.
+2. **Adhérent** : cafnum → `caf_user.id_user` (les adhérents du club sont chargés en mémoire en une requête). Un cafnum absent de `caf_user` est compté « ignoré ».
+3. **Validation** : upsert dans `formation_validation_brevet`.
 
 ### Tables utilisées
 
 | Type | Référentiel | Liaison adhérent | Liaison commission |
 |------|-------------|------------------|-------------------|
-| Formations | `formation_referentiel_formation` | `formation_validation_formation` | `formation_formation_commission` |
-| Brevets | `formation_referentiel_brevet` | `formation_validation_brevet` | `formation_brevet_commission` |
-| Niveaux | `formation_referentiel_niveau_pratique` | `formation_validation_niveau_pratique` | `formation_niveau_commission` |
-| Compétences | `formation_referentiel_groupe_competence` | `formation_validation_groupe_competence` | `formation_competence_commission` |
+| Formations | `formation_referentiel_formation` | `formation_validation_formation` | `formation_commission_formation` |
+| Brevets | `formation_referentiel_brevet` | `formation_validation_brevet` | `formation_commission_brevet` |
+| Niveaux | `formation_referentiel_niveau_pratique` | `formation_validation_niveau_pratique` | `formation_commission_niveau_pratique` |
+| Compétences | `formation_referentiel_groupe_competence` | `formation_validation_groupe_competence` | `formation_commission_groupe_competence` |
+
+Le suivi des synchronisations est dans `formation_last_sync`, mis à jour seulement pour un type importé sans page manquante ni erreur.
 
 ### Mapping des commissions
 
-Le scraper associe automatiquement les formations aux commissions du club via des **patterns hardcodés** (pas de tables de configuration).
+Brevets, formations et niveaux sont rattachés aux commissions par des **patterns dans le code** (référentiels nationaux, communs à tous les clubs). Les **groupes de compétences** le sont par le CSV du club (`config/clubs/<club>/`), car ce rattachement dépend de l'organisation de chaque club.
 
 **A. Par pattern de code brevet** (regex)
 ```typescript
@@ -221,52 +208,35 @@ Le scraper associe automatiquement les formations aux commissions du club via de
 'VELO DE MONTAGNE'  → 'vtt'
 ```
 
-Le mapping utilise le **slug** de la commission pour trouver l'ID dans `caf_commission`.
+Le mapping utilise le **slug** de la commission pour trouver l'ID dans `caf_commission`. Les liaisons ne sont jamais supprimées : corriger un rattachement dans le CSV ajoute la nouvelle liaison sans retirer l'ancienne.
 
 ### Idempotence
 
-Le script peut être relancé sans créer de doublons grâce aux UPSERT (`ON DUPLICATE KEY UPDATE`).
+Le script peut être relancé sans créer de doublons grâce aux UPSERT (`ON DUPLICATE KEY UPDATE`). Il n'efface jamais rien : une validation disparue de l'extranet reste en base.
 
-**Détection automatique de la base de données :**
-- Pas de MySQL configuré dans `.env` → **SQLite** (créé dans `data/local.db`)
-- MySQL configuré → **MySQL**
+Sans variables `MYSQL_ADDON_*`, le scraper bascule sur une base SQLite locale (`data/local.db`), utile seulement pour développer le scraper : elle n'a ni `caf_user` ni `caf_commission`, et `npm run check` la refuse.
 
 ## Structure du projet
 
 ### Technologies utilisées
 
-- **TypeScript** : Typage statique pour une meilleure maintenabilité
-- **SQLite** : Base de données locale par défaut (zero config)
-- **MySQL** : Support optionnel pour la production
-- **Native Fetch** : API HTTP native de Node.js
-- **tsx** : Exécution directe du TypeScript
-
-### Données exportées
-
-#### Formations
-- Code de formation (ex: STG-UFALA2)
-- Intitulé complet
-- Date de validation
-- Numéro de formation
-- Formateur
-- Adhérent (nom et numéro FFCAM)
-
-#### Niveaux de pratique
-- Activité (escalade, alpinisme, ski...)
-- Niveau (INITIE, PERFECTIONNE, AUTONOME)
-- Libellé descriptif
-- Date de validation
-- Validateur
+- **TypeScript** (strict), exécuté directement avec **tsx**
+- **MySQL** (`mysql2`) : base de la plateforme
+- **fetch** natif de Node.js, sans framework
+- **vitest** pour les tests, **GitHub Actions** pour la CI et l'import planifié
 
 ### Arborescence
 
 ```
 ffcam-formations-adherents-scraper/
 ├── src/
+│   ├── import.ts           # 🌟 Script principal
+│   ├── check.ts            # npm run check
+│   ├── diagnostic-brevets.ts
 │   ├── config.ts           # Configuration centrale
 │   ├── types.ts            # Définitions TypeScript
-│   ├── import.ts           # 🌟 Script principal
-│   ├── database/           # Adaptateurs DB (SQLite/MySQL)
+│   ├── auth/               # Login SSO FFCAM → sid extranet
+│   ├── database/           # Adaptateurs DB (MySQL, SQLite de dev)
 │   ├── scrapers/           # Scrapers FFCAM API
 │   ├── importers/          # Logique d'import en DB
 │   ├── services/           # CommissionLinker (liaison référentiels → commissions)
@@ -275,9 +245,10 @@ ffcam-formations-adherents-scraper/
 │   └── clubs/
 │       └── lyon/
 │           └── groupes-competences-commissions.csv  # Mapping GC → commissions, propre à Lyon
+├── docs/                   # API FFCAM, décisions d'architecture (adr/)
+├── .github/workflows/      # CI et import planifié
 ├── dist/                   # Code compilé (gitignored)
 ├── data/                   # Données (gitignored)
-│   ├── local.db            # Base SQLite (auto-créée)
 │   └── reports/            # Rapports d'import JSON
 ├── .env                    # Config locale (gitignored)
 ├── .env.staging            # Config staging (gitignored)
@@ -286,35 +257,12 @@ ffcam-formations-adherents-scraper/
 └── tsconfig.json           # Config TypeScript
 ```
 
-### Référentiels créés automatiquement
-
-**Activités** (6 activités) :
-- AL : ALPINISME
-- CA : DESCENTE DE CANYON
-- ES : ESCALADE
-- RA : RANDONNEE
-- SN : SPORTS DE NEIGE
-- VM : VELO DE MONTAGNE
-
-**Niveaux** (22 niveaux référencés) :
-- INITIE (escalade SAE, SNE, ski de randonnée, randonnée montagne, canyonisme, raquettes)
-- PERFECTIONNE (escalade SAE, SNE, randonnée montagne, ski de randonnée, alpinisme)
-- SPECIALISE (randonnée alpine, alpinisme)
-
-**Formations** (151 formations distinctes) comme :
-- STG-PSC1 : Prévention et secours civiques de niveau I
-- STG-UFALA2 : UF vers l'autonomie en TM et assurage en mouvement
-- STG-FRD20 : INSTRUCTEUR Randonnée FFCAM
-- FOR-CISL10 : Formation INITIATEUR 2ème degré Snowboard alpinisme
-
 ## Architecture simplifiée (KISS)
 
 Le projet suit le principe KISS (Keep It Simple, Stupid) :
 - **Un seul workflow** : `npm run import` fait tout (scraping → DB)
 - **TypeScript simple** : Types stricts mais pas de sur-ingénierie
-- **SQLite par défaut** : Zero configuration pour développer
-- **Détection automatique** : Choix intelligent de la base de données
-- **Pas de frameworks** : Utilisation des API natives (fetch, better-sqlite3)
+- **Pas de frameworks** : API natives (fetch)
 - **Structure claire** : Un fichier = une responsabilité
 - **Logs dans la console** : Feedback temps réel, pas de complexité
 
@@ -325,11 +273,9 @@ Le projet suit le principe KISS (Keep It Simple, Stupid) :
 
 ## Notes importantes
 
-- Le `sid` extranet est obtenu automatiquement (SSO) au début de chaque import et expire après un certain temps d'inactivité
-- Les données sont extraites par pages de 150 enregistrements
-- Un délai de 300ms est respecté entre chaque requête
-- `FFCAM_EMAIL` / `FFCAM_PASSWORD` ne sont jamais commités (stockés dans .env)
-- TypeScript compile automatiquement avec tsx
+- Le `sid` extranet est obtenu automatiquement (SSO) au début de chaque import ; s'il est rejeté en cours de route (inactivité), le scraper se reconnecte
+- Ne lancez pas d'import local avec le compte FFCAM pendant un run GitHub : deux sessions du même compte se volent le `sid`
+- `FFCAM_EMAIL` / `FFCAM_PASSWORD` ne sont jamais commités (stockés dans .env ou dans les secrets GitHub)
 - Une page injoignable après 4 tentatives est signalée dans le rapport (« pages manquantes ») et l'import se termine en erreur (code 1) ; les données des autres pages sont conservées, relancer l'import
 - Une erreur d'écriture en base (colonne renommée, droits…) fait aussi terminer l'import en erreur (code 1), avec le détail des premières erreurs ; une ligne FFCAM invalide (sans code) est seulement ignorée
 - Les logs ne contiennent ni nom ni numéro d'adhérent (seulement l'id de ligne) : les logs GitHub Actions d'un dépôt public sont publics
@@ -344,8 +290,11 @@ Si l'erreur mentionne un profil introuvable ou plusieurs profils correspondants,
 ### Erreur de connexion MySQL
 Vérifiez vos identifiants dans le fichier `.env` et assurez-vous que le serveur MySQL est accessible.
 
-### Adhérents non trouvés
-Si des adhérents ne sont pas trouvés lors de l'import MySQL, vérifiez que la table `caf_user` contient bien les correspondances cafnum → id_user.
+### Adhérents non trouvés (« Ignorés »)
+Un cafnum absent de `caf_user` (ancien adhérent, adhésion non renouvelée) est ignoré. Si la proportion paraît anormale, vérifiez `CLUB_CODE` et que `caf_user.cafnum_user` est renseigné.
+
+### « GC non trouvé dans le CSV »
+La FFCAM renomme parfois des groupes de compétences. Cherchez d'abord en base un ancien intitulé proche, déjà présent dans le CSV, et ajoutez le nouvel intitulé avec les mêmes commissions.
 
 ### Erreur TypeScript
 Si vous avez des erreurs TypeScript, vérifiez avec :
