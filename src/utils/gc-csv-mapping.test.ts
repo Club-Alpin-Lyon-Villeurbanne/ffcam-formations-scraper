@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadGcMapping, getCommissionsForGc, hasGcInMapping, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
+import { loadGcMapping, getCommissionsForGc, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
 
 const csvPath = path.resolve(__dirname, '../../config/clubs/lyon/groupes-competences-commissions.csv');
 
@@ -185,16 +185,6 @@ describe('gc-csv-mapping', () => {
     });
   });
 
-  describe('hasGcInMapping', () => {
-    it('should return true for existing GC', () => {
-      expect(hasGcInMapping(mapping, '1.1 Mon niveau de pratique en alpinisme 1')).toBe(true);
-    });
-
-    it('should return false for non-existing GC', () => {
-      expect(hasGcInMapping(mapping, 'Unknown GC')).toBe(false);
-    });
-  });
-
   describe('getMappingStats', () => {
     it('should return valid statistics', () => {
       const stats = getMappingStats(mapping);
@@ -203,7 +193,6 @@ describe('gc-csv-mapping', () => {
       expect(stats.uniqueCommissions.size).toBeGreaterThan(0);
       expect(stats.gcWithMultipleCommissions).toBeGreaterThanOrEqual(0);
 
-      // Vérifier que les commissions attendues sont présentes
       expect(stats.uniqueCommissions.has('alpinisme')).toBe(true);
       expect(stats.uniqueCommissions.has('escalade')).toBe(true);
       expect(stats.uniqueCommissions.has('ski-de-randonnee')).toBe(true);

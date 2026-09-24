@@ -139,10 +139,7 @@ export async function obtainSessionId(
 
 let cached: Promise<string> | null = null;
 
-/**
- * sid pour ce processus, obtenu une seule fois (les 4 scrapers le partagent).
- * @param creds - identifiants (FFCAM_CONFIG, passé par l'appelant)
- */
+/** sid pour ce processus, obtenu une seule fois (les 4 scrapers le partagent) */
 export function getSessionId(creds: { email: string; password: string; profile?: string }): Promise<string> {
   if (!creds.email || !creds.password) {
     return Promise.reject(new Error(

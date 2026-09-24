@@ -1,6 +1,3 @@
-/**
- * Importeur pour les niveaux de pratique dans la base de données
- */
 import { NiveauPratique, NiveauxMetadata } from '../types';
 import BaseImporter from './base-importer';
 
@@ -18,8 +15,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
   }
 
   protected getReferentielKey(_niveau: NiveauPratique): string {
-    // Cette méthode n'est pas utilisée car on override import()
-    // mais on doit l'implémenter pour satisfaire l'interface
+    // Inutilisée (import() est redéfini) mais imposée par la classe abstraite
     return '';
   }
 
@@ -28,13 +24,10 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
   }
 
   protected async importItemToDb(_niveau: NiveauPratique): Promise<void> {
-    // Non utilisée car on override import() pour gérer les métadonnées
+    // Inutilisée (import() est redéfini) mais imposée par la classe abstraite
     throw new Error('Use import() with metadata instead');
   }
 
-  /**
-   * En dry-run : résout le mapping niveau → commission sans écrire
-   */
   protected async checkMappingDryRun(niveau: NiveauPratique, cursusNiveauId?: string): Promise<void> {
     if (cursusNiveauId) {
       if (this.seenReferentiels.has(cursusNiveauId)) return;
@@ -48,17 +41,13 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
     this.printErrorBreakdown();
   }
 
-  /**
-   * Importe tous les niveaux de pratique
-   * Override de la méthode de base pour gérer les métadonnées
-   */
+  /** Redéfini : le cursus_niveau_id de chaque ligne vient des métadonnées renvoyées à part par l'API */
   async import(niveaux: NiveauPratique[], metadata: NiveauxMetadata): Promise<void> {
     this.logger.section(this.getSectionTitle());
     
     for (const niveau of niveaux) {
       this.logger.stats.niveaux.total++;
       
-      // Récupérer le cursus_niveau_id depuis les métadonnées
       const meta = metadata[niveau.id];
       const cursusNiveauId = meta?._BASE_cursus_niveau_pratique_id;
       
@@ -67,10 +56,8 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
         continue;
       }
       
-      // Valider et extraire le niveau court
       const niveauCourt = this.extractNiveauCourt(niveau);
       
-      // Alimenter les référentiels
       this.logger.stats.referentiels.niveaux.add(cursusNiveauId);
       
       if (!this.dryRun) {
@@ -80,7 +67,6 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
         this.logger.stats.niveaux.imported++;
       }
       
-      // Afficher la progression
       this.logger.progress(
         this.logger.stats.niveaux.imported,
         this.logger.stats.niveaux.total
@@ -90,9 +76,6 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
     this.printReport(this.dryRun);
   }
 
-  /**
-   * Extrait le niveau court (INITIE, PERFECTIONNE, SPECIALISE)
-   */
   private extractNiveauCourt(niveau: NiveauPratique): string | null {
     const match = niveau.niveau.match(/^(INITIE|PERFECTIONNE|SPECIALISE)/);
     const niveauCourt = match ? match[1] : null;
@@ -104,15 +87,11 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
     return niveauCourt;
   }
 
-  /**
-   * Importe un niveau dans la base de données
-   */
   private async importNiveau(niveau: NiveauPratique, cursusNiveauId: string, niveauCourt: string | null): Promise<void> {
     try {
       let niveauRefId = this.referentielIds.get(cursusNiveauId);
 
       if (niveauRefId === undefined) {
-        // 1. Upsert dans formation_referentiel_niveau_pratique
         await this.db.execute(
           `INSERT INTO formation_referentiel_niveau_pratique
            (cursus_niveau_id, code_activite, activite, niveau, libelle, niveau_court, discipline)
@@ -132,7 +111,6 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
           ]
         );
 
-        // 2. Récupérer l'ID du niveau depuis le référentiel
         const [niveauRows] = await this.db.execute(
           `SELECT id FROM formation_referentiel_niveau_pratique WHERE cursus_niveau_id = ? LIMIT 1`,
           [parseInt(cursusNiveauId)]
@@ -144,28 +122,25 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
 
         niveauRefId = niveauRows[0].id as number;
 
-        // 2b. Lier à sa commission
-        // Utilise le niveau complet (ex: "PERFECTIONNE en snowboard de randonnée")
-        // pour déterminer la discipline si non disponible dans les métadonnées
+        // L'intitulé complet (ex. « PERFECTIONNE en snowboard de randonnée ») sert à déduire
+        // la discipline quand les métadonnées ne la donnent pas
         await this.commissionLinker.linkNiveau(
           niveauRefId,
           niveau.activite,
           niveau.discipline,
-          niveau.niveau  // Intitulé complet du niveau pour analyse
+          niveau.niveau
         );
 
         this.referentielIds.set(cursusNiveauId, niveauRefId);
       }
 
-      // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(niveau.adherentId);
       if (!userId) {
         this.logger.stats.niveaux.ignored++;
         return;
       }
 
-      // 4. Insert dans formation_validation_niveau_pratique
-      // Note: cursus_niveau_id référence formation_referentiel_niveau_pratique.id (pas le cursus_niveau_id FFCAM)
+      // cursus_niveau_id référence formation_referentiel_niveau_pratique.id, pas l'identifiant FFCAM
       await this.db.execute(
         `INSERT INTO formation_validation_niveau_pratique
          (user_id, cursus_niveau_id, date_validation, created_at, updated_at)

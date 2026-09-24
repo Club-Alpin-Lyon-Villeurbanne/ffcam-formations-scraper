@@ -29,39 +29,30 @@ import { getSessionId } from './auth/ffcam-sso';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Types d'import disponibles
 type ImportType = 'formations' | 'brevets' | 'niveaux' | 'competences';
 const ALL_TYPES: ImportType[] = ['formations', 'brevets', 'niveaux', 'competences'];
 
-// Parse les arguments
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
 
-// Déterminer quels types importer
 function getTypesToImport(): ImportType[] {
-  // Chercher --type=xxx ou --only=xxx
   const typeArg = args.find(a => a.startsWith('--type=') || a.startsWith('--only='));
   if (typeArg) {
     const types = typeArg.split('=')[1].split(',') as ImportType[];
     return types.filter(t => ALL_TYPES.includes(t));
   }
 
-  // Chercher des flags individuels
   const selectedTypes: ImportType[] = [];
   if (args.includes('--formations')) selectedTypes.push('formations');
   if (args.includes('--brevets')) selectedTypes.push('brevets');
   if (args.includes('--niveaux')) selectedTypes.push('niveaux');
   if (args.includes('--competences')) selectedTypes.push('competences');
 
-  // Si aucun type spécifié, tout importer
   return selectedTypes.length > 0 ? selectedTypes : ALL_TYPES;
 }
 
 const TYPES_TO_IMPORT = getTypesToImport();
 
-/**
- * Import des formations
- */
 async function importFormations(
   db: DatabaseAdapter,
   logger: LoggerType,
@@ -70,7 +61,7 @@ async function importFormations(
   const scraper = new FormationsScraper();
   const formations: Formation[] = await scraper.scrape();
 
-  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
+  // Connexion ouverte seulement après le scraping : ouverte plus tôt, elle expirerait pendant les minutes de scraping
   if (!DRY_RUN && !db.isConnected()) {
     await db.connect();
   }
@@ -80,9 +71,6 @@ async function importFormations(
   return scraper.missingPages;
 }
 
-/**
- * Import des brevets
- */
 async function importBrevets(
   db: DatabaseAdapter,
   logger: LoggerType,
@@ -91,7 +79,6 @@ async function importBrevets(
   const scraper = new BrevetsScraper();
   const brevets: Brevet[] = await scraper.scrape();
 
-  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
   if (!DRY_RUN && !db.isConnected()) {
     await db.connect();
   }
@@ -101,9 +88,6 @@ async function importBrevets(
   return scraper.missingPages;
 }
 
-/**
- * Import des niveaux de pratique
- */
 async function importNiveaux(
   db: DatabaseAdapter,
   logger: LoggerType,
@@ -112,7 +96,6 @@ async function importNiveaux(
   const scraper = new NiveauxScraper();
   const { data: niveaux, metadata }: ScrapedData<NiveauPratique> = await scraper.scrape();
 
-  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
   if (!DRY_RUN && !db.isConnected()) {
     await db.connect();
   }
@@ -122,9 +105,6 @@ async function importNiveaux(
   return scraper.missingPages;
 }
 
-/**
- * Import des compétences
- */
 async function importCompetences(
   db: DatabaseAdapter,
   logger: LoggerType,
@@ -133,7 +113,6 @@ async function importCompetences(
   const scraper = new CompetencesScraper();
   const competences: Competence[] = await scraper.scrape();
 
-  // Connexion DB juste avant l'import (après le scraping) pour éviter les timeouts
   if (!DRY_RUN && !db.isConnected()) {
     await db.connect();
   }
@@ -143,17 +122,11 @@ async function importCompetences(
   return scraper.missingPages;
 }
 
-/**
- * Pause entre les imports
- */
 async function pause(seconds: number = 2): Promise<void> {
   console.log(`\n⏳ Pause de ${seconds} secondes...\n`);
   await new Promise<void>(r => setTimeout(r, seconds * 1000));
 }
 
-/**
- * Fonction principale d'import
- */
 async function main(): Promise<void> {
   const typesLabel = TYPES_TO_IMPORT.length === ALL_TYPES.length
     ? 'COMPLET'
@@ -204,7 +177,6 @@ async function main(): Promise<void> {
   }
   console.log('=====================================\n');
 
-  // S'assurer que les dossiers existent
   ensureDirectories();
 
   const logger: LoggerType = new Logger();
@@ -212,10 +184,6 @@ async function main(): Promise<void> {
   const commissionLinker = new CommissionLinker(db, DRY_RUN);
 
   try {
-    // NOTE: La connexion DB est établie juste avant chaque import (après le scraping)
-    // pour éviter les timeouts pendant le scraping qui peut prendre plusieurs minutes
-
-    // Import selon les types sélectionnés
     let isFirst = true;
     const pagesManquantes: Partial<Record<'formations' | 'brevets' | 'niveaux' | 'competences', number[]>> = {};
 
@@ -257,11 +225,9 @@ async function main(): Promise<void> {
       if (complet('competences')) await db.updateLastSync('competences', logger.stats.competences.imported);
     }
 
-    // Afficher le rapport final
     logger.printFinalReport(timestamp, DRY_RUN);
     commissionLinker.printWarningsReport();
 
-    // Sauvegarder le rapport
     const rapport: ImportReport = {
       timestamp,
       date: new Date().toISOString(),
@@ -311,7 +277,6 @@ async function main(): Promise<void> {
     const reportPath = saveImportReport(rapport, timestamp);
     console.log(`\n📁 Rapport sauvegardé: ${reportPath}`);
 
-    // Fermer la connexion
     if (db.isConnected()) {
       await db.close();
     }
@@ -350,10 +315,7 @@ async function main(): Promise<void> {
   }
 }
 
-// Lancer l'import
 main().catch((error: any) => {
   console.error('❌ Erreur non gérée:', error);
   process.exit(1);
 });
-
-export default main;

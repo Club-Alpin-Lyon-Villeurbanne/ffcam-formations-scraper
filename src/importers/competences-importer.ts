@@ -1,9 +1,3 @@
-/**
- * Importeur pour les compétences dans la base de données
- *
- * Utilise le fichier CSV config/clubs/<club>/groupes-competences-commissions.csv comme
- * source de vérité pour le mapping GC → Commissions.
- */
 import { Competence } from '../types';
 import BaseImporter from './base-importer';
 
@@ -12,14 +6,9 @@ class CompetencesImporter extends BaseImporter<Competence> {
   private referentielIds = new Map<string, number>();
   private seenReferentiels = new Set<string>();
 
-  /**
-   * Override de la méthode import pour initialiser le mapping GC depuis le CSV
-   */
   async import(items: Competence[], _metadata?: any): Promise<void> {
-    // Initialiser le mapping GC depuis le CSV avant l'import
     this.commissionLinker.initGcMapping();
 
-    // Appeler la méthode parente
     return super.import(items, _metadata);
   }
   protected getDataKey(): 'competences' {
@@ -31,7 +20,6 @@ class CompetencesImporter extends BaseImporter<Competence> {
   }
 
   protected getReferentielKey(competence: Competence): string {
-    // Clé unique : intitulé + activité
     return `${competence.intituleCompetence}|${competence.codeActivite || ''}`;
   }
 
@@ -40,19 +28,12 @@ class CompetencesImporter extends BaseImporter<Competence> {
     this.printErrorBreakdown();
   }
 
-  /**
-   * Valide une compétence et log les anomalies
-   */
   protected validateItem(competence: Competence): void {
-    // Vérifier l'intitulé (critique)
     if (!competence.intituleCompetence || competence.intituleCompetence.trim() === '') {
       throw new Error(`Compétence sans intitulé (ligne ${competence.id})`);
     }
   }
 
-  /**
-   * En dry-run : résout le mapping GC → Commissions depuis le CSV sans écrire
-   */
   protected async checkMappingDryRun(competence: Competence): Promise<void> {
     const key = this.getReferentielKey(competence);
     if (this.seenReferentiels.has(key)) return;
@@ -60,19 +41,14 @@ class CompetencesImporter extends BaseImporter<Competence> {
     await this.commissionLinker.linkCompetenceFromCsv(0, competence.intituleCompetence);
   }
 
-  /**
-   * Importe une compétence dans la base de données
-   */
   protected async importItemToDb(competence: Competence): Promise<void> {
     try {
-      // Note: On utilise '' au lieu de NULL pour code_activite car MySQL ne considère pas
-      // NULL = NULL dans les index uniques, ce qui causerait des doublons
+      // '' plutôt que NULL : NULL ≠ NULL dans un index unique MySQL, ce qui créerait des doublons
       const codeActivite = competence.codeActivite || '';
       const key = this.getReferentielKey(competence);
       let competenceId = this.referentielIds.get(key);
 
       if (competenceId === undefined) {
-        // 1. Upsert dans formation_referentiel_groupe_competence
         await this.db.execute(
           `INSERT INTO formation_referentiel_groupe_competence
            (intitule, code_activite, activite, created_at, updated_at)
@@ -87,7 +63,6 @@ class CompetencesImporter extends BaseImporter<Competence> {
           ]
         );
 
-        // 2. Récupérer l'ID de la compétence depuis le référentiel
         const [competenceRows] = await this.db.execute(
           `SELECT id FROM formation_referentiel_groupe_competence
            WHERE intitule = ? AND code_activite = ?
@@ -104,8 +79,6 @@ class CompetencesImporter extends BaseImporter<Competence> {
 
         competenceId = competenceRows[0].id as number;
 
-        // 2b. Lier la compétence à ses commissions depuis le CSV (many-to-many)
-        // Le CSV est la source de vérité pour le mapping GC → Commissions
         await this.commissionLinker.linkCompetenceFromCsv(
           competenceId,
           competence.intituleCompetence
@@ -114,14 +87,12 @@ class CompetencesImporter extends BaseImporter<Competence> {
         this.referentielIds.set(key, competenceId);
       }
 
-      // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(competence.adherentId);
       if (!userId) {
         this.logger.stats.competences.ignored++;
         return;
       }
 
-      // 4. Insert dans formation_validation_groupe_competence
       await this.db.execute(
         `INSERT INTO formation_validation_groupe_competence
          (user_id, competence_id, niveau_associe, date_validation,

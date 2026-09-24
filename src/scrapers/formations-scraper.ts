@@ -1,13 +1,7 @@
-/**
- * Scraper pour les formations validées
- */
 import { Formation, ApiRow, Scraper } from '../types';
 import BaseScraper, { ScraperConfig } from './base-scraper';
 
 class FormationsScraper extends BaseScraper<Formation> implements Scraper<Formation> {
-  /**
-   * Configuration du scraper
-   */
   protected getScraperConfig(): ScraperConfig {
     return {
       entityName: 'formation',
@@ -17,18 +11,11 @@ class FormationsScraper extends BaseScraper<Formation> implements Scraper<Format
     };
   }
 
-  /**
-   * Traite une ligne de formation
-   */
   protected processRow(row: ApiRow): Formation | null {
     if (this.shouldFilterRow(row)) {
       return null;
     }
 
-    // Structure attendue:
-    // col_7: Lieu de formation
-    // col_9: Date début formation
-    // col_10: Date fin formation
     return {
       ...this.extractCommonFields(row),
       codeFormation: row.cell.col_2,

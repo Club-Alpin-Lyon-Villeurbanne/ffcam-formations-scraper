@@ -1,8 +1,6 @@
 /**
- * Service de liaison entre référentiels FFCAM et commissions CAF
- *
- * Utilise le CSV pour les groupes de compétences (source de vérité)
- * et les patterns hardcodés pour les brevets/niveaux/formations.
+ * Liaison des référentiels aux commissions du club : CSV du club pour les groupes de compétences,
+ * patterns du code pour brevets, niveaux et formations. Les liaisons ne sont jamais supprimées.
  */
 
 import { DatabaseAdapter } from '../types';
@@ -20,9 +18,6 @@ import {
   GcCommissionMapping,
 } from '../utils/gc-csv-mapping';
 
-/**
- * Alerte de mapping avec certitude faible
- */
 export interface MappingWarning {
   type: 'competence' | 'niveau' | 'brevet' | 'formation';
   id: number;
@@ -38,13 +33,10 @@ export class CommissionLinker {
   private dryRun: boolean;
   private commissionCache: Map<string, number | null> = new Map();
 
-  /** Mapping GC → Commissions chargé depuis le CSV */
   private gcMapping: GcCommissionMapping | null = null;
 
-  /** Alertes collectées pendant le processus */
   private warnings: MappingWarning[] = [];
 
-  /** Statistiques de mapping */
   private stats = {
     competences: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 },
     niveaux: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 }
@@ -55,51 +47,20 @@ export class CommissionLinker {
     this.dryRun = dryRun;
   }
 
-  /**
-   * Initialise le mapping GC depuis le fichier CSV
-   *
-   * @param csvPath - Chemin optionnel vers le CSV (par défaut: config/clubs/<club>/groupes-competences-commissions.csv)
-   */
   initGcMapping(csvPath?: string): void {
     this.gcMapping = loadGcMapping(csvPath);
     console.log(`📂 Mapping GC chargé: ${this.gcMapping.size} groupes de compétences`);
   }
 
-  /**
-   * Récupère les alertes collectées
-   */
   getWarnings(): MappingWarning[] {
     return this.warnings;
   }
 
-  /**
-   * Récupère les statistiques de mapping
-   */
-  getStats() {
-    return this.stats;
-  }
-
-  /**
-   * Réinitialise les alertes et statistiques
-   */
-  reset(): void {
-    this.warnings = [];
-    this.stats = {
-      competences: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 },
-      niveaux: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 }
-    };
-  }
-
-  /**
-   * Slugs demandés par les mappings mais absents de caf_commission
-   */
+  /** Slugs demandés par les mappings mais absents de caf_commission */
   getMissingCommissions(): string[] {
     return [...this.commissionCache.entries()].filter(([, id]) => id === null).map(([slug]) => slug).sort();
   }
 
-  /**
-   * Affiche un rapport des alertes
-   */
   printWarningsReport(): void {
     const missing = this.getMissingCommissions();
     if (missing.length > 0) {
@@ -113,7 +74,6 @@ export class CommissionLinker {
 
     console.log(`\n⚠️  ${this.warnings.length} ALERTES DE MAPPING (certitude faible)\n`);
 
-    // Grouper par type
     const byType = this.warnings.reduce((acc, w) => {
       acc[w.type] = acc[w.type] || [];
       acc[w.type].push(w);
@@ -136,11 +96,7 @@ export class CommissionLinker {
     console.log(`   Niveaux: ${this.stats.niveaux.linked}/${this.stats.niveaux.total} liés, ${this.stats.niveaux.lowCertainty} certitude faible`);
   }
 
-  /**
-   * Récupère l'ID d'une commission depuis son code (avec cache)
-   */
   private async getCommissionId(code: string): Promise<number | null> {
-    // Vérifier le cache
     if (this.commissionCache.has(code)) {
       return this.commissionCache.get(code) ?? null;
     }
@@ -169,15 +125,7 @@ export class CommissionLinker {
     }
   }
 
-  /**
-   * Lie un brevet à ses commissions correspondantes (many-to-many)
-   *
-   * Un brevet peut être lié à plusieurs commissions.
-   *
-   * @param brevetId - ID du brevet dans formation_brevet_referentiel
-   * @param codeBrevet - Code du brevet (ex: "BF1-ESC")
-   * @returns Nombre de liaisons créées
-   */
+  /** @returns nombre de liaisons créées (un brevet peut relever de plusieurs commissions) */
   async linkBrevet(brevetId: number, codeBrevet: string): Promise<number> {
     const commissions = getCommissionsForBrevet(codeBrevet);
     if (commissions.length === 0) return 0;
@@ -207,18 +155,7 @@ export class CommissionLinker {
     return linked;
   }
 
-  /**
-   * Lie un niveau de pratique à sa commission correspondante
-   *
-   * Pour les SPORTS DE NEIGE, utilise d'abord la discipline si disponible,
-   * sinon analyse l'intitulé du niveau pour déterminer la discipline.
-   *
-   * @param niveauId - ID du niveau dans formation_referentiel_niveau_pratique
-   * @param activite - Activité FFCAM (ex: "ESCALADE", "SPORTS DE NEIGE")
-   * @param discipline - Discipline optionnelle depuis les métadonnées (ex: "Randonnée")
-   * @param intituleNiveau - Intitulé complet du niveau (ex: "PERFECTIONNE en snowboard de randonnée")
-   * @returns MappingResult avec commission, certitude et éventuelles alertes
-   */
+  /** La discipline des métadonnées prime ; à défaut, elle est déduite de l'intitulé du niveau (avec une certitude). */
   async linkNiveau(
     niveauId: number,
     activite: string,
@@ -227,7 +164,6 @@ export class CommissionLinker {
   ): Promise<MappingResult> {
     this.stats.niveaux.total++;
 
-    // D'abord essayer avec la discipline si disponible
     if (discipline) {
       const slugFromDiscipline = getCommissionForActivite(activite, discipline);
       if (slugFromDiscipline) {
@@ -261,10 +197,8 @@ export class CommissionLinker {
       }
     }
 
-    // Sinon utiliser l'intitulé du niveau pour analyser la discipline
     const result = getCommissionFromIntitule(intituleNiveau || '', activite);
 
-    // Collecter les alertes
     if (result.warning) {
       this.warnings.push({
         type: 'niveau',
@@ -314,16 +248,7 @@ export class CommissionLinker {
     }
   }
 
-  /**
-   * Lie une compétence à ses commissions depuis le mapping CSV (many-to-many)
-   *
-   * Utilise le fichier CSV comme source de vérité pour le mapping GC → Commissions.
-   * Un GC peut appartenir à plusieurs commissions.
-   *
-   * @param competenceId - ID de la compétence dans formation_referentiel_groupe_competence
-   * @param intitule - Intitulé de la compétence (ex: "3.1 Mon matériel en snowboard de randonnée")
-   * @returns Nombre de liaisons créées
-   */
+  /** @returns nombre de liaisons créées d'après le CSV du club */
   async linkCompetenceFromCsv(
     competenceId: number,
     intitule: string
@@ -336,7 +261,6 @@ export class CommissionLinker {
 
     const commissions = getCommissionsForGc(this.gcMapping, intitule);
 
-    // GC non trouvé dans le CSV
     if (commissions.length === 0) {
       this.warnings.push({
         type: 'competence',
@@ -350,7 +274,6 @@ export class CommissionLinker {
       return 0;
     }
 
-    // Mode dry-run
     if (this.dryRun) {
       this.stats.competences.linked++;
       return commissions.length;
@@ -388,96 +311,7 @@ export class CommissionLinker {
     return linked;
   }
 
-  /**
-   * @deprecated Utiliser linkCompetenceFromCsv() qui utilise le CSV comme source de vérité
-   *
-   * Lie une compétence à sa commission correspondante (ancienne méthode basée sur patterns)
-   *
-   * Utilise l'intitulé pour déterminer la commission avec un degré de certitude.
-   * Pour les SPORTS DE NEIGE, analyse l'intitulé pour distinguer ski, snowboard, raquette, etc.
-   *
-   * @param competenceId - ID de la compétence dans formation_referentiel_groupe_competence
-   * @param activite - Activité FFCAM (ex: "ESCALADE", "SPORTS DE NEIGE")
-   * @param intitule - Intitulé de la compétence (ex: "3.1 Mon matériel en snowboard de randonnée")
-   * @returns MappingResult avec commission, certitude et éventuelles alertes
-   */
-  async linkCompetence(
-    competenceId: number,
-    activite: string | null,
-    intitule?: string
-  ): Promise<MappingResult> {
-    this.stats.competences.total++;
-
-    // Utiliser getCommissionFromIntitule qui gère aussi les activités NULL
-    // en analysant l'intitulé pour identifier la commission
-    const result = getCommissionFromIntitule(intitule || '', activite || '');
-
-    // Collecter les alertes si certitude faible ou pas de mapping
-    if (result.warning) {
-      this.warnings.push({
-        type: 'competence',
-        id: competenceId,
-        intitule: intitule || '',
-        activite: activite || '',
-        certainty: result.certainty,
-        warning: result.warning,
-        suggestedCommission: result.matchedPattern ? result.commission || undefined : undefined
-      });
-
-      if (result.certainty > 0 && result.certainty < CERTAINTY_THRESHOLD) {
-        this.stats.competences.lowCertainty++;
-      }
-    }
-
-    // Pas de commission identifiée
-    if (!result.commission) {
-      this.stats.competences.skipped++;
-      return result;
-    }
-
-    // Mode dry-run
-    if (this.dryRun) {
-      this.stats.competences.linked++;
-      return result;
-    }
-
-    // Créer la liaison en base
-    const commissionId = await this.getCommissionId(result.commission);
-    if (!commissionId) {
-      this.stats.competences.skipped++;
-      return {
-        ...result,
-        warning: `Commission non trouvée en base: ${result.commission}`
-      };
-    }
-
-    try {
-      await this.db.execute(
-        `INSERT IGNORE INTO formation_commission_groupe_competence (groupe_competence_id, commission_id)
-         VALUES (?, ?)`,
-        [competenceId, commissionId]
-      );
-      this.stats.competences.linked++;
-      return result;
-    } catch (error: any) {
-      if (!error.message.includes('Duplicate entry') && !error.message.includes('no such table')) {
-        console.error(`Erreur liaison compétence → ${result.commission}:`, error.message);
-      }
-      this.stats.competences.skipped++;
-      return {
-        ...result,
-        warning: `Erreur DB: ${error.message}`
-      };
-    }
-  }
-
-  /**
-   * Lie une formation à ses commissions correspondantes (many-to-many)
-   *
-   * @param formationId - ID de la formation dans formation_referentiel_formation
-   * @param codeFormation - Code de la formation (ex: "STG-ES-001")
-   * @returns Nombre de liaisons créées
-   */
+  /** @returns nombre de liaisons créées */
   async linkFormation(formationId: number, codeFormation: string): Promise<number> {
     const commissions = getCommissionsForFormation(codeFormation);
     if (commissions.length === 0) return 0;
