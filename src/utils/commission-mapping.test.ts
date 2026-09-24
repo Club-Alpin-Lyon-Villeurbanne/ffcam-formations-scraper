@@ -10,7 +10,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   getCommissionsForBrevet,
-  getCommissionForBrevet,
   getCommissionForActivite,
   getCommissionsForFormation,
   getCommissionFromIntitule,
@@ -158,19 +157,6 @@ describe('commission-mapping', () => {
     });
   });
 
-  describe('getCommissionForBrevet (deprecated)', () => {
-    it('should return first commission for valid code', () => {
-      expect(getCommissionForBrevet('BF1-ES-001')).toBe('escalade');
-    });
-
-    it('should return null for unknown code', () => {
-      expect(getCommissionForBrevet('UNKNOWN')).toBeNull();
-    });
-  });
-
-  // ==========================================================================
-  // Tests des formations
-  // ==========================================================================
   describe('getCommissionsForFormation', () => {
     describe('Escalade', () => {
       it.each([

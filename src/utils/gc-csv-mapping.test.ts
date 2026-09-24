@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadGcMapping, getCommissionsForGc, hasGcInMapping, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
+import { loadGcMapping, getCommissionsForGc, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
 
 const csvPath = path.resolve(__dirname, '../../config/clubs/lyon/groupes-competences-commissions.csv');
 
@@ -182,16 +182,6 @@ describe('gc-csv-mapping', () => {
 
     it('should return empty array for empty string', () => {
       expect(getCommissionsForGc(mapping, '')).toEqual([]);
-    });
-  });
-
-  describe('hasGcInMapping', () => {
-    it('should return true for existing GC', () => {
-      expect(hasGcInMapping(mapping, '1.1 Mon niveau de pratique en alpinisme 1')).toBe(true);
-    });
-
-    it('should return false for non-existing GC', () => {
-      expect(hasGcInMapping(mapping, 'Unknown GC')).toBe(false);
     });
   });
 

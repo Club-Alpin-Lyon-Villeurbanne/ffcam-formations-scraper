@@ -171,15 +171,6 @@ export interface DatabaseConfig {
 // =============================================================================
 
 /**
- * Database query result (matches mysql2 format)
- */
-export interface QueryResult {
-  affectedRows?: number;
-  insertId?: number;
-  [key: string]: any;
-}
-
-/**
  * Database adapter interface
  */
 export interface DatabaseAdapter {
@@ -303,52 +294,4 @@ export interface ApiRequestParams {
   page?: number;
   rows?: number;
   [key: string]: any;
-}
-
-// =============================================================================
-// File Manager Types
-// =============================================================================
-
-/**
- * File save options
- */
-export interface SaveDataOptions {
-  type: 'formations' | 'niveaux_pratique' | 'brevets';
-  data: Formation[] | NiveauPratique[] | Brevet[];
-  metadata?: NiveauxMetadata;
-}
-
-/**
- * Data loading result
- */
-export type LoadedData = Formation[] | NiveauPratique[] | Brevet[] | NiveauxMetadata;
-
-// =============================================================================
-// Utility Types
-// =============================================================================
-
-/**
- * Promise-based timeout function
- */
-export type DelayFunction = (ms: number) => Promise<void>;
-
-/**
- * Environment variables type
- */
-export interface EnvironmentVariables {
-  MYSQL_ADDON_HOST?: string;
-  MYSQL_ADDON_PORT?: string;
-  MYSQL_ADDON_USER?: string;
-  MYSQL_ADDON_PASSWORD?: string;
-  MYSQL_ADDON_DB?: string;
-  [key: string]: string | undefined;
-}
-
-/**
- * Command line argument parsing result
- */
-export interface ParsedArgs {
-  dryRun: boolean;
-  forceSqlite: boolean;
-  forceMySQL: boolean;
 }

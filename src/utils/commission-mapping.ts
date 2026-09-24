@@ -12,9 +12,9 @@
  * Ce fichier ne gère que les brevets, formations et niveaux.
  *
  * Usage :
- *   import { getCommissionForBrevet, getCommissionForActivite, getCommissionFromIntitule } from './utils/commission-mapping';
+ *   import { getCommissionsForBrevet, getCommissionForActivite, getCommissionFromIntitule } from './utils/commission-mapping';
  *
- *   getCommissionForBrevet('BF1-ESC');  // → 'escalade'
+ *   getCommissionsForBrevet('BF1-ES-SAE');  // → ['escalade']
  *   getCommissionForActivite('ESCALADE');  // → 'escalade'
  *   getCommissionFromIntitule('PERFECTIONNE en snowboard de randonnée', 'SPORTS DE NEIGE');
  *   // → { commission: 'snowboard-rando', certainty: 95, source: 'intitule_pattern' }
@@ -421,24 +421,6 @@ export function getCommissionsForBrevet(codeBrevet: string): string[] {
 }
 
 /**
- * Trouve la commission correspondant à un code brevet (première correspondance)
- *
- * @deprecated Utiliser getCommissionsForBrevet pour supporter le many-to-many
- *
- * @param codeBrevet - Code du brevet (ex: "BF1-ESC", "PSC1")
- * @returns Slug de la commission ou null si non mappable
- *
- * @example
- * getCommissionForBrevet('BF1-ESC');     // → 'escalade'
- * getCommissionForBrevet('BF2-ALP');     // → 'alpinisme'
- * getCommissionForBrevet('PSC1');        // → null (brevet transversal)
- */
-export function getCommissionForBrevet(codeBrevet: string): string | null {
-  const commissions = getCommissionsForBrevet(codeBrevet);
-  return commissions.length > 0 ? commissions[0] : null;
-}
-
-/**
  * Trouve la commission correspondant à une activité FFCAM
  *
  * @deprecated Pour les SPORTS DE NEIGE, utiliser getCommissionFromIntitule qui analyse l'intitulé
@@ -591,18 +573,6 @@ export function getCommissionFromIntitule(
     source: 'none',
     warning: `Activité non reconnue et aucun pattern dans l'intitulé: ${activite}`
   };
-}
-
-/**
- * Version simplifiée qui retourne juste la commission ou null
- * Utile pour les cas où on veut juste le résultat sans les détails
- */
-export function getCommissionFromIntituleSimple(
-  intitule: string,
-  activite: string
-): string | null {
-  const result = getCommissionFromIntitule(intitule, activite);
-  return result.commission;
 }
 
 /**
@@ -820,29 +790,6 @@ export function getCommissionsForFormation(codeFormation: string): string[] {
 
   return commissions;
 }
-
-/**
- * Liste des commissions supportées
- */
-export const COMMISSIONS = [
-  'escalade',
-  'alpinisme',
-  'canyon',
-  'randonnee',
-  'ski-de-randonnee',
-  'raquette',
-  'ski-de-piste',
-  'ski-de-fond',
-  'vtt',
-  'via-ferrata',
-  'trail',
-  'snowboard-rando',
-  'snowboard-alpin',
-  'marche-nordique',
-  'ski-randonnee-nordique',
-] as const;
-
-export type Commission = typeof COMMISSIONS[number];
 
 /** Tous les slugs de commission référencés par les mappings (pour `npm run check`) */
 export function getAllMappedCommissionSlugs(): string[] {

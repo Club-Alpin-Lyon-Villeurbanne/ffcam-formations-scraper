@@ -122,14 +122,6 @@ export function getCommissionsForGc(mapping: GcCommissionMapping, intitule: stri
 }
 
 /**
- * Vérifie si un intitulé de GC existe dans le mapping
- */
-export function hasGcInMapping(mapping: GcCommissionMapping, intitule: string): boolean {
-  const normalized = normalizeGcIntitule(intitule);
-  return mapping.has(normalized);
-}
-
-/**
  * Retourne des statistiques sur le mapping
  */
 export function getMappingStats(mapping: GcCommissionMapping): {

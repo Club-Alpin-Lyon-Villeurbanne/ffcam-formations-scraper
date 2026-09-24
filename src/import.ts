@@ -355,5 +355,3 @@ main().catch((error: any) => {
   console.error('❌ Erreur non gérée:', error);
   process.exit(1);
 });
-
-export default main;

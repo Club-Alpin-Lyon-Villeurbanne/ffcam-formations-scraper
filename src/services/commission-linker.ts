@@ -73,24 +73,6 @@ export class CommissionLinker {
   }
 
   /**
-   * Récupère les statistiques de mapping
-   */
-  getStats() {
-    return this.stats;
-  }
-
-  /**
-   * Réinitialise les alertes et statistiques
-   */
-  reset(): void {
-    this.warnings = [];
-    this.stats = {
-      competences: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 },
-      niveaux: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 }
-    };
-  }
-
-  /**
    * Slugs demandés par les mappings mais absents de caf_commission
    */
   getMissingCommissions(): string[] {
@@ -386,89 +368,6 @@ export class CommissionLinker {
     }
 
     return linked;
-  }
-
-  /**
-   * @deprecated Utiliser linkCompetenceFromCsv() qui utilise le CSV comme source de vérité
-   *
-   * Lie une compétence à sa commission correspondante (ancienne méthode basée sur patterns)
-   *
-   * Utilise l'intitulé pour déterminer la commission avec un degré de certitude.
-   * Pour les SPORTS DE NEIGE, analyse l'intitulé pour distinguer ski, snowboard, raquette, etc.
-   *
-   * @param competenceId - ID de la compétence dans formation_referentiel_groupe_competence
-   * @param activite - Activité FFCAM (ex: "ESCALADE", "SPORTS DE NEIGE")
-   * @param intitule - Intitulé de la compétence (ex: "3.1 Mon matériel en snowboard de randonnée")
-   * @returns MappingResult avec commission, certitude et éventuelles alertes
-   */
-  async linkCompetence(
-    competenceId: number,
-    activite: string | null,
-    intitule?: string
-  ): Promise<MappingResult> {
-    this.stats.competences.total++;
-
-    // Utiliser getCommissionFromIntitule qui gère aussi les activités NULL
-    // en analysant l'intitulé pour identifier la commission
-    const result = getCommissionFromIntitule(intitule || '', activite || '');
-
-    // Collecter les alertes si certitude faible ou pas de mapping
-    if (result.warning) {
-      this.warnings.push({
-        type: 'competence',
-        id: competenceId,
-        intitule: intitule || '',
-        activite: activite || '',
-        certainty: result.certainty,
-        warning: result.warning,
-        suggestedCommission: result.matchedPattern ? result.commission || undefined : undefined
-      });
-
-      if (result.certainty > 0 && result.certainty < CERTAINTY_THRESHOLD) {
-        this.stats.competences.lowCertainty++;
-      }
-    }
-
-    // Pas de commission identifiée
-    if (!result.commission) {
-      this.stats.competences.skipped++;
-      return result;
-    }
-
-    // Mode dry-run
-    if (this.dryRun) {
-      this.stats.competences.linked++;
-      return result;
-    }
-
-    // Créer la liaison en base
-    const commissionId = await this.getCommissionId(result.commission);
-    if (!commissionId) {
-      this.stats.competences.skipped++;
-      return {
-        ...result,
-        warning: `Commission non trouvée en base: ${result.commission}`
-      };
-    }
-
-    try {
-      await this.db.execute(
-        `INSERT IGNORE INTO formation_commission_groupe_competence (groupe_competence_id, commission_id)
-         VALUES (?, ?)`,
-        [competenceId, commissionId]
-      );
-      this.stats.competences.linked++;
-      return result;
-    } catch (error: any) {
-      if (!error.message.includes('Duplicate entry') && !error.message.includes('no such table')) {
-        console.error(`Erreur liaison compétence → ${result.commission}:`, error.message);
-      }
-      this.stats.competences.skipped++;
-      return {
-        ...result,
-        warning: `Erreur DB: ${error.message}`
-      };
-    }
   }
 
   /**

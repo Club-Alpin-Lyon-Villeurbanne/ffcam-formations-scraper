@@ -90,7 +90,6 @@ export const dbConfig: DatabaseConfig = {
   // Note: timeout des requêtes géré via query timeout MySQL
 };
 
-export default dbConfig;
 
 // =============================================================================
 // File Manager Utilities
