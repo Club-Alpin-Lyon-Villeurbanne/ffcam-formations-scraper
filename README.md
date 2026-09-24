@@ -17,7 +17,7 @@ Importe chaque semaine, depuis l'extranet de la FFCAM, les **formations**, **bre
 ```bash
 # Cloner le repository
 git clone https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper.git
-cd ffcam-formations-adherents-scraper
+cd ffcam-formations-scraper
 
 # Installer les dépendances
 pnpm install
@@ -36,7 +36,7 @@ Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 
 ## Import automatique (GitHub Actions)
 
-[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice, l'un après l'autre (`lyon-staging` puis `lyon-prod`, ~1 h 30 au total).
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`), un seul à la fois (~1 h 30 au total). L'ordre entre les environments n'est pas garanti.
 
 Lancement manuel : onglet Actions → Import FFCAM → Run workflow. ⚠️ Il enchaîne **tous** les environments, **production comprise** : cochez « Import à blanc » pour vérifier sans rien écrire.
 
@@ -117,8 +117,8 @@ NODE_ENV=production npm run import
 npm run import:dry
 npm run dev  # alias de import:dry
 
-# Brevets en base sans commission rattachée
-npm run diagnostic:brevets
+# Brevets en base sans commission rattachée (base MySQL)
+npm run diagnostic:brevets -- --mysql
 ```
 
 ### Tests
