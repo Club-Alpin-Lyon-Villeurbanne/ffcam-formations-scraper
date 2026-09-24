@@ -1,24 +1,14 @@
-/**
- * Configuration globale et utilitaires
- * Fusion de config/constants.ts, config/database.ts et utils/file-manager.ts
- */
-
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
 import { FfcamConfig, PathsConfig, DatabaseConfig, ImportReport } from './types';
 
-// Charger les variables d'environnement selon NODE_ENV
 const envFile = process.env.NODE_ENV === 'production'
   ? '.env.production'
   : process.env.NODE_ENV === 'staging'
     ? '.env.staging'
     : '.env';
 dotenv.config({ path: envFile });
-
-// =============================================================================
-// Configuration FFCAM
-// =============================================================================
 
 export const FFCAM_CONFIG: FfcamConfig = {
   EMAIL: process.env.FFCAM_EMAIL || '',
@@ -28,10 +18,6 @@ export const FFCAM_CONFIG: FfcamConfig = {
   API_DELAY: 300, // Délai entre les requêtes en ms
   BASE_URL: 'https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php'
 };
-
-// =============================================================================
-// Configuration du club
-// =============================================================================
 
 /**
  * Code FFCAM du club (4 chiffres), ex. 6900 pour Lyon-Villeurbanne.
@@ -47,7 +33,6 @@ export function getClubCode(code: string | undefined = process.env.CLUB_CODE): s
   return trimmed;
 }
 
-/** Vérifie qu'un cafnum appartient au club */
 export function isClubMember(cafnum: string, clubCode: string = getClubCode()): boolean {
   return Boolean(cafnum) && cafnum.startsWith(clubCode);
 }
@@ -64,18 +49,10 @@ export function getClubConfigDir(club: string | undefined = process.env.CLUB?.tr
   return path.resolve(__dirname, '../config/clubs', club);
 }
 
-// =============================================================================
-// Chemins des dossiers
-// =============================================================================
-
 export const PATHS: PathsConfig = {
   DATA_DIR: './data',
   REPORTS_DIR: './data/reports'
 };
-
-// =============================================================================
-// Configuration MySQL
-// =============================================================================
 
 export const dbConfig: DatabaseConfig = {
   host: process.env.MYSQL_ADDON_HOST!,
@@ -86,18 +63,10 @@ export const dbConfig: DatabaseConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  connectTimeout: 30000, // 30s timeout pour la connexion
-  // Note: timeout des requêtes géré via query timeout MySQL
+  connectTimeout: 30000,
 };
 
 
-// =============================================================================
-// File Manager Utilities
-// =============================================================================
-
-/**
- * S'assure que les dossiers nécessaires existent
- */
 export function ensureDirectories(): void {
   Object.values(PATHS).forEach((dir: string) => {
     if (!fs.existsSync(dir)) {
@@ -106,9 +75,6 @@ export function ensureDirectories(): void {
   });
 }
 
-/**
- * Sauvegarde un rapport d'import
- */
 export function saveImportReport(report: ImportReport, timestamp: string): string {
   const reportPath = path.join(PATHS.REPORTS_DIR, `import_${timestamp}.json`);
   fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));

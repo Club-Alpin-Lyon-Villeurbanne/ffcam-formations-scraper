@@ -17,17 +17,12 @@ import NiveauxScraper from './scrapers/niveaux-scraper';
 import { DatabaseAdapter } from './types';
 
 export interface CheckDeps {
-  /** Identifiants FFCAM (par défaut FFCAM_CONFIG) */
   config: { EMAIL: string; PASSWORD: string; PROFILE: string };
-  /** getClubCode / getClubConfigDir (lèvent une erreur si absents) */
   getClubCode: () => string;
   getClubConfigDir: () => string;
-  /** Sonde extranet (par défaut : () => new NiveauxScraper().probe()) */
   probe: () => Promise<{ records: number; clubCode: string | null }>;
-  /** determineAdapter / getDatabase */
   determineAdapter: () => 'sqlite' | 'mysql';
   getDatabase: () => DatabaseAdapter;
-  /** Sortie (par défaut console.log) */
   log: (line: string) => void;
 }
 

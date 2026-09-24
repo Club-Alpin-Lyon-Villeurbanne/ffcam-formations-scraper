@@ -1,13 +1,7 @@
-/**
- * Scraper pour les brevets des adhérents
- */
 import { Brevet, ApiRow, Scraper } from '../types';
 import BaseScraper, { ScraperConfig } from './base-scraper';
 
 class BrevetsScraper extends BaseScraper<Brevet> implements Scraper<Brevet> {
-  /**
-   * Configuration du scraper
-   */
   protected getScraperConfig(): ScraperConfig {
     return {
       entityName: 'brevet',
@@ -17,9 +11,6 @@ class BrevetsScraper extends BaseScraper<Brevet> implements Scraper<Brevet> {
     };
   }
 
-  /**
-   * Traite une ligne de brevet
-   */
   protected processRow(row: ApiRow): Brevet | null {
     if (this.shouldFilterRow(row)) {
       return null;

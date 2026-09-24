@@ -1,23 +1,12 @@
-/**
- * Utilitaire pour charger le mapping GC → Commissions depuis le fichier CSV
- *
- * Le fichier CSV contient directement les slugs de commission, pas de mapping dans le code.
- * Un même GC peut appartenir à plusieurs commissions (relation many-to-many).
- */
+/** Le CSV du club donne directement les slugs de commission ; un GC peut relever de plusieurs commissions. */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { getClubConfigDir } from '../config';
 
-/** Type pour le mapping GC → commissions */
 export type GcCommissionMapping = Map<string, string[]>;
 
-/**
- * Normalise un intitulé de groupe de compétences pour la recherche
- * - Supprime les espaces en début/fin
- * - Normalise les espaces multiples
- * - Garde la casse originale (le CSV est sensible à la casse)
- */
+/** Normalise les espaces ; garde la casse, à laquelle le CSV est sensible */
 export function normalizeGcIntitule(intitule: string): string {
   return intitule
     .trim()
@@ -37,7 +26,7 @@ function parseCsvLine(line: string): string[] {
 
     if (char === '"') {
       if (inQuotes && line[i + 1] === '"') {
-        // Escaped quote
+        // Guillemet doublé = guillemet littéral
         current += '"';
         i++;
       } else {
@@ -55,20 +44,7 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-/**
- * Charge le mapping GC → Commissions depuis le fichier CSV
- *
- * @param csvPath - Chemin vers le fichier CSV (par défaut: config/clubs/<club>/groupes-competences-commissions.csv)
- * @returns Map avec intitulé GC → liste de slugs commission
- *
- * @example
- * const mapping = loadGcMapping();
- * const commissions = mapping.get('1.1 Mon niveau de pratique en alpinisme 1');
- * // → ['alpinisme']
- *
- * const multiCommissions = mapping.get('3.3 Environnement de pratique - milieu montagne 1 (CO1)');
- * // → ['alpinisme', 'ski-randonnee-nordique', 'raquette', 'ski-de-randonnee', 'snowboard-rando', ...]
- */
+/** @param csvPath par défaut config/clubs/<CLUB>/groupes-competences-commissions.csv */
 export function loadGcMapping(csvPath?: string): GcCommissionMapping {
   const filePath = csvPath || path.join(getClubConfigDir(), 'groupes-competences-commissions.csv');
 
@@ -79,7 +55,6 @@ export function loadGcMapping(csvPath?: string): GcCommissionMapping {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n').filter(line => line.trim() !== '');
 
-  // Skip header line
   const dataLines = lines.slice(1);
 
   const mapping: GcCommissionMapping = new Map();
@@ -109,21 +84,12 @@ export function loadGcMapping(csvPath?: string): GcCommissionMapping {
   return mapping;
 }
 
-/**
- * Recherche les commissions pour un intitulé de groupe de compétences
- *
- * @param mapping - Le mapping chargé avec loadGcMapping()
- * @param intitule - L'intitulé du groupe de compétences à rechercher
- * @returns Liste des slugs de commission (peut être vide si GC non trouvé)
- */
+/** Tableau vide si le GC est absent du CSV */
 export function getCommissionsForGc(mapping: GcCommissionMapping, intitule: string): string[] {
   const normalized = normalizeGcIntitule(intitule);
   return mapping.get(normalized) || [];
 }
 
-/**
- * Retourne des statistiques sur le mapping
- */
 export function getMappingStats(mapping: GcCommissionMapping): {
   totalGc: number;
   uniqueCommissions: Set<string>;

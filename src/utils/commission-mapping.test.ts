@@ -1,12 +1,4 @@
-/**
- * Tests unitaires pour le mapping des commissions (brevets, formations, niveaux)
- *
- * Ces tests garantissent que les patterns de mapping fonctionnent correctement
- * pour les brevets, formations et niveaux de pratique.
- *
- * NOTE : Pour les tests du mapping GC → Commissions (groupes de compétences),
- * voir gc-csv-mapping.test.ts qui teste le mapping basé sur le fichier CSV.
- */
+/** Mapping brevets, formations et niveaux ; les groupes de compétences sont dans gc-csv-mapping.test.ts */
 import { describe, it, expect } from 'vitest';
 import {
   getCommissionsForBrevet,
@@ -18,9 +10,6 @@ import {
 } from './commission-mapping';
 
 describe('commission-mapping', () => {
-  // ==========================================================================
-  // Tests des brevets
-  // ==========================================================================
   describe('getCommissionsForBrevet', () => {
     describe('Escalade', () => {
       it.each([
@@ -431,10 +420,6 @@ describe('commission-mapping', () => {
       });
     });
   });
-
-  // ==========================================================================
-  // Tests des activités
-  // ==========================================================================
   describe('getCommissionForActivite', () => {
     describe('Activités simples', () => {
       it.each([
@@ -460,12 +445,10 @@ describe('commission-mapping', () => {
       });
 
       it('should return null when no discipline (use getCommissionFromIntitule instead)', () => {
-        // Plus de fallback automatique - utiliser getCommissionFromIntitule pour analyser l'intitulé
         expect(getCommissionForActivite('SPORTS DE NEIGE')).toBeNull();
       });
 
       it('should return null for unknown discipline', () => {
-        // Plus de fallback - discipline inconnue = pas de mapping
         expect(getCommissionForActivite('SPORTS DE NEIGE', 'Unknown')).toBeNull();
       });
     });
@@ -487,10 +470,6 @@ describe('commission-mapping', () => {
       });
     });
   });
-
-  // ==========================================================================
-  // Tests de getCommissionFromIntitule (nouvelle API avec certitude)
-  // ==========================================================================
   describe('getCommissionFromIntitule', () => {
     describe('Activités directes (non SPORTS DE NEIGE)', () => {
       it('should return escalade with 100% certainty for ESCALADE activity', () => {
@@ -581,7 +560,6 @@ describe('commission-mapping', () => {
 
     describe('Seuil de certitude', () => {
       it('should respect custom threshold', () => {
-        // Ce test vérifie que si on met un seuil très haut, certains patterns ne passent plus
         const result = getCommissionFromIntitule('snowboard', 'SPORTS DE NEIGE', { threshold: 95 });
         // "snowboard" seul a une certitude de 88, donc < 95
         expect(result.commission).toBeNull();
@@ -589,10 +567,6 @@ describe('commission-mapping', () => {
         expect(result.warning).toContain('Certitude trop faible');
       });
     });
-
-    // =========================================================================
-    // Tests pour activité NULL avec identification par intitulé
-    // =========================================================================
     describe('Activité NULL - Escalade', () => {
       it.each([
         ['2.1 Escalade en moulinette', 'escalade', 95],

@@ -1,7 +1,5 @@
 /**
- * Test du cache adhérents (par préfixe de cafnum) de DatabaseConnection.
- * La connexion MySQL réelle n'est pas disponible en test : on injecte execute()
- * comme suggéré dans le brief (Object.assign sur l'instance).
+ * Tests de DatabaseConnection sans MySQL : execute() ou la connexion sont injectés sur l'instance.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { getInstance } from './connection';

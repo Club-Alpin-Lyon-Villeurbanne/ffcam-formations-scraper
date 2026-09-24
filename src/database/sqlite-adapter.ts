@@ -1,7 +1,4 @@
-/**
- * Adaptateur SQLite pour le développement local
- * Utilise better-sqlite3 pour de meilleures performances
- */
+/** Base SQLite locale, pour développer le scraper seulement : ni vrai caf_user ni caf_commission */
 import Database from 'better-sqlite3';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -12,21 +9,16 @@ class SQLiteAdapter implements DatabaseAdapter {
   private db: Database.Database | null = null;
   private dbPath: string;
 
-  /** Cache par préfixe de cafnum, pour éviter une requête par ligne (~90 ms depuis GitHub Actions vers Clever Cloud) */
   private usersByCafnum: Map<string, Map<string, number>> = new Map();
 
   constructor() {
     this.dbPath = path.join(PATHS.DATA_DIR, 'local.db');
   }
 
-  /**
-   * Initialise la connexion SQLite
-   */
   async connect(): Promise<void> {
     if (this.db) return;
     
     try {
-      // S'assurer que le dossier existe
       if (!fs.existsSync(PATHS.DATA_DIR)) {
         fs.mkdirSync(PATHS.DATA_DIR, { recursive: true });
       }
@@ -37,7 +29,6 @@ class SQLiteAdapter implements DatabaseAdapter {
       
       console.log('✅ Connecté à SQLite (local.db)\n');
       
-      // Initialiser les tables si nécessaire
       await this.initTables();
     } catch (error: any) {
       console.error('❌ Erreur connexion SQLite:', error.message);
@@ -45,9 +36,6 @@ class SQLiteAdapter implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Vérifie si une table existe
-   */
   private tableExists(tableName: string): boolean {
     const result = this.db!.prepare(
       `SELECT name FROM sqlite_master WHERE type='table' AND name=?`
@@ -59,7 +47,6 @@ class SQLiteAdapter implements DatabaseAdapter {
    * Drop et recrée les tables si le schéma a changé
    */
   private async migrateIfNeeded(): Promise<void> {
-    // Vérifier si les anciennes tables existent (avant renommage)
     const hasOldSchema = this.tableExists('formation_brevet') ||
                          this.tableExists('formation_referentiel') ||
                          this.tableExists('formation_brevet_referentiel');
@@ -68,8 +55,7 @@ class SQLiteAdapter implements DatabaseAdapter {
       console.log('⚠️  Ancien schéma détecté - Migration nécessaire');
       console.log('   Suppression des anciennes tables...');
 
-      // Drop toutes les anciennes tables (ordre important pour les FK)
-      // Anciennes tables
+      // Ordre imposé par les clés étrangères
       this.db!.exec('DROP TABLE IF EXISTS formation_competence_validation');
       this.db!.exec('DROP TABLE IF EXISTS formation_competence_referentiel');
       this.db!.exec('DROP TABLE IF EXISTS formation_brevet');
@@ -94,28 +80,21 @@ class SQLiteAdapter implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Initialise les tables SQLite - Schéma complet (9 tables)
-   */
   private async initTables(): Promise<void> {
-    // Migrer si nécessaire
     await this.migrateIfNeeded();
 
     const tables = [
-      // Table des utilisateurs (conservée pour référence)
       `CREATE TABLE IF NOT EXISTS caf_user (
         id_user INTEGER PRIMARY KEY AUTOINCREMENT,
         cafnum_user TEXT UNIQUE
       )`,
       
-      // 1. Table référentiel des formations (avec id auto-incrémenté)
       `CREATE TABLE IF NOT EXISTS formation_referentiel_formation (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code_formation TEXT NOT NULL UNIQUE,
         intitule TEXT NOT NULL
       )`,
 
-      // 2. Table référentiel des niveaux de pratique
       `CREATE TABLE IF NOT EXISTS formation_referentiel_niveau_pratique (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cursus_niveau_id INTEGER NOT NULL UNIQUE,
@@ -127,7 +106,6 @@ class SQLiteAdapter implements DatabaseAdapter {
         discipline TEXT
       )`,
 
-      // 3. Table de validation des formations (alignée avec MySQL prod)
       `CREATE TABLE IF NOT EXISTS formation_validation_formation (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -144,7 +122,6 @@ class SQLiteAdapter implements DatabaseAdapter {
         FOREIGN KEY (code_formation) REFERENCES formation_referentiel_formation(code_formation) ON DELETE SET NULL
       )`,
 
-      // 4. Table de validation des niveaux de pratique
       `CREATE TABLE IF NOT EXISTS formation_validation_niveau_pratique (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -157,14 +134,12 @@ class SQLiteAdapter implements DatabaseAdapter {
         FOREIGN KEY (cursus_niveau_id) REFERENCES formation_referentiel_niveau_pratique(cursus_niveau_id) ON DELETE RESTRICT
       )`,
 
-      // 5. Table référentiel des brevets
       `CREATE TABLE IF NOT EXISTS formation_referentiel_brevet (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         code_brevet TEXT NOT NULL UNIQUE,
         intitule TEXT NOT NULL
       )`,
 
-      // 6. Table de validation des brevets (alignée avec MySQL prod)
       `CREATE TABLE IF NOT EXISTS formation_validation_brevet (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -181,7 +156,6 @@ class SQLiteAdapter implements DatabaseAdapter {
         FOREIGN KEY (brevet_id) REFERENCES formation_referentiel_brevet(id) ON DELETE RESTRICT
       )`,
 
-      // 7. Table référentiel des groupes de compétences
       `CREATE TABLE IF NOT EXISTS formation_referentiel_groupe_competence (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         intitule TEXT NOT NULL,
@@ -192,7 +166,6 @@ class SQLiteAdapter implements DatabaseAdapter {
         UNIQUE(intitule, code_activite)
       )`,
 
-      // 8. Table de validation des groupes de compétences
       `CREATE TABLE IF NOT EXISTS formation_validation_groupe_competence (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -209,7 +182,6 @@ class SQLiteAdapter implements DatabaseAdapter {
         FOREIGN KEY (competence_id) REFERENCES formation_referentiel_groupe_competence(id) ON DELETE RESTRICT
       )`,
 
-      // 9. Table de synchronisation
       `CREATE TABLE IF NOT EXISTS formation_last_sync (
         type TEXT PRIMARY KEY,
         last_sync DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -217,41 +189,33 @@ class SQLiteAdapter implements DatabaseAdapter {
       )`
     ];
 
-    // Créer les tables
     for (const table of tables) {
       this.db!.exec(table);
     }
   }
 
-  /**
-   * Exécute une requête SQL
-   * Adapte la syntaxe MySQL vers SQLite si nécessaire
-   */
+  /** Traduit à la volée la syntaxe MySQL utilisée par les importers */
   async execute(sql: string, params: any[] = []): Promise<[any[], any[]]> {
     if (!this.db) {
       throw new Error('Connexion non établie. Appelez connect() d\'abord.');
     }
 
-    // Adapter la syntaxe MySQL vers SQLite
     let sqliteQuery = sql;
     
-    // ON DUPLICATE KEY UPDATE -> INSERT OR REPLACE
+    // INSERT OR REPLACE supprime puis réinsère : les ids changent, contrairement à MySQL
     if (sql.includes('ON DUPLICATE KEY UPDATE')) {
-      // Pour simplifier, on utilise INSERT OR REPLACE
       sqliteQuery = sql.replace(/INSERT INTO/i, 'INSERT OR REPLACE INTO')
                        .replace(/ON DUPLICATE KEY UPDATE.*/is, '');
     }
 
-    // NOW() -> CURRENT_TIMESTAMP
     sqliteQuery = sqliteQuery.replace(/NOW\(\)/gi, 'CURRENT_TIMESTAMP');
 
     try {
-      // Déterminer le type de requête
       const isSelect = sqliteQuery.trim().toUpperCase().startsWith('SELECT');
       
       if (isSelect) {
         const rows = this.db!.prepare(sqliteQuery).all(params);
-        // Retourner dans le format attendu par MySQL2 [rows, fields]
+        // Même forme de retour que mysql2 : [rows, fields]
         return [rows || [], []];
       } else {
         const stmt = this.db!.prepare(sqliteQuery);
@@ -264,7 +228,6 @@ class SQLiteAdapter implements DatabaseAdapter {
     } catch (error: any) {
       // Ignorer les erreurs de contrainte UNIQUE (équivalent au ON DUPLICATE KEY UPDATE)
       if (error.message.includes('UNIQUE constraint failed')) {
-        // Essayer de faire un UPDATE à la place
         if (sql.includes('INSERT INTO')) {
           // Ne rien faire, c'est normal avec INSERT OR REPLACE
           return [{ affectedRows: 0 } as any, []];
@@ -275,9 +238,6 @@ class SQLiteAdapter implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Récupère un utilisateur par son cafnum
-   */
   async getUserIdFromCafnum(cafnum: string): Promise<number | null> {
     cafnum = String(cafnum ?? '').trim();
     if (!this.db) return null;
@@ -301,9 +261,6 @@ class SQLiteAdapter implements DatabaseAdapter {
     return usersForPrefix.get(cafnum) ?? null;
   }
 
-  /**
-   * Met à jour la date de dernière synchronisation
-   */
   async updateLastSync(type: string, count: number): Promise<void> {
     if (!this.db) return;
     
@@ -318,9 +275,6 @@ class SQLiteAdapter implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Ferme la connexion
-   */
   async close(): Promise<void> {
     if (this.db) {
       this.db.close();
@@ -328,15 +282,11 @@ class SQLiteAdapter implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Vérifie si la connexion est active
-   */
   isConnected(): boolean {
     return this.db !== null;
   }
 }
 
-// Singleton
 let instance: SQLiteAdapter | null = null;
 
 export function getInstance(): SQLiteAdapter {

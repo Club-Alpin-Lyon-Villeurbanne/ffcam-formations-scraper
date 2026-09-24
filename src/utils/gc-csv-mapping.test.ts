@@ -193,7 +193,6 @@ describe('gc-csv-mapping', () => {
       expect(stats.uniqueCommissions.size).toBeGreaterThan(0);
       expect(stats.gcWithMultipleCommissions).toBeGreaterThanOrEqual(0);
 
-      // Vérifier que les commissions attendues sont présentes
       expect(stats.uniqueCommissions.has('alpinisme')).toBe(true);
       expect(stats.uniqueCommissions.has('escalade')).toBe(true);
       expect(stats.uniqueCommissions.has('ski-de-randonnee')).toBe(true);

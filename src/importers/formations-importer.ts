@@ -1,6 +1,3 @@
-/**
- * Importeur pour les formations dans la base de données
- */
 import { Formation } from '../types';
 import BaseImporter from './base-importer';
 
@@ -26,55 +23,40 @@ class FormationsImporter extends BaseImporter<Formation> {
     this.printErrorBreakdown();
   }
 
-  /**
-   * Valide une formation et log les anomalies
-   */
   protected validateItem(formation: Formation): void {
-    // Vérifier le numéro de formation
     if (!formation.numeroFormation || formation.numeroFormation.trim() === '') {
       this.logger.logFormationIssue(formation, 'sans_numero');
     }
     
-    // Vérifier le formateur
     if (!formation.formateur || formation.formateur.trim() === '' || formation.formateur.trim() === ' ') {
       this.logger.logFormationIssue(formation, 'sans_formateur');
     }
     
-    // Vérifier le lieu de formation
     if (!formation.lieuFormation || formation.lieuFormation.trim() === '') {
       this.logger.logFormationIssue(formation, 'sans_lieu');
     }
     
-    // Note: dates début/fin souvent absentes de l'API FFCAM
-    // On les log mais ce n'est pas bloquant
+    // Dates souvent absentes de l'API FFCAM : comptées, non bloquantes
     if (!formation.dateDebutFormation || !formation.dateFinFormation) {
       this.logger.logFormationIssue(formation, 'sans_dates');
     }
     
-    // Vérifier le code formation (critique)
     if (!formation.codeFormation) {
       throw new Error(`Formation sans code (ligne ${formation.id})`);
     }
   }
 
-  /**
-   * En dry-run : résout le mapping formation → commission sans écrire
-   */
   protected async checkMappingDryRun(formation: Formation): Promise<void> {
     if (this.seenReferentiels.has(formation.codeFormation)) return;
     this.seenReferentiels.add(formation.codeFormation);
     await this.commissionLinker.linkFormation(0, formation.codeFormation);
   }
 
-  /**
-   * Importe une formation dans la base de données
-   */
   protected async importItemToDb(formation: Formation): Promise<void> {
     try {
       let formationId = this.referentielIds.get(formation.codeFormation);
 
       if (formationId === undefined) {
-        // 1. Upsert dans formation_referentiel_formation
         await this.db.execute(
           `INSERT INTO formation_referentiel_formation (code_formation, intitule)
            VALUES (?, ?)
@@ -82,7 +64,6 @@ class FormationsImporter extends BaseImporter<Formation> {
           [formation.codeFormation, formation.intituleFormation]
         );
 
-        // 2. Récupérer l'ID de la formation et lier à sa commission
         const [formationRows] = await this.db.execute(
           `SELECT id FROM formation_referentiel_formation WHERE code_formation = ? LIMIT 1`,
           [formation.codeFormation]
@@ -99,14 +80,12 @@ class FormationsImporter extends BaseImporter<Formation> {
         this.referentielIds.set(formation.codeFormation, formationId);
       }
 
-      // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(formation.adherentId);
       if (!userId) {
         this.logger.stats.formations.ignored++;
         return;
       }
 
-      // 4. Insert dans formation_validation_formation
       await this.db.execute(
         `INSERT INTO formation_validation_formation
          (user_id, formation_id, valide, date_validation, numero_formation,

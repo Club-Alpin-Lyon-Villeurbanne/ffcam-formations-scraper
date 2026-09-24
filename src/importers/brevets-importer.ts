@@ -1,6 +1,3 @@
-/**
- * Importeur pour les brevets dans la base de données
- */
 import { Brevet } from '../types';
 import BaseImporter from './base-importer';
 
@@ -26,40 +23,28 @@ class BrevetsImporter extends BaseImporter<Brevet> {
     this.printErrorBreakdown();
   }
 
-  /**
-   * Valide un brevet et log les anomalies
-   */
   protected validateItem(brevet: Brevet): void {
-    // Vérifier le code brevet (critique)
     if (!brevet.codeBrevet || brevet.codeBrevet.trim() === '') {
       this.logger.logBrevetIssue(brevet, 'sans_code');
       throw new Error(`Brevet sans code (ligne ${brevet.id})`);
     }
 
-    // Vérifier la date d'obtention
     if (!brevet.dateObtention || brevet.dateObtention.trim() === '') {
       this.logger.logBrevetIssue(brevet, 'sans_date_obtention');
     }
   }
 
-  /**
-   * En dry-run : résout le mapping brevet → commission sans écrire
-   */
   protected async checkMappingDryRun(brevet: Brevet): Promise<void> {
     if (this.seenReferentiels.has(brevet.codeBrevet)) return;
     this.seenReferentiels.add(brevet.codeBrevet);
     await this.commissionLinker.linkBrevet(0, brevet.codeBrevet);
   }
 
-  /**
-   * Importe un brevet dans la base de données
-   */
   protected async importItemToDb(brevet: Brevet): Promise<void> {
     try {
       let brevetId = this.referentielIds.get(brevet.codeBrevet);
 
       if (brevetId === undefined) {
-        // 1. Upsert dans formation_referentiel_brevet
         await this.db.execute(
           `INSERT INTO formation_referentiel_brevet (code_brevet, intitule)
            VALUES (?, ?)
@@ -67,7 +52,6 @@ class BrevetsImporter extends BaseImporter<Brevet> {
           [brevet.codeBrevet, brevet.intituleBrevet]
         );
 
-        // 2. Récupérer l'ID du brevet depuis le référentiel
         const [brevetRows] = await this.db.execute(
           `SELECT id FROM formation_referentiel_brevet WHERE code_brevet = ? LIMIT 1`,
           [brevet.codeBrevet]
@@ -79,20 +63,17 @@ class BrevetsImporter extends BaseImporter<Brevet> {
 
         brevetId = brevetRows[0].id as number;
 
-        // 2b. Lier le brevet à sa commission (si applicable)
         await this.commissionLinker.linkBrevet(brevetId, brevet.codeBrevet);
 
         this.referentielIds.set(brevet.codeBrevet, brevetId);
       }
 
-      // 3. Chercher l'user_id
       const userId = await this.db.getUserIdFromCafnum(brevet.adherentId);
       if (!userId) {
         this.logger.stats.brevets.ignored++;
         return;
       }
 
-      // 4. Insert dans formation_validation_brevet
       await this.db.execute(
         `INSERT INTO formation_validation_brevet
          (user_id, brevet_id,

@@ -51,13 +51,11 @@ async function main(): Promise<void> {
     );
     const unlinked = rows as BrevetRow[];
 
-    // Total du référentiel (pour le contexte)
     const [totalRows] = await db.execute(
       `SELECT COUNT(*) AS total FROM formation_referentiel_brevet`
     );
     const total = (totalRows as any[])[0]?.total ?? 0;
 
-    // Classement des brevets non liés
     const resyncables: Array<{ row: BrevetRow; commissions: string[] }> = [];
     const nonMappes: BrevetRow[] = [];
 
@@ -70,7 +68,6 @@ async function main(): Promise<void> {
       }
     }
 
-    // ---- Rapport ----
     console.log(`📊 Référentiel : ${total} brevets`);
     console.log(`   Liés à une commission : ${total - unlinked.length}`);
     console.log(`   Sans commission       : ${unlinked.length}\n`);

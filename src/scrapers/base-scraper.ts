@@ -1,13 +1,7 @@
-/**
- * Classe de base pour les scrapers
- */
 import { ApiRequestParams, ApiResponse, ApiRow } from '../types';
 import { FFCAM_CONFIG, isClubMember } from '../config';
 import { getSessionId, resetSessionCache } from '../auth/ffcam-sso';
 
-/**
- * Configuration pour un scraper
- */
 export interface ScraperConfig {
   entityName: string;        // Ex: "formation"
   entityNamePlural: string;  // Ex: "formations"
@@ -60,20 +54,10 @@ abstract class BaseScraper<T = any> {
     }
   }
 
-  /**
-   * Configuration du scraper (à implémenter dans chaque sous-classe)
-   */
   protected abstract getScraperConfig(): ScraperConfig;
 
-  /**
-   * Traite une ligne de l'API (à implémenter dans chaque sous-classe)
-   */
   protected abstract processRow(row: ApiRow): T | null;
 
-  /**
-   * Méthode principale de scraping (template method)
-   * Peut être surchargée par les sous-classes pour retourner des données enrichies
-   */
   async scrape(): Promise<T[] | any> {
     await this.ensureSession();
     const config = this.getScraperConfig();
@@ -108,9 +92,6 @@ abstract class BaseScraper<T = any> {
     return { records: parseInt(data.records.toString(), 10), clubCode: data.rows[0]?.cell?.col_2 || null };
   }
 
-  /**
-   * Construit l'URL avec les paramètres
-   */
   protected buildUrl(params: ApiRequestParams): string {
     const allParams: Record<string, string> = {
       sid: this.sessionId,
@@ -124,16 +105,12 @@ abstract class BaseScraper<T = any> {
     return `${this.baseUrl}?${searchParams}`;
   }
 
-  /**
-   * Effectue une requête HTTP
-   */
   protected async fetchData(url: string): Promise<ApiResponse> {
     const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    // Vérifier si la réponse est bien du JSON
     const text = await response.text();
     if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
       throw new SessionRejectedError(
@@ -149,9 +126,6 @@ abstract class BaseScraper<T = any> {
     }
   }
 
-  /**
-   * Attend avant la prochaine requête
-   */
   protected async delay(): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, this.apiDelay));
   }
@@ -160,22 +134,16 @@ abstract class BaseScraper<T = any> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Formate une date au format YYYY-MM-DD
-   * Gère les formats DD/MM/YYYY et YYYY-MM-DD
-   */
+  /** DD/MM/YYYY ou YYYY-MM-DD → YYYY-MM-DD ; la date nulle MySQL (0000-00-00) → '' */
   protected formatDate(dateStr: string): string {
     if (!dateStr) return '';
 
-    // Ignorer les dates invalides
     if (dateStr === '0000-00-00') return '';
 
-    // Si déjà au bon format
     if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
       return dateStr;
     }
 
-    // Format DD/MM/YYYY vers YYYY-MM-DD
     const parts = dateStr.split('/');
     if (parts.length === 3) {
       return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -184,9 +152,6 @@ abstract class BaseScraper<T = any> {
     return dateStr;
   }
 
-  /**
-   * Extrait les champs communs à tous les types d'entités
-   */
   protected extractCommonFields(row: ApiRow): {
     id: string;
     adherentId: string;
@@ -199,20 +164,13 @@ abstract class BaseScraper<T = any> {
     };
   }
 
-  /**
-   * Vérifie si une ligne doit être filtrée (adhérent hors club)
-   */
   protected shouldFilterRow(row: ApiRow): boolean {
     const cafnum = row.cell.col_0;
     return !isClubMember(cafnum);
   }
 
-  /**
-   * Hook appelé après chaque récupération de données
-   * Peut être surchargé par les sous-classes pour traiter les métadonnées
-   */
+  /** Appelé pour chaque page reçue : NiveauxScraper y récupère les métadonnées */
   protected onDataFetched(_data: ApiResponse): void {
-    // Default: do nothing
   }
 
   /**
@@ -229,9 +187,6 @@ abstract class BaseScraper<T = any> {
     return true;
   }
 
-  /**
-   * Récupère toutes les pages de données
-   */
   protected async fetchAllPages<T>(
     baseParams: Omit<ApiRequestParams, 'page'>,
     processRow: (row: ApiRow) => T | null
@@ -250,7 +205,6 @@ abstract class BaseScraper<T = any> {
         const url = this.buildUrl({ ...baseParams, page } as ApiRequestParams);
         const data = await this.fetchData(url);
 
-        // Appeler le hook pour traiter les métadonnées
         this.onDataFetched(data);
 
         if (page === 1) {
@@ -273,7 +227,6 @@ abstract class BaseScraper<T = any> {
         attempt = 0;
         page++;
 
-        // Délai entre les pages
         if (page <= this.totalPages) {
           await this.delay();
         }
@@ -317,7 +270,6 @@ abstract class BaseScraper<T = any> {
         attempt = 0;
         page++;
 
-        // Délai avant la page suivante, comme sur le chemin de succès
         if (page <= this.totalPages) {
           await this.delay();
         }

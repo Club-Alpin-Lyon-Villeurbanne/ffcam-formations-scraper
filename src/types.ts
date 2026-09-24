@@ -1,15 +1,3 @@
-/**
- * Type definitions for the FFCAM formations scraper
- * Following KISS principle - simple, clear interfaces
- */
-
-// =============================================================================
-// Core Data Structures
-// =============================================================================
-
-/**
- * Formation (training) record from FFCAM
- */
 export interface Formation {
   id: string;
   adherentId: string;
@@ -25,9 +13,6 @@ export interface Formation {
   idInterne: string;
 }
 
-/**
- * Niveau de pratique (skill level) record from FFCAM
- */
 export interface NiveauPratique {
   id: string;
   adherentId: string;
@@ -41,13 +26,10 @@ export interface NiveauPratique {
   discipline?: string;
 }
 
-/**
- * Brevet record from FFCAM
- */
 export interface Brevet {
   id: string;
   adherentId: string;  // cafnum_user dans la DB
-  nom: string;         // Utilisé seulement pour l'affichage, pas stocké en DB
+  nom: string;         // Donnée personnelle : jamais stockée ni journalisée
   codeBrevet: string;
   intituleBrevet: string;
   dateObtention: string;
@@ -57,9 +39,6 @@ export interface Brevet {
   dateMigration: string;
 }
 
-/**
- * Compétence (groupe de compétences) record from FFCAM
- */
 export interface Competence {
   id: string;
   adherentId: string;
@@ -74,9 +53,6 @@ export interface Competence {
   commentaire: string;
 }
 
-/**
- * Raw row from FFCAM API response
- */
 export interface ApiRow {
   id: string;
   cell: {
@@ -93,9 +69,6 @@ export interface ApiRow {
   };
 }
 
-/**
- * FFCAM API response structure
- */
 export interface ApiResponse {
   page: number;
   total: number;
@@ -106,9 +79,6 @@ export interface ApiResponse {
   };
 }
 
-/**
- * Metadata for niveaux de pratique
- */
 export interface NiveauxMetadata {
   [id: string]: {
     _BASE_validation_qui?: string;
@@ -117,21 +87,11 @@ export interface NiveauxMetadata {
   };
 }
 
-/**
- * Scraper result with data and optional metadata
- */
 export interface ScrapedData<T> {
   data: T[];
   metadata?: NiveauxMetadata;
 }
 
-// =============================================================================
-// Configuration Types
-// =============================================================================
-
-/**
- * FFCAM configuration
- */
 export interface FfcamConfig {
   /** Identifiants du portail FFCAM (https://portail.ffcam.fr) */
   EMAIL: string;
@@ -143,17 +103,11 @@ export interface FfcamConfig {
   BASE_URL: string;
 }
 
-/**
- * Application paths configuration
- */
 export interface PathsConfig {
   DATA_DIR: string;
   REPORTS_DIR: string;
 }
 
-/**
- * Database configuration for MySQL
- */
 export interface DatabaseConfig {
   host: string;
   port: number;
@@ -166,13 +120,6 @@ export interface DatabaseConfig {
   connectTimeout?: number;
 }
 
-// =============================================================================
-// Database Adapter Interface
-// =============================================================================
-
-/**
- * Database adapter interface
- */
 export interface DatabaseAdapter {
   connect(): Promise<void>;
   close(): Promise<void>;
@@ -182,13 +129,6 @@ export interface DatabaseAdapter {
   updateLastSync(type: string, count: number): Promise<void>;
 }
 
-// =============================================================================
-// Import/Export Types
-// =============================================================================
-
-/**
- * Import statistics
- */
 export interface ImportStats {
   formations: {
     total: number;
@@ -229,9 +169,6 @@ export interface ImportStats {
   };
 }
 
-/**
- * Import report structure
- */
 export interface ImportReport {
   timestamp: string;
   date: string;
@@ -251,9 +188,6 @@ export interface ImportReport {
   pages_manquantes?: Record<string, number[]>;
 }
 
-/**
- * Logger interface for tracking import progress
- */
 export interface Logger {
   stats: ImportStats;
   info(message: string): void;
@@ -272,20 +206,10 @@ export interface Logger {
   printFinalReport(timestamp: string, dryRun?: boolean): void;
 }
 
-// =============================================================================
-// Scraper Types
-// =============================================================================
-
-/**
- * Base scraper interface
- */
 export interface Scraper<T> {
   scrape(): Promise<T[] | ScrapedData<T>>;
 }
 
-/**
- * Request parameters for FFCAM API
- */
 export interface ApiRequestParams {
   def: string;
   mode: string;

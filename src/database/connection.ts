@@ -1,11 +1,7 @@
-/**
- * Gestion de la connexion à la base de données MySQL
- */
 import * as mysql from 'mysql2/promise';
 import { DatabaseAdapter } from '../types';
 import { dbConfig } from '../config';
 
-// Timeout pour les requêtes (60 secondes)
 const QUERY_TIMEOUT_MS = 60000;
 
 class DatabaseConnection implements DatabaseAdapter {
@@ -14,9 +10,6 @@ class DatabaseConnection implements DatabaseAdapter {
   /** Cache par préfixe de cafnum, pour éviter une requête par ligne (~90 ms depuis GitHub Actions vers Clever Cloud) */
   private usersByCafnum: Map<string, Map<string, number>> = new Map();
 
-  /**
-   * Initialise la connexion à la base de données
-   */
   async connect(): Promise<void> {
     if (this.connection) {
       return;
@@ -42,20 +35,15 @@ class DatabaseConnection implements DatabaseAdapter {
     try {
       return await this.executeWithTimeout(sql, params);
     } catch (error: any) {
-      // Si la connexion est perdue ou timeout, tenter une reconnexion
       if (this.isConnectionError(error)) {
         console.log('⚠️  Connexion perdue, tentative de reconnexion...');
         await this.reconnect();
-        // Retry après reconnexion
         return this.executeWithTimeout(sql, params);
       }
       throw error;
     }
   }
 
-  /**
-   * Exécute une requête avec timeout
-   */
   private async executeWithTimeout(sql: string, params: any[]): Promise<[any[], any[]]> {
     let timer: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -74,9 +62,6 @@ class DatabaseConnection implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Vérifie si l'erreur est liée à une connexion perdue ou timeout
-   */
   private isConnectionError(error: any): boolean {
     const connectionErrors = [
       'ETIMEDOUT',
@@ -94,9 +79,6 @@ class DatabaseConnection implements DatabaseAdapter {
     );
   }
 
-  /**
-   * Ferme et recrée la connexion
-   */
   private async reconnect(): Promise<void> {
     try {
       if (this.connection) {
@@ -115,9 +97,6 @@ class DatabaseConnection implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Récupère un utilisateur par son cafnum
-   */
   async getUserIdFromCafnum(cafnum: string): Promise<number | null> {
     cafnum = String(cafnum ?? '').trim();
     if (!this.connection) return null;
@@ -141,9 +120,6 @@ class DatabaseConnection implements DatabaseAdapter {
     return usersForPrefix.get(cafnum) ?? null;
   }
 
-  /**
-   * Met à jour la date de dernière synchronisation
-   */
   async updateLastSync(type: string, count: number): Promise<void> {
     if (!this.connection) return;
     
@@ -161,9 +137,6 @@ class DatabaseConnection implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Ferme la connexion à la base de données
-   */
   async close(): Promise<void> {
     if (this.connection) {
       await this.connection.end();
@@ -171,9 +144,6 @@ class DatabaseConnection implements DatabaseAdapter {
     }
   }
 
-  /**
-   * Vérifie si la connexion est active
-   */
   isConnected(): boolean {
     return this.connection !== null;
   }

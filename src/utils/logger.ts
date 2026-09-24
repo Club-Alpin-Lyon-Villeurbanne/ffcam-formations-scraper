@@ -1,6 +1,3 @@
-/**
- * Logger simplifié - KISS!
- */
 import { Logger as LoggerInterface, ImportStats, Formation, NiveauPratique, Brevet } from '../types';
 
 class Logger implements LoggerInterface {
@@ -89,9 +86,6 @@ class Logger implements LoggerInterface {
     switch(issue) {
       case 'sans_cursus_id':
         this.stats.niveaux.sans_cursus_id++;
-        break;
-      case 'format_non_standard':
-        // On s'en fiche, pas besoin de compter
         break;
     }
   }

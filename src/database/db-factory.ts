@@ -1,8 +1,6 @@
 /**
- * Factory pour sélectionner automatiquement le bon adaptateur de base de données
- * - SQLite par défaut pour le développement local
- * - MySQL si configuré dans .env
- * - Forçage possible avec --sqlite ou --mysql
+ * MySQL si les variables MYSQL_ADDON_* sont complètes, sinon SQLite local (développement du scraper).
+ * Forçage : --mysql ou --sqlite.
  */
 
 import { DatabaseAdapter } from '../types';
@@ -16,11 +14,7 @@ function hasMySQL(): boolean {
   );
 }
 
-/**
- * Détermine quel adaptateur utiliser
- */
 export function determineAdapter(): 'sqlite' | 'mysql' {
-  // Forçage via arguments
   if (process.argv.includes('--sqlite')) {
     return 'sqlite';
   }
@@ -33,7 +27,6 @@ export function determineAdapter(): 'sqlite' | 'mysql' {
     return 'mysql';
   }
   
-  // Auto-détection : MySQL si configuré, sinon SQLite
   if (hasMySQL()) {
     return 'mysql';
   }
@@ -41,9 +34,6 @@ export function determineAdapter(): 'sqlite' | 'mysql' {
   return 'sqlite';
 }
 
-/**
- * Récupère l'instance de base de données appropriée
- */
 export function getDatabase(): DatabaseAdapter {
   const adapter = determineAdapter();
   

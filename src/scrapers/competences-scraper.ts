@@ -1,13 +1,7 @@
-/**
- * Scraper pour les compétences (groupes de compétences)
- */
 import { Competence, ApiRow, Scraper } from '../types';
 import BaseScraper, { ScraperConfig } from './base-scraper';
 
 class CompetencesScraper extends BaseScraper<Competence> implements Scraper<Competence> {
-  /**
-   * Configuration du scraper
-   */
   protected getScraperConfig(): ScraperConfig {
     return {
       entityName: 'compétence',
@@ -17,9 +11,6 @@ class CompetencesScraper extends BaseScraper<Competence> implements Scraper<Comp
     };
   }
 
-  /**
-   * Traite une ligne de compétence
-   */
   protected processRow(row: ApiRow): Competence | null {
     if (this.shouldFilterRow(row)) {
       return null;
