@@ -280,4 +280,59 @@ describe('describeInvalidBody', () => {
     expect(out).toContain('JSON invalide (Unterminated string');
     expect(out).not.toContain('DUPONT');
   });
+
+  it('situe la ligne et la colonne fautives dans la page', () => {
+    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"A"}},{"id":"2","cell":{"col_0":"B","col_5":"DUPONT\tJEAN"}}]}');
+    expect(out).toContain('caractère U+0009, vers la ligne 2 de la page (col_5))');
+    expect(out).not.toContain('DUPONT');
+  });
+
+  it("réponse coupée : dernière ligne commencée", () => {
+    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"A"}},{"id":"2","cell":{"col_0":"DUP');
+    expect(out).toContain('vers la ligne 2 de la page (col_0)');
+    expect(out).not.toContain('DUP"');
+  });
 });
+
+/** Grille simulée de 90 enregistrements (3 pages de 30) : toute requête couvrant un enregistrement illisible échoue. */
+class GridScraper extends BaseScraper<string> {
+  protected rowsPerPage = 30;
+  protected retryDelays = [0, 0, 0];
+  constructor(private readonly unreadable: number[]) { super(); }
+  protected getScraperConfig(): ScraperConfig { return { entityName: 'test', entityNamePlural: 'tests', def: 'test_def' }; }
+  protected processRow(r: ApiRow): string | null { return r.cell.col_1; }
+  protected async ensureSession(): Promise<void> { this.sessionId = 'sid'; }
+  protected async delay(): Promise<void> {}
+  protected async fetchData(url: string): Promise<ApiResponse> {
+    const params = new URL(url).searchParams;
+    const rows = Number(params.get('rows'));
+    const page = Number(params.get('page'));
+    const first = (page - 1) * rows + 1;
+    const last = Math.min(page * rows, 90);
+    if (this.unreadable.some(i => i >= first && i <= last)) {
+      throw new InvalidResponseError("Réponse invalide de l'API FFCAM : 12 caractères, JSON invalide (x)");
+    }
+    const data = Array.from({ length: Math.max(0, last - first + 1) }, (_, k) => row(String(first + k), String(first + k)));
+    return { page, total: 3, records: 90, rows: data };
+  }
+}
+
+describe('BaseScraper - diagnostic des pages illisibles', () => {
+  it("situe l'enregistrement illisible de la première page abandonnée, une seule fois par type", async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const scraper = new GridScraper([47, 75]);
+
+    const results = await scraper.scrape();
+    const logs = errorSpy.mock.calls.map((call: unknown[]) => call.join(' ')).join('\n');
+    vi.restoreAllMocks();
+
+    expect(results).toHaveLength(30);
+    expect(scraper.missingPages).toEqual([2, 3]);
+    expect(logs).toContain('🔎 Page 2 (enregistrements 31-60) relue par blocs de 10 : 1/3 illisibles : 41-50');
+    expect(logs).toContain('🔎 Bloc 41-50 relu ligne à ligne : illisibles : n°47 (12 caractères, JSON invalide (x))');
+    expect(logs).toContain('🔎 Dernier enregistrement (n°90) : lisible');
+    expect(logs.match(/🔎 Page/g)).toHaveLength(1);
+  });
+});
+

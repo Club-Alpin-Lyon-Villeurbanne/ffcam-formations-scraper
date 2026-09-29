@@ -37,9 +37,14 @@ export function describeInvalidBody(text: string, error: Error): string {
     return `${text.length} caractères, texte : "${excerpt}"`;
   }
   const reason = error.message.split('"')[0].replace(/[,\s]+$/, '');
-  const position = Number(/at position (\d+)/.exec(error.message)?.[1]);
+  const match = /at position (\d+)/.exec(error.message);
+  const position = match ? Number(match[1]) : text.length;
   const char = position < text.length ? `, caractère U+${text.charCodeAt(position).toString(16).toUpperCase().padStart(4, '0')}` : '';
-  return `${text.length} caractères, JSON invalide (${reason}${char})`;
+  const before = text.slice(0, position);
+  const row = (before.match(/"cell"\s*:/g) ?? []).length;
+  const column = [...before.matchAll(/"(col_\d+)"\s*:/g)].pop()?.[1];
+  const where = row > 0 ? `, vers la ligne ${row} de la page${column ? ` (${column})` : ''}` : '';
+  return `${text.length} caractères, JSON invalide (${reason}${char}${where})`;
 }
 
 abstract class BaseScraper<T = any> {
@@ -52,6 +57,7 @@ abstract class BaseScraper<T = any> {
   /** Pages abandonnées après épuisement des réessais, réinitialisé à chaque fetchAllPages */
   public missingPages: number[] = [];
   public totalPages = 1;
+  private totalRecords = 0;
 
   constructor() {
     this.sessionId = '';
@@ -123,6 +129,7 @@ abstract class BaseScraper<T = any> {
   }
 
   protected async fetchData(url: string): Promise<ApiResponse> {
+    const started = Date.now();
     const response = await fetch(url, { signal: AbortSignal.timeout(60_000) });
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`);
@@ -139,7 +146,8 @@ abstract class BaseScraper<T = any> {
     try {
       return JSON.parse(text) as ApiResponse;
     } catch (error: any) {
-      throw new InvalidResponseError(`Réponse invalide de l'API FFCAM : ${describeInvalidBody(text, error)}`);
+      const http = `HTTP ${response.status}, ${response.headers.get('content-type') || 'sans content-type'}, ${Date.now() - started} ms`;
+      throw new InvalidResponseError(`Réponse invalide de l'API FFCAM : ${describeInvalidBody(text, error)} [${http}]`);
     }
   }
 
@@ -226,6 +234,7 @@ abstract class BaseScraper<T = any> {
 
         if (page === 1) {
           this.totalPages = parseInt(data.total.toString());
+          this.totalRecords = parseInt(data.records.toString());
           console.log(`📊 ${data.records} enregistrements sur ${this.totalPages} pages\n`);
         }
 
@@ -284,6 +293,9 @@ abstract class BaseScraper<T = any> {
 
         console.error(`✗ Page ${page} abandonnée après ${maxAttempts} tentatives (${cause})`);
         this.missingPages.push(page);
+        if (isInvalidResponse && this.missingPages.length === 1) {
+          await this.locateUnreadableRecords(baseParams, page);
+        }
         attempt = 0;
         page++;
 
@@ -294,6 +306,51 @@ abstract class BaseScraper<T = any> {
     }
 
     return allData;
+  }
+
+  /**
+   * Diagnostic de la première page abandonnée sur réponse invalide : relecture par blocs de 10,
+   * puis ligne à ligne dans le premier bloc illisible, puis du dernier enregistrement de la grille.
+   * Ne journalise que des numéros d'enregistrement (rang dans le tri de la grille), jamais leur contenu.
+   */
+  private async locateUnreadableRecords(baseParams: Omit<ApiRequestParams, 'page'>, page: number): Promise<void> {
+    const BLOCK = 10;
+    const first = (page - 1) * this.rowsPerPage + 1;
+    const last = Math.min(page * this.rowsPerPage, this.totalRecords || Infinity);
+    const readError = async (pageNumber: number, rows: number): Promise<string | null> => {
+      await this.delay();
+      try {
+        await this.fetchData(this.buildUrl({ ...baseParams, page: pageNumber, rows } as ApiRequestParams));
+        return null;
+      } catch (error: any) {
+        return (error.cause?.code ?? error.message).replace("Réponse invalide de l'API FFCAM : ", '');
+      }
+    };
+    const range = (block: number) => `${(block - 1) * BLOCK + 1}-${Math.min(block * BLOCK, last)}`;
+
+    const blocks: number[] = [];
+    for (let block = Math.floor((first - 1) / BLOCK) + 1; block <= Math.ceil(last / BLOCK); block++) blocks.push(block);
+    const badBlocks: number[] = [];
+    for (const block of blocks) {
+      if (await readError(block, BLOCK)) badBlocks.push(block);
+    }
+    console.error(`🔎 Page ${page} (enregistrements ${first}-${last}) relue par blocs de ${BLOCK} : ${
+      badBlocks.length === 0 ? 'tous lisibles' : `${badBlocks.length}/${blocks.length} illisibles : ${badBlocks.map(range).join(', ')}`}`);
+
+    if (badBlocks.length > 0) {
+      const block = badBlocks[0];
+      const badRecords: string[] = [];
+      for (let index = (block - 1) * BLOCK + 1; index <= Math.min(block * BLOCK, last); index++) {
+        const error = await readError(index, 1);
+        if (error) badRecords.push(`n°${index} (${error})`);
+      }
+      console.error(`🔎 Bloc ${range(block)} relu ligne à ligne : ${badRecords.length === 0 ? 'toutes lisibles' : `illisibles : ${badRecords.join(' ; ')}`}`);
+    }
+
+    if (this.totalRecords > last) {
+      const error = await readError(this.totalRecords, 1);
+      console.error(`🔎 Dernier enregistrement (n°${this.totalRecords}) : ${error ? `illisible (${error})` : 'lisible'}`);
+    }
   }
 }
 
