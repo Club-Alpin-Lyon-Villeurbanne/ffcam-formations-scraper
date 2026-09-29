@@ -25,26 +25,45 @@ export class InvalidResponseError extends Error {
   }
 }
 
+const PHP_ERROR = /(Fatal error|Parse error|Warning|Notice|Deprecated|Uncaught|Allowed memory size|Maximum execution time)[^{]{0,120}/i;
+
+const charCode = (text: string, index: number) => `U+${text.charCodeAt(index).toString(16).toUpperCase().padStart(4, '0')}`;
+
+/** Cite un message d'erreur PHP reconnu, jamais un texte quelconque qui pourrait contenir un nom */
+function quoteServerError(text: string): string {
+  const match = PHP_ERROR.exec(text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '));
+  return match ? `"${match[0].trim()}"` : `texte non reconnu commençant par ${charCode(text.trim(), 0)}`;
+}
+
 /**
  * Décrit un corps de réponse non JSON sans exposer de données d'adhérents (dépôt et logs publics) :
- * un texte d'erreur (ex. PHP) est cité jusqu'au premier « { », un JSON cassé n'est décrit que par sa position.
+ * message d'erreur PHP reconnu, ou position, ligne et colonne où un JSON casse, jamais son contenu.
  */
 export function describeInvalidBody(text: string, error: Error): string {
   const body = text.trim();
   if (!body) return 'réponse vide';
-  if (!body.startsWith('{') && !body.startsWith('[')) {
-    const excerpt = body.split('{')[0].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
-    return `${text.length} caractères, texte : "${excerpt}"`;
-  }
-  const reason = error.message.split('"')[0].replace(/[,\s]+$/, '');
+  if (!body.startsWith('{') && !body.startsWith('[')) return `${text.length} caractères, ${quoteServerError(body)}`;
+
   const match = /at position (\d+)/.exec(error.message);
+  if (match && error.message.includes('after JSON')) {
+    return `${text.length} caractères, JSON complet suivi de ${quoteServerError(text.slice(Number(match[1])))}`;
+  }
+  const reason = error.message.split(/["']/)[0].replace(/[,\s]+$/, '');
+  if (!match && !error.message.includes('Unexpected end')) return `${text.length} caractères, JSON invalide (${reason})`;
+
   const position = match ? Number(match[1]) : text.length;
-  const char = position < text.length ? `, caractère U+${text.charCodeAt(position).toString(16).toUpperCase().padStart(4, '0')}` : '';
+  const char = position < text.length ? `, caractère ${charCode(text, position)}` : '';
   const before = text.slice(0, position);
-  const row = (before.match(/"cell"\s*:/g) ?? []).length;
-  const column = [...before.matchAll(/"(col_\d+)"\s*:/g)].pop()?.[1];
+  const row = (before.match(/"id"\s*:/g) ?? []).length;
+  const inCell = before.lastIndexOf('"cell"') > before.lastIndexOf('"id"');
+  const column = inCell ? [...before.matchAll(/"(col_\d+)"\s*:/g)].pop()?.[1] : undefined;
   const where = row > 0 ? `, vers la ligne ${row} de la page${column ? ` (${column})` : ''}` : '';
   return `${text.length} caractères, JSON invalide (${reason}${char}${where})`;
+}
+
+/** Cause lisible d'une erreur : code réseau, sinon message */
+function errorCause(error: any): string {
+  return String(error?.cause?.code ?? error?.message ?? error);
 }
 
 abstract class BaseScraper<T = any> {
@@ -136,7 +155,7 @@ abstract class BaseScraper<T = any> {
     }
 
     const text = await response.text();
-    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+    if (/^<(!doctype|html)/i.test(text.trim())) {
       throw new SessionRejectedError(
         "❌ Session extranet refusée (réponse HTML au lieu de JSON).\n" +
         "   Le profil extranet du compte FFCAM a peut-être changé : vérifiez FFCAM_PROFILE avec \"npm run check\"."
@@ -146,7 +165,7 @@ abstract class BaseScraper<T = any> {
     try {
       return JSON.parse(text) as ApiResponse;
     } catch (error: any) {
-      const http = `HTTP ${response.status}, ${response.headers.get('content-type') || 'sans content-type'}, ${Date.now() - started} ms`;
+      const http = `${response.headers.get('content-type') || 'sans content-type'}, ${Date.now() - started} ms`;
       throw new InvalidResponseError(`Réponse invalide de l'API FFCAM : ${describeInvalidBody(text, error)} [${http}]`);
     }
   }
@@ -222,6 +241,7 @@ abstract class BaseScraper<T = any> {
     this.missingPages = [];
     let reloginCount = 0;
     const maxRelogins = 2;
+    let diagnosed = false;
     let attempt = 0;
     const maxAttempts = this.retryDelays.length + 1; // 1 essai initial + les réessais
 
@@ -276,7 +296,7 @@ abstract class BaseScraper<T = any> {
           throw error;
         }
 
-        const cause = error.cause?.code ?? error.message;
+        const cause = errorCause(error);
 
         if (this.isRetryable(error) && attempt < this.retryDelays.length) {
           const delai = this.retryDelays[attempt] / 1000;
@@ -293,8 +313,13 @@ abstract class BaseScraper<T = any> {
 
         console.error(`✗ Page ${page} abandonnée après ${maxAttempts} tentatives (${cause})`);
         this.missingPages.push(page);
-        if (isInvalidResponse && this.missingPages.length === 1) {
-          await this.locateUnreadableRecords(baseParams, page);
+        if (isInvalidResponse && !diagnosed) {
+          diagnosed = true;
+          try {
+            await this.locateUnreadableRecords(baseParams, page);
+          } catch (diagnosticError) {
+            console.error(`🔎 Diagnostic de la page ${page} interrompu : ${errorCause(diagnosticError)}`);
+          }
         }
         attempt = 0;
         page++;
@@ -309,47 +334,55 @@ abstract class BaseScraper<T = any> {
   }
 
   /**
-   * Diagnostic de la première page abandonnée sur réponse invalide : relecture par blocs de 10,
+   * Diagnostic de la première page abandonnée sur réponse invalide (2 min au plus) : relecture par blocs de 10,
    * puis ligne à ligne dans le premier bloc illisible, puis du dernier enregistrement de la grille.
-   * Ne journalise que des numéros d'enregistrement (rang dans le tri de la grille), jamais leur contenu.
+   * Ne journalise que des rangs d'enregistrement dans le tri de la grille, jamais leur contenu ;
+   * entre ex æquo du tri, un rang peut désigner une autre ligne d'une requête à l'autre.
    */
   private async locateUnreadableRecords(baseParams: Omit<ApiRequestParams, 'page'>, page: number): Promise<void> {
     const BLOCK = 10;
+    const deadline = Date.now() + 120_000;
     const first = (page - 1) * this.rowsPerPage + 1;
-    const last = Math.min(page * this.rowsPerPage, this.totalRecords || Infinity);
-    const readError = async (pageNumber: number, rows: number): Promise<string | null> => {
+    const last = Math.min(page * this.rowsPerPage, this.totalRecords);
+    const read = async (pageNumber: number, rows: number): Promise<string | null> => {
+      if (Date.now() > deadline) throw new Error('durée maximale de 2 min atteinte');
       await this.delay();
       try {
         await this.fetchData(this.buildUrl({ ...baseParams, page: pageNumber, rows } as ApiRequestParams));
         return null;
       } catch (error: any) {
-        return (error.cause?.code ?? error.message).replace("Réponse invalide de l'API FFCAM : ", '');
+        const cause = errorCause(error).replace("Réponse invalide de l'API FFCAM : ", '');
+        return error instanceof InvalidResponseError ? `illisible (${cause})` : `en erreur (${cause})`;
       }
     };
     const range = (block: number) => `${(block - 1) * BLOCK + 1}-${Math.min(block * BLOCK, last)}`;
 
     const blocks: number[] = [];
     for (let block = Math.floor((first - 1) / BLOCK) + 1; block <= Math.ceil(last / BLOCK); block++) blocks.push(block);
-    const badBlocks: number[] = [];
+    const unreadable: number[] = [];
+    const failed: string[] = [];
     for (const block of blocks) {
-      if (await readError(block, BLOCK)) badBlocks.push(block);
+      const result = await read(block, BLOCK);
+      if (result?.startsWith('illisible')) unreadable.push(block);
+      else if (result) failed.push(`${range(block)} ${result}`);
     }
-    console.error(`🔎 Page ${page} (enregistrements ${first}-${last}) relue par blocs de ${BLOCK} : ${
-      badBlocks.length === 0 ? 'tous lisibles' : `${badBlocks.length}/${blocks.length} illisibles : ${badBlocks.map(range).join(', ')}`}`);
+    console.error(`🔎 Page ${page} (rangs ${first}-${last}) relue par blocs de ${BLOCK} : ${
+      unreadable.length === 0 ? 'aucun bloc illisible' : `${unreadable.length}/${blocks.length} illisibles : ${unreadable.map(range).join(', ')}`}${
+      failed.length > 0 ? ` ; ${failed.join(' ; ')}` : ''}`);
 
-    if (badBlocks.length > 0) {
-      const block = badBlocks[0];
-      const badRecords: string[] = [];
+    if (unreadable.length > 0) {
+      const block = unreadable[0];
+      const records: string[] = [];
       for (let index = (block - 1) * BLOCK + 1; index <= Math.min(block * BLOCK, last); index++) {
-        const error = await readError(index, 1);
-        if (error) badRecords.push(`n°${index} (${error})`);
+        const result = await read(index, 1);
+        if (result) records.push(`n°${index} ${result}`);
       }
-      console.error(`🔎 Bloc ${range(block)} relu ligne à ligne : ${badRecords.length === 0 ? 'toutes lisibles' : `illisibles : ${badRecords.join(' ; ')}`}`);
+      console.error(`🔎 Bloc ${range(block)} relu ligne à ligne : ${records.length === 0 ? 'toutes lisibles' : records.join(' ; ')}`);
     }
 
     if (this.totalRecords > last) {
-      const error = await readError(this.totalRecords, 1);
-      console.error(`🔎 Dernier enregistrement (n°${this.totalRecords}) : ${error ? `illisible (${error})` : 'lisible'}`);
+      const result = await read(this.totalRecords, 1);
+      console.error(`🔎 Dernier enregistrement (n°${this.totalRecords}) : ${result ?? 'lisible'}`);
     }
   }
 }

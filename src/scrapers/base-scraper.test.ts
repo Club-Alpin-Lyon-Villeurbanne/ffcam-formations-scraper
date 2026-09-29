@@ -265,7 +265,7 @@ describe('describeInvalidBody', () => {
 
   it("cite un texte d'erreur PHP sans balises ni le JSON qui suit", () => {
     const out = describe_('<br />\n<b>Fatal error</b>:  Allowed memory size exhausted in /var/www/grid.php<br />{"rows":["DUPONT JEAN"]}');
-    expect(out).toContain('texte : "Fatal error : Allowed memory size exhausted in /var/www/grid.php"');
+    expect(out).toContain('"Fatal error : Allowed memory size exhausted in /var/www/grid.php"');
     expect(out).not.toContain('DUPONT');
   });
 
@@ -287,6 +287,28 @@ describe('describeInvalidBody', () => {
     expect(out).not.toContain('DUPONT');
   });
 
+  it("ne cite pas un texte non reconnu, qui pourrait contenir un nom", () => {
+    const out = describe_('<!doctype html><body>Bonjour Jean DUPONT</body>');
+    expect(out).toContain('texte non reconnu commençant par U+003C');
+    expect(out).not.toMatch(/DUPONT|Bonjour/);
+  });
+
+  it('JSON complet suivi d\'un message PHP : cite le message, sans désigner de ligne', () => {
+    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"DUPONT"}}]}<br /><b>Warning</b>: Undefined index col_9 in /var/www/grid.php');
+    expect(out).toContain('JSON complet suivi de "Warning : Undefined index col_9 in /var/www/grid.php"');
+    expect(out).not.toMatch(/DUPONT|vers la ligne/);
+  });
+
+  it('erreur sans position (token inattendu) : pas de ligne devinée, pas de caractère du corps', () => {
+    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":NaN}},{"id":"2","cell":{"col_0":"B"}}]}');
+    expect(out).toMatch(/JSON invalide \(Unexpected token\)$/);
+  });
+
+  it("erreur dans l'identifiant d'une ligne : bonne ligne, sans colonne", () => {
+    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"A"}},{"id":"2\t"}]}');
+    expect(out).toContain('caractère U+0009, vers la ligne 2 de la page)');
+  });
+
   it("réponse coupée : dernière ligne commencée", () => {
     const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"A"}},{"id":"2","cell":{"col_0":"DUP');
     expect(out).toContain('vers la ligne 2 de la page (col_0)');
@@ -298,7 +320,7 @@ describe('describeInvalidBody', () => {
 class GridScraper extends BaseScraper<string> {
   protected rowsPerPage = 30;
   protected retryDelays = [0, 0, 0];
-  constructor(private readonly unreadable: number[]) { super(); }
+  constructor(private readonly unreadable: number[], private readonly networkPages: number[] = []) { super(); }
   protected getScraperConfig(): ScraperConfig { return { entityName: 'test', entityNamePlural: 'tests', def: 'test_def' }; }
   protected processRow(r: ApiRow): string | null { return r.cell.col_1; }
   protected async ensureSession(): Promise<void> { this.sessionId = 'sid'; }
@@ -309,6 +331,7 @@ class GridScraper extends BaseScraper<string> {
     const page = Number(params.get('page'));
     const first = (page - 1) * rows + 1;
     const last = Math.min(page * rows, 90);
+    if (rows === 30 && this.networkPages.includes(page)) throw new Error('fetch failed', { cause: { code: 'ECONNRESET' } });
     if (this.unreadable.some(i => i >= first && i <= last)) {
       throw new InvalidResponseError("Réponse invalide de l'API FFCAM : 12 caractères, JSON invalide (x)");
     }
@@ -318,21 +341,39 @@ class GridScraper extends BaseScraper<string> {
 }
 
 describe('BaseScraper - diagnostic des pages illisibles', () => {
-  it("situe l'enregistrement illisible de la première page abandonnée, une seule fois par type", async () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  const logs = () => errorSpy.mock.calls.map((call: unknown[]) => call.join(' ')).join('\n');
+
+  beforeEach(() => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("situe l'enregistrement illisible de la première page abandonnée, une seule fois par type", async () => {
     const scraper = new GridScraper([47, 75]);
 
     const results = await scraper.scrape();
-    const logs = errorSpy.mock.calls.map((call: unknown[]) => call.join(' ')).join('\n');
-    vi.restoreAllMocks();
 
     expect(results).toHaveLength(30);
     expect(scraper.missingPages).toEqual([2, 3]);
-    expect(logs).toContain('🔎 Page 2 (enregistrements 31-60) relue par blocs de 10 : 1/3 illisibles : 41-50');
-    expect(logs).toContain('🔎 Bloc 41-50 relu ligne à ligne : illisibles : n°47 (12 caractères, JSON invalide (x))');
-    expect(logs).toContain('🔎 Dernier enregistrement (n°90) : lisible');
-    expect(logs.match(/🔎 Page/g)).toHaveLength(1);
+    expect(logs()).toContain('🔎 Page 2 (rangs 31-60) relue par blocs de 10 : 1/3 illisibles : 41-50');
+    expect(logs()).toContain('🔎 Bloc 41-50 relu ligne à ligne : n°47 illisible (12 caractères, JSON invalide (x))');
+    expect(logs()).toContain('🔎 Dernier enregistrement (n°90) : lisible');
+    expect(logs().match(/🔎 Page/g)).toHaveLength(1);
+  });
+
+  it('diagnostique la première page illisible même après une page perdue sur erreur réseau', async () => {
+    const scraper = new GridScraper([75], [2]);
+
+    await scraper.scrape();
+
+    expect(scraper.missingPages).toEqual([2, 3]);
+    expect(logs()).toContain('🔎 Page 3 (rangs 61-90) relue par blocs de 10 : 1/3 illisibles : 71-80');
+    expect(logs()).toContain('n°75 illisible');
   });
 });
 
