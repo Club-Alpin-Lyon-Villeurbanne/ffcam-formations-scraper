@@ -2,7 +2,7 @@
  * Tests de la reconnexion automatique et des réessais de BaseScraper.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import BaseScraper, { SessionRejectedError, InvalidResponseError, ScraperConfig } from './base-scraper';
+import BaseScraper, { SessionRejectedError, InvalidResponseError, ScraperConfig, describeInvalidBody } from './base-scraper';
 import { ApiRow, ApiResponse } from '../types';
 import * as sso from '../auth/ffcam-sso';
 
@@ -250,5 +250,34 @@ describe('BaseScraper - reconnexion et réessais', () => {
     expect(scraper.missingPages).toEqual([]);
     expect(scraper.ensureSessionCalls).toBe(2);
     expect(resetSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('describeInvalidBody', () => {
+  const describe_ = (text: string) => {
+    try { JSON.parse(text); } catch (error: any) { return describeInvalidBody(text, error); }
+    throw new Error('JSON valide');
+  };
+
+  it('réponse vide', () => {
+    expect(describe_('  ')).toBe('réponse vide');
+  });
+
+  it("cite un texte d'erreur PHP sans balises ni le JSON qui suit", () => {
+    const out = describe_('<br />\n<b>Fatal error</b>:  Allowed memory size exhausted in /var/www/grid.php<br />{"rows":["DUPONT JEAN"]}');
+    expect(out).toContain('texte : "Fatal error : Allowed memory size exhausted in /var/www/grid.php"');
+    expect(out).not.toContain('DUPONT');
+  });
+
+  it('décrit un JSON cassé par sa position et le caractère fautif, sans son contenu', () => {
+    const out = describe_('{"rows":[{"n":"DUPONT\tJEAN"}]}');
+    expect(out).toMatch(/^\d+ caractères, JSON invalide \(Bad control character in string literal in JSON at position 21 .*, caractère U\+0009\)$/);
+    expect(out).not.toContain('DUPONT');
+  });
+
+  it('JSON tronqué', () => {
+    const out = describe_('{"rows":[{"n":"DUPONT');
+    expect(out).toContain('JSON invalide (Unterminated string');
+    expect(out).not.toContain('DUPONT');
   });
 });

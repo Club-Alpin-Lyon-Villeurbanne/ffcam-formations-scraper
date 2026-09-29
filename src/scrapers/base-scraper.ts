@@ -25,6 +25,23 @@ export class InvalidResponseError extends Error {
   }
 }
 
+/**
+ * Décrit un corps de réponse non JSON sans exposer de données d'adhérents (dépôt et logs publics) :
+ * un texte d'erreur (ex. PHP) est cité jusqu'au premier « { », un JSON cassé n'est décrit que par sa position.
+ */
+export function describeInvalidBody(text: string, error: Error): string {
+  const body = text.trim();
+  if (!body) return 'réponse vide';
+  if (!body.startsWith('{') && !body.startsWith('[')) {
+    const excerpt = body.split('{')[0].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    return `${text.length} caractères, texte : "${excerpt}"`;
+  }
+  const reason = error.message.split('"')[0].replace(/[,\s]+$/, '');
+  const position = Number(/at position (\d+)/.exec(error.message)?.[1]);
+  const char = position < text.length ? `, caractère U+${text.charCodeAt(position).toString(16).toUpperCase().padStart(4, '0')}` : '';
+  return `${text.length} caractères, JSON invalide (${reason}${char})`;
+}
+
 abstract class BaseScraper<T = any> {
   protected sessionId: string;
   protected rowsPerPage: number;
@@ -121,8 +138,8 @@ abstract class BaseScraper<T = any> {
 
     try {
       return JSON.parse(text) as ApiResponse;
-    } catch (error) {
-      throw new InvalidResponseError(`Réponse invalide de l'API FFCAM`);
+    } catch (error: any) {
+      throw new InvalidResponseError(`Réponse invalide de l'API FFCAM : ${describeInvalidBody(text, error)}`);
     }
   }
 
