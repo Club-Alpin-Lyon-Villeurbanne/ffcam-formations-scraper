@@ -44,7 +44,7 @@ describe('loadCommissionAliases', () => {
   });
 
   it('les fichiers de Lyon et Chambéry se chargent', () => {
-    expect(loadCommissionAliases(path.resolve(__dirname, '../../config/clubs/lyon')).size).toBe(0);
+    expect(loadCommissionAliases(path.resolve(__dirname, '../../config/clubs/lyon')).get('speleologie')).toEqual([]);
     const aliases = loadCommissionAliases(path.resolve(__dirname, '../../config/clubs/chambery'));
     expect(aliases.get('escalade')).toEqual(['escalade-adulte']);
     expect(aliases.get('marche-nordique')).toEqual([]);

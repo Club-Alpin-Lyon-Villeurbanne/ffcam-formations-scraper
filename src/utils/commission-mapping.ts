@@ -49,6 +49,10 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
+  // BFSP14 initiateur, BFSP24 moniteur (FFSP), BESP brevet d'État option spéléo
+  { pattern: /^BRV-BFSP/i, commission: 'speleologie' },
+  { pattern: /^BRV-BESP/i, commission: 'speleologie' },
+
   // RA-TR relève aussi de randonnee (pattern RA ci-dessus)
   { pattern: /^BF(\d|M)?-RA-TR/i, commission: 'trail' },
 ];

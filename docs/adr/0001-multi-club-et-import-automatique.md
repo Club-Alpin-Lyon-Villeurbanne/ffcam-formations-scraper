@@ -29,4 +29,4 @@ Le scraper n'était utilisable que par Lyon : préfixes de cafnum hardcodés, ma
 
 ## Mise à jour du 2026-09-29
 
-Chambéry reprend la répartition des GC de Lyon mais a d'autres codes de commission (`escalade-adulte`, `ski-alpinisme`…). Le CSV des GC devient commun (`config/groupes-competences-commissions.csv`) et chaque club déclare ses codes dans `config/clubs/<club>/correspondance-commissions.csv` : obligatoire pour qu'un `CLUB` erroné soit refusé, en-tête seul pour Lyon. Un club qui voudrait répartir les GC autrement demandera une surcharge par club, non faite tant que le besoin n'existe pas.
+Chambéry reprend la répartition des GC de Lyon mais a d'autres codes de commission (`escalade-adulte`, `ski-alpinisme`…). Le CSV des GC devient commun (`config/groupes-competences-commissions.csv`) et chaque club déclare ses codes dans `config/clubs/<club>/correspondance-commissions.csv` : obligatoire pour qu'un `CLUB` erroné soit refusé. Un club qui voudrait répartir les GC autrement demandera une surcharge par club, non faite tant que le besoin n'existe pas.
