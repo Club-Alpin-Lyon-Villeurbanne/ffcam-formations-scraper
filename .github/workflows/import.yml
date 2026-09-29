@@ -9,6 +9,11 @@ on:
         description: 'Import à blanc (aucune écriture en base)'
         type: boolean
         default: false
+      environment:
+        description: 'Environment à synchroniser'
+        type: choice
+        options: [tous, lyon-staging, lyon-prod, chambery-prod]
+        default: tous
 
 permissions:
   contents: read
@@ -28,7 +33,8 @@ jobs:
       fail-fast: false
       max-parallel: 1       # un seul scraping à la fois sur l'extranet FFCAM
       matrix:
-        environment: [lyon-staging, lyon-prod, chambery-prod]   # un environment GitHub par base cible
+        # Un environment GitHub par base cible ; le run planifié les fait tous
+        environment: ${{ fromJSON((!inputs.environment || inputs.environment == 'tous') && '["lyon-staging","lyon-prod","chambery-prod"]' || format('["{0}"]', inputs.environment)) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
