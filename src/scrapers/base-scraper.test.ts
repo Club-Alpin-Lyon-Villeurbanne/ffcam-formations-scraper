@@ -271,7 +271,7 @@ describe('describeInvalidBody', () => {
 
   it('décrit un JSON cassé par sa position et le caractère fautif, sans son contenu', () => {
     const out = describe_('{"rows":[{"n":"DUPONT\tJEAN"}]}');
-    expect(out).toMatch(/^\d+ caractères, JSON invalide \(Bad control character in string literal in JSON at position 21 .*, caractère U\+0009\)$/);
+    expect(out).toMatch(/^\d+ caractères, JSON invalide \(Bad control character in string literal in JSON at position 21\b.*, caractère U\+0009\)$/);
     expect(out).not.toContain('DUPONT');
   });
 
