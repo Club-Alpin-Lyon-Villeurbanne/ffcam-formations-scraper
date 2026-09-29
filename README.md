@@ -6,7 +6,7 @@ Importe chaque semaine, depuis l'extranet de la FFCAM, les **formations**, **bre
 
 ## Prérequis
 
-- Node.js (v24+)
+- Node.js v24 (version dans `.nvmrc`, utilisée aussi par la CI et l'import)
 - pnpm (v10.13.1)
 - TypeScript (installé automatiquement)
 - Accès à l'extranet FFCAM avec un compte valide
@@ -19,7 +19,8 @@ Importe chaque semaine, depuis l'extranet de la FFCAM, les **formations**, **bre
 git clone https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper.git
 cd ffcam-formations-scraper
 
-# Installer les dépendances
+# Node 24 (.nvmrc) puis les dépendances
+nvm use
 pnpm install
 ```
 
@@ -37,9 +38,9 @@ Rien à modifier dans le code : un `.env` et un fichier `config/clubs/<club>/cor
 
 [`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`, `chambery-prod`), un seul à la fois (~1 h chacun). L'ordre entre les environments n'est pas garanti.
 
-Lancement manuel : onglet Actions → Import FFCAM → Run workflow. ⚠️ Il enchaîne **tous** les environments, **production comprise** : cochez « Import à blanc » pour vérifier sans rien écrire.
+Lancement manuel : onglet Actions → Import FFCAM → Run workflow. ⚠️ Il enchaîne **tous** les environments, **production comprise** : cochez « Import à blanc » pour vérifier sans rien écrire. Le run planifié n'est jamais à blanc : après un changement de version de Node, d'une action ou de la configuration d'un club, lancez un import à blanc avant le lundi.
 
-**Ajouter un club ou une base** : un mainteneur crée l'environment GitHub (ex. `chambery`, ou `lyon-staging` pour une base de test), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB`, `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute le nom de l'environment dans `matrix.environment`.
+**Ajouter un club ou une base** : un mainteneur crée l'environment GitHub (`<club>-prod`, ou `lyon-staging` pour une base de test), le club y saisit ses secrets (`FFCAM_EMAIL`, `FFCAM_PASSWORD`, `MYSQL_ADDON_*`) et les variables `CLUB`, `CLUB_CODE` (et `FFCAM_PROFILE` si besoin) dans Settings → Environments, et on ajoute le nom de l'environment dans `matrix.environment`.
 
 **En cas d'échec** : GitHub envoie un e-mail. Le step « Vérification de la configuration puis import » du run dit quoi corriger : mot de passe FFCAM changé, profil retiré, commission manquante, base injoignable, ou `⚠️ IMPORT INCOMPLET` (pages manquantes, erreurs d'écriture). Les rapports JSON sont conservés 90 jours en artifacts. Le job `keepalive` contourne la désactivation automatique des crons après 60 jours sans commit.
 
@@ -133,6 +134,10 @@ npm run test:watch
 # Tests avec couverture
 npm run test:coverage
 ```
+
+### Intégration continue
+
+[`ci.yml`](.github/workflows/ci.yml) tourne à chaque push sur `main` et sur chaque PR : type-check, tests avec couverture (envoyée à Codecov), build, puis `pnpm audit`, qui bloque sur une vulnérabilité haute ou critique. Les actions GitHub sont épinglées par SHA de commit ; Dependabot propose leurs mises à jour chaque mois.
 
 ## Workflow détaillé
 
@@ -249,7 +254,9 @@ ffcam-formations-adherents-scraper/
 │       └── lyon/
 │           └── correspondance-commissions.csv  # Lyon ignore speleologie (pas de commission)
 ├── docs/                   # API FFCAM, décisions d'architecture (adr/)
-├── .github/workflows/      # CI et import planifié
+├── .github/
+│   ├── workflows/          # CI et import planifié
+│   └── dependabot.yml      # Mises à jour mensuelles des actions GitHub
 ├── dist/                   # Code compilé (gitignored)
 ├── data/                   # Données (gitignored)
 │   └── reports/            # Rapports d'import JSON
@@ -257,6 +264,7 @@ ffcam-formations-adherents-scraper/
 ├── .env.staging            # Config staging (gitignored)
 ├── .env.production         # Config production (gitignored)
 ├── .env.example            # Template
+├── .nvmrc                  # Version de Node (24)
 └── tsconfig.json           # Config TypeScript
 ```
 
