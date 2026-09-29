@@ -6,9 +6,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as path from 'path';
 import CompetencesImporter from './competences-importer';
 import BrevetsImporter from './brevets-importer';
+import FormationsImporter from './formations-importer';
 import { CommissionLinker } from '../services/commission-linker';
 import Logger from '../utils/logger';
-import { DatabaseAdapter, Competence, Brevet } from '../types';
+import { DatabaseAdapter, Competence, Brevet, Formation } from '../types';
 
 const csvPath = path.resolve(__dirname, '../../config/groupes-competences-commissions.csv');
 
@@ -158,7 +159,7 @@ describe('BaseImporter - erreurs', () => {
       close: async () => {},
       isConnected: () => true,
       execute: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT id FROM formation_referentiel_brevet')) return [[{ id: 7 }], []] as [any[], any[]];
+        if (sql.includes('SELECT id FROM formation_referentiel_')) return [[{ id: 7 }], []] as [any[], any[]];
         if (sql.includes('FROM caf_commission')) return [[{ id_commission: 3 }], []] as [any[], any[]];
         if (sql.includes('INSERT INTO formation_validation_brevet')) onValidationInsert();
         return [[], []] as [any[], any[]];
@@ -205,5 +206,20 @@ describe('BaseImporter - erreurs', () => {
     expect(output).toContain('SQL-1054');
     expect(output).not.toContain('DUPONT');
     expect(output).not.toContain('690020190001');
+  });
+
+  it("formation sans date de validation : NULL en base (MySQL strict refuse '')", async () => {
+    const db = fakeDb();
+    const logger = new Logger();
+    const formation: Formation = {
+      id: '5', adherentId: '730020190001', nom: 'DUPONT Jean', codeFormation: 'STG-FORDIR', intituleFormation: 'Formation dirigeants',
+      lieuFormation: '', dateDebutFormation: '', dateFinFormation: '', dateValidation: '', numeroFormation: '', formateur: '', idInterne: '99'
+    };
+
+    await new FormationsImporter(db, logger, new CommissionLinker(db, false), false).import([formation]);
+
+    const insert = vi.mocked(db.execute).mock.calls.find(([sql]) => sql.includes('INSERT INTO formation_validation_formation'));
+    expect(insert?.[1]?.[2]).toBeNull();
+    expect(logger.stats.formations.imported).toBe(1);
   });
 });

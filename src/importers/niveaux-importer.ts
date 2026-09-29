@@ -151,7 +151,7 @@ class NiveauxImporter extends BaseImporter<NiveauPratique> {
         [
           userId,
           niveauRefId,
-          niveau.dateValidation
+          niveau.dateValidation || null
         ]
       );
 
