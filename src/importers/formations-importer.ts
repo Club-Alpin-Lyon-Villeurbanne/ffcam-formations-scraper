@@ -101,7 +101,7 @@ class FormationsImporter extends BaseImporter<Formation> {
         [
           userId,
           formationId,
-          formation.dateValidation,
+          formation.dateValidation || null,
           formation.numeroFormation || null,
           formation.formateur?.trim() || null,
           formation.idInterne,
