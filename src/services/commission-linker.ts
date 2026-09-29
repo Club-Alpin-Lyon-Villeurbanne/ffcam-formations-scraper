@@ -172,6 +172,7 @@ export class CommissionLinker {
       const slugFromDiscipline = getCommissionForActivite(activite, discipline);
       if (slugFromDiscipline) {
         if (await this.linkNiveauToCommissions(niveauId, slugFromDiscipline)) this.stats.niveaux.linked++;
+        else this.stats.niveaux.skipped++;
         return {
           commission: slugFromDiscipline,
           certainty: 100,

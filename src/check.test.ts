@@ -224,5 +224,24 @@ describe('runCheck', () => {
     const out = output(lines);
     expect(failures).toBe(1);
     expect(out).toContain('ligne invalide "escalade;escalade-adulte"');
+    expect(out).toContain('Commissions attendues non vérifiées');
+  });
+
+  it('17. CLUB erroné : dossier sans correspondance', async () => {
+    const { base, lines } = deps({ getClubConfigDir: () => tmpDir() });
+    const failures = await runCheck(base);
+    const out = output(lines);
+    expect(failures).toBe(1);
+    expect(out).toContain('Fichier absent');
+  });
+
+  it('18. code inconnu du mapping dans la correspondance (faute de frappe)', async () => {
+    const dir = clubDirWithAliases('code,code_club\nescalad,escalade-adulte\n');
+    const commissions = [...getAllMappedCommissionSlugs(), 'escalade-adulte'];
+    const { base, lines } = deps({ getClubConfigDir: () => dir, commissions });
+    const failures = await runCheck(base);
+    const out = output(lines);
+    expect(failures).toBe(1);
+    expect(out).toContain('code(s) inconnu(s) du mapping : escalad');
   });
 });

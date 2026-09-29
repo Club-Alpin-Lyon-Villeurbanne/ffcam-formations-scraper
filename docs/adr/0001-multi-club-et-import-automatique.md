@@ -26,3 +26,7 @@ Le scraper n'était utilisable que par Lyon : préfixes de cafnum hardcodés, ma
 - Une modification de l'API du portail casse l'import ; on le saura au run suivant, avec l'étape en cause.
 - Une page injoignable après 4 tentatives ou une erreur d'écriture en base fait terminer l'import en erreur (rapport + code 1) : un import incomplet ne doit jamais passer pour un succès.
 - Écarté tant que le besoin n'est pas prouvé : alias de slugs, génération automatique du CSV des GC, issue GitHub automatique en cas d'échec, filtrage côté serveur de la grille des brevets.
+
+## Mise à jour du 2026-09-29
+
+Chambéry reprend la répartition des GC de Lyon mais a d'autres codes de commission (`escalade-adulte`, `ski-alpinisme`…). Le CSV des GC devient commun (`config/groupes-competences-commissions.csv`) et chaque club déclare ses codes dans `config/clubs/<club>/correspondance-commissions.csv` : obligatoire pour qu'un `CLUB` erroné soit refusé, en-tête seul pour Lyon. Un club qui voudrait répartir les GC autrement demandera une surcharge par club, non faite tant que le besoin n'existe pas.

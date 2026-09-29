@@ -67,12 +67,15 @@ export async function runCheck(overrides: Partial<CheckDeps> = {}): Promise<numb
   } catch (error: any) {
     ko(`Fichier GC illisible : ${error.message.split('\n')[0]}`, 'Vérifiez le format CSV : commission,niveau,groupe_competences');
   }
-  let aliases: CommissionAliases = new Map();
+  let aliases: CommissionAliases | null = null;
   if (clubDir) {
     try {
       aliases = loadCommissionAliases(clubDir);
       const ignored = [...aliases].filter(([, targets]) => targets.length === 0).map(([code]) => code);
-      if (aliases.size > 0) ok(`${ALIASES_FILE} : ${aliases.size - ignored.length} code(s) traduit(s)${ignored.length ? `, ignorés : ${ignored.join(', ')}` : ''}`);
+      ok(`${ALIASES_FILE} : ${aliases.size - ignored.length} code(s) traduit(s)${ignored.length ? `, ignorés : ${ignored.join(', ')}` : ''}`);
+      const mapped = new Set([...getAllMappedCommissionSlugs(), ...gcCommissions]);
+      const unknown = [...aliases.keys()].filter(code => !mapped.has(code));
+      if (unknown.length > 0) ko(`${ALIASES_FILE} : code(s) inconnu(s) du mapping : ${unknown.join(', ')}`, 'La colonne code attend les codes de Lyon (escalade, ski-de-randonnee…)');
     } catch (error: any) {
       ko(error.message, 'Une ligne code,code_club par commission du club ; code_club vide pour ignorer le code');
     }
@@ -104,10 +107,10 @@ export async function runCheck(overrides: Partial<CheckDeps> = {}): Promise<numb
       try {
         const [rows] = await db.execute('SELECT code_commission FROM caf_commission');
         const inDb = new Set((rows as Array<{ code_commission: string }>).map(r => r.code_commission));
-        const needed = toClubCodes([...getAllMappedCommissionSlugs(), ...gcCommissions], aliases).sort();
-        const missing = needed.filter(slug => !inDb.has(slug));
         ok(`${inDb.size} commissions en base`);
-        if (missing.length === 0) ok('Toutes les commissions attendues par le mapping existent');
+        const missing = aliases ? toClubCodes([...getAllMappedCommissionSlugs(), ...gcCommissions], aliases).filter(slug => !inDb.has(slug)).sort() : [];
+        if (!aliases) warn(`Commissions attendues non vérifiées : corrigez d'abord ${ALIASES_FILE}`);
+        else if (missing.length === 0) ok('Toutes les commissions attendues par le mapping existent');
         else ko(`${missing.length} commission(s) absente(s) de caf_commission : ${missing.join(', ')}`, `Créez-les dans la plateforme avec ce code_commission, ou déclarez vos codes dans ${ALIASES_FILE}, sinon les liaisons correspondantes seront ignorées`);
       } catch (error: any) {
         ko(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Vérifiez que caf_commission existe dans la base MySQL de la plateforme et que le compte possède le droit SELECT');

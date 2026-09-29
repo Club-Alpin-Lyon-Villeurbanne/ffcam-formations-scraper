@@ -133,6 +133,9 @@ async function main(): Promise<void> {
 
   console.log(`🏔️  IMPORT FFCAM → BASE DE DONNÉES [${typesLabel}]\n`);
 
+  let commissionAliases: CommissionAliases;
+  try { commissionAliases = loadCommissionAliases(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
+
   // Login SSO dès le départ : échec rapide si les identifiants sont mauvais
   try {
     await getSessionId({
@@ -155,9 +158,6 @@ async function main(): Promise<void> {
       process.exit(1);
     }
   } catch (error: any) { console.error(`❌ Extranet : ${error.message.split('\n')[0]}`); process.exit(1); }
-
-  let commissionAliases: CommissionAliases;
-  try { commissionAliases = loadCommissionAliases(); } catch (error: any) { console.error(`❌ ${error.message}`); process.exit(1); }
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
   console.log('Timestamp:', timestamp);
