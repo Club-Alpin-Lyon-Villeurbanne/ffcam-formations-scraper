@@ -25,19 +25,24 @@ export class InvalidResponseError extends Error {
   }
 }
 
-const PHP_ERROR = /(Fatal error|Parse error|Warning|Notice|Deprecated|Uncaught|Allowed memory size|Maximum execution time)[^{]{0,120}/i;
-
 const charCode = (text: string, index: number) => `U+${text.charCodeAt(index).toString(16).toUpperCase().padStart(4, '0')}`;
 
-/** Cite un message d'erreur PHP reconnu, jamais un texte quelconque qui pourrait contenir un nom */
+/**
+ * Décrit une erreur PHP par son type, son fichier et sa ligne, jamais par son message (une exception SQL
+ * peut contenir la requête, donc un nom) ; seul le texte des limites mémoire et durée, sans donnée, est cité.
+ */
 function quoteServerError(text: string): string {
-  const match = PHP_ERROR.exec(text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '));
-  return match ? `"${match[0].trim()}"` : `texte non reconnu commençant par ${charCode(text.trim(), 0)}`;
+  const plain = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  const kind = /(Fatal error|Parse error|Warning|Notice|Deprecated|Uncaught \w+)/i.exec(plain)?.[1];
+  if (!kind) return `texte non reconnu commençant par ${charCode(text.trim(), 0)}`;
+  const limit = /(Allowed memory size of \d+ bytes exhausted|Maximum execution time of \d+ seconds? exceeded)/i.exec(plain)?.[1];
+  const location = /in (\S+\.php) on line (\d+)/i.exec(plain);
+  return `erreur PHP « ${kind} »${limit ? ` : ${limit}` : ''}${location ? ` (${location[1]}:${location[2]})` : ''}`;
 }
 
 /**
  * Décrit un corps de réponse non JSON sans exposer de données d'adhérents (dépôt et logs publics) :
- * message d'erreur PHP reconnu, ou position, ligne et colonne où un JSON casse, jamais son contenu.
+ * type d'erreur PHP, ou position, ligne et colonne où un JSON casse, jamais son contenu.
  */
 export function describeInvalidBody(text: string, error: Error): string {
   const body = text.trim();

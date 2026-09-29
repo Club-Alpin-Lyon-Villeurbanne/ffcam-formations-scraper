@@ -263,10 +263,16 @@ describe('describeInvalidBody', () => {
     expect(describe_('  ')).toBe('réponse vide');
   });
 
-  it("cite un texte d'erreur PHP sans balises ni le JSON qui suit", () => {
-    const out = describe_('<br />\n<b>Fatal error</b>:  Allowed memory size exhausted in /var/www/grid.php<br />{"rows":["DUPONT JEAN"]}');
-    expect(out).toContain('"Fatal error : Allowed memory size exhausted in /var/www/grid.php"');
+  it('erreur PHP de limite mémoire : type, limite, fichier et ligne, sans le JSON qui suit', () => {
+    const out = describe_('<br />\n<b>Fatal error</b>:  Allowed memory size of 134217728 bytes exhausted (tried to allocate 20480 bytes) in <b>/var/www/grid.php</b> on line <b>12</b><br />{"rows":["DUPONT JEAN"]}');
+    expect(out).toContain('erreur PHP « Fatal error » : Allowed memory size of 134217728 bytes exhausted (/var/www/grid.php:12)');
     expect(out).not.toContain('DUPONT');
+  });
+
+  it("exception SQL : type et emplacement seulement, jamais le message qui peut contenir un nom", () => {
+    const out = describe_("<b>Fatal error</b>: Uncaught mysqli_sql_exception: Duplicate entry 'DUPONT Jean' for key 'nom' in /var/www/db.php on line 40");
+    expect(out).toContain('erreur PHP « Fatal error » (/var/www/db.php:40)');
+    expect(out).not.toMatch(/DUPONT|Duplicate/);
   });
 
   it('décrit un JSON cassé par sa position et le caractère fautif, sans son contenu', () => {
@@ -294,8 +300,8 @@ describe('describeInvalidBody', () => {
   });
 
   it('JSON complet suivi d\'un message PHP : cite le message, sans désigner de ligne', () => {
-    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"DUPONT"}}]}<br /><b>Warning</b>: Undefined index col_9 in /var/www/grid.php');
-    expect(out).toContain('JSON complet suivi de "Warning : Undefined index col_9 in /var/www/grid.php"');
+    const out = describe_('{"rows":[{"id":"1","cell":{"col_0":"DUPONT"}}]}<br /><b>Warning</b>: Undefined index col_9 in /var/www/grid.php on line 3');
+    expect(out).toContain('JSON complet suivi de erreur PHP « Warning » (/var/www/grid.php:3)');
     expect(out).not.toMatch(/DUPONT|vers la ligne/);
   });
 
