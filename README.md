@@ -36,7 +36,7 @@ Rien à modifier dans le code : un `.env` et un dossier `config/clubs/<club>/`.
 
 ## Import automatique (GitHub Actions)
 
-[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`), un seul à la fois (~1 h 30 au total). L'ordre entre les environments n'est pas garanti.
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`, `chambery-prod`), un seul à la fois (~1 h chacun). L'ordre entre les environments n'est pas garanti.
 
 Lancement manuel : onglet Actions → Import FFCAM → Run workflow. ⚠️ Il enchaîne **tous** les environments, **production comprise** : cochez « Import à blanc » pour vérifier sans rien écrire.
 
