@@ -96,6 +96,12 @@ describe('commission-mapping', () => {
       });
     });
 
+    describe('Spéléologie', () => {
+      it.each(['BRV-BFSP14', 'BRV-BFSP24', 'BRV-BESP17'])('should map %s to speleologie', (code) => {
+        expect(getCommissionsForBrevet(code)).toEqual(['speleologie']);
+      });
+    });
+
     describe('VTT', () => {
       it.each([
         'BF1-VM-001',

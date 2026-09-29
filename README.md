@@ -29,7 +29,7 @@ Rien à modifier dans le code : un `.env` et un fichier `config/clubs/<club>/cor
 
 1. **`.env`** (depuis `.env.example`) : `FFCAM_EMAIL` / `FFCAM_PASSWORD` (compte du portail FFCAM avec un profil extranet du club, ex. « CLUB - WEBMASTER » ; `FFCAM_PROFILE` si le compte en a plusieurs — accepte un bout du libellé ou l'identifiant du profil affiché dans le message d'erreur), `MYSQL_ADDON_*` de votre plateforme, `CLUB=chambery` (nom du dossier `config/clubs/`), `CLUB_CODE` (4 premiers chiffres de vos numéros d'adhérent).
 2. **`npm run check`** : chaque ❌ dit quoi corriger. Il vérifie notamment que le profil extranet du compte et la base MySQL correspondent bien au même club (`CLUB_CODE`). Il signale aussi les commissions absentes de `caf_commission`.
-3. **Commissions** : le code et le CSV commun des groupes de compétences utilisent les codes de Lyon (`escalade`, `alpinisme`, `ski-de-randonnee`, …). Créez `config/clubs/<club>/correspondance-commissions.csv` : l'en-tête `code,code_club` seul si vos codes sont ceux de Lyon (voir `config/clubs/lyon/`), sinon une ligne `code,code_club` par commission cible (voir `config/clubs/chambery/`). Un code peut alimenter plusieurs commissions, et une cible vide ignore le code. `npm run check` signale les codes inconnus et les commissions absentes de `caf_commission`.
+3. **Commissions** : le code et le CSV commun des groupes de compétences utilisent les codes de Lyon (`escalade`, `alpinisme`, `ski-de-randonnee`, …). Créez `config/clubs/<club>/correspondance-commissions.csv` : une ligne `code,code_club` par code du mapping qui diffère chez vous (voir `config/clubs/chambery/`), l'en-tête seul si vous avez toutes les commissions du mapping. Un code peut alimenter plusieurs commissions, et une cible vide ignore le code. `npm run check` signale les codes inconnus et les commissions absentes de `caf_commission`.
 4. **`npm run check`** jusqu'à « Configuration prête », puis **`npm run import:dry`** : les alertes en fin de rapport listent les GC absents du CSV et les mappings à faible certitude (les commissions absentes de `caf_commission`, elles, sont détectées par `npm run check`, pas par le dry-run qui ne consulte jamais la base).
 5. **`npm run import`**. Pour automatiser, voir « Import automatique ».
 
@@ -96,7 +96,7 @@ bout du libellé ou l'identifiant du profil affiché dans le message d'erreur.
 Le mapping des groupes de compétences (GC) vers les commissions est commun à
 tous les clubs : `config/groupes-competences-commissions.csv`. La variable `CLUB`
 (ex. `CLUB=chambery`) sélectionne `config/clubs/<club>/correspondance-commissions.csv`,
-qui traduit les codes de commission vers ceux du club (en-tête seul pour Lyon).
+qui traduit les codes de commission vers ceux du club.
 
 ## Utilisation
 
@@ -247,7 +247,7 @@ ffcam-formations-adherents-scraper/
 │       ├── chambery/
 │       │   └── correspondance-commissions.csv  # Codes de commission propres à Chambéry
 │       └── lyon/
-│           └── correspondance-commissions.csv  # En-tête seul : codes du mapping
+│           └── correspondance-commissions.csv  # Lyon ignore speleologie (pas de commission)
 ├── docs/                   # API FFCAM, décisions d'architecture (adr/)
 ├── .github/workflows/      # CI et import planifié
 ├── dist/                   # Code compilé (gitignored)
