@@ -8,6 +8,7 @@ import * as path from 'path';
 import { runCheck, CheckDeps } from './check';
 import { FfcamSsoError } from './auth/ffcam-sso';
 import { getAllMappedCommissionSlugs } from './utils/commission-mapping';
+import { GC_CSV_PATH } from './utils/gc-csv-mapping';
 import { DatabaseAdapter } from './types';
 
 const tmpDirs: string[] = [];
@@ -35,6 +36,7 @@ function deps(over: Partial<CheckDeps> & { commissions?: string[]; members?: num
     config: { EMAIL: 'x@y.z', PASSWORD: 'secret', PROFILE: 'WEBMASTER' },
     getClubCode: vi.fn(() => '6900'),
     getClubConfigDir: vi.fn(() => path.resolve(__dirname, '../config/clubs/lyon')),
+    gcCsvPath: GC_CSV_PATH,
     probe: vi.fn(async () => ({ records: 1412, clubCode: '6900' })),
     determineAdapter: vi.fn(() => 'mysql' as const),
     getDatabase: vi.fn(() => db),
@@ -109,7 +111,7 @@ describe('runCheck', () => {
     expect(execute.mock.calls.some(([sql]) => (sql as string).includes('FROM caf_user'))).toBe(false);
   });
 
-  it('7. CLUB absent : section 2 ne mentionne pas de fichier', async () => {
+  it('7. CLUB absent : section 2 ne signale aucun fichier', async () => {
     const { base, lines } = deps({
       getClubConfigDir: () => { throw new Error('Variable CLUB non définie'); },
     });
@@ -119,19 +121,16 @@ describe('runCheck', () => {
     expect(out).not.toContain('Fichier');
   });
 
-  it('8. CSV absent : fichier absent', async () => {
-    const dir = tmpDir();
-    const { base, lines } = deps({ getClubConfigDir: () => dir });
+  it('8. CSV GC absent', async () => {
+    const { base, lines } = deps({ gcCsvPath: path.join(tmpDir(), 'absent.csv') });
     const failures = await runCheck(base);
     const out = output(lines);
     expect(failures).toBe(1);
-    expect(out).toContain('Fichier absent');
+    expect(out).toContain('Fichier de mapping GC non trouvé');
   });
 
-  it('9. CSV illisible (EISDIR)', async () => {
-    const dir = tmpDir();
-    fs.mkdirSync(path.join(dir, 'groupes-competences-commissions.csv'));
-    const { base, lines } = deps({ getClubConfigDir: () => dir });
+  it('9. CSV GC illisible (EISDIR)', async () => {
+    const { base, lines } = deps({ gcCsvPath: tmpDir() });
     const failures = await runCheck(base);
     const out = output(lines);
     expect(failures).toBe(1);
@@ -189,5 +188,41 @@ describe('runCheck', () => {
     expect(out).toContain('❌ caf_commission illisible');
     expect(out).not.toContain('Configuration prête');
     expect(db.close).toHaveBeenCalledOnce();
+  });
+
+  function clubDirWithAliases(content: string): string {
+    const dir = tmpDir();
+    fs.writeFileSync(path.join(dir, 'correspondance-commissions.csv'), content);
+    return dir;
+  }
+
+  it('14. correspondance du club : codes traduits exigés, codes ignorés non exigés', async () => {
+    const dir = clubDirWithAliases('code,code_club\nescalade,escalade-adulte\nescalade,escalade-competition\nvia-ferrata,\n');
+    const commissions = getAllMappedCommissionSlugs()
+      .filter(c => c !== 'escalade' && c !== 'via-ferrata')
+      .concat('escalade-adulte', 'escalade-competition');
+    const { base, lines } = deps({ getClubConfigDir: () => dir, commissions });
+    const failures = await runCheck(base);
+    const out = output(lines);
+    expect(failures).toBe(0);
+    expect(out).toContain('correspondance-commissions.csv : 1 code(s) traduit(s), ignorés : via-ferrata');
+  });
+
+  it('15. correspondance vers un code absent de caf_commission', async () => {
+    const dir = clubDirWithAliases('code,code_club\nescalade,escalade-adulte\n');
+    const { base, lines } = deps({ getClubConfigDir: () => dir });
+    const failures = await runCheck(base);
+    const out = output(lines);
+    expect(failures).toBe(1);
+    expect(out).toContain('absente(s) de caf_commission : escalade-adulte');
+  });
+
+  it('16. correspondance invalide (séparateur ;)', async () => {
+    const dir = clubDirWithAliases('code,code_club\nescalade;escalade-adulte\n');
+    const { base, lines } = deps({ getClubConfigDir: () => dir });
+    const failures = await runCheck(base);
+    const out = output(lines);
+    expect(failures).toBe(1);
+    expect(out).toContain('ligne invalide "escalade;escalade-adulte"');
   });
 });

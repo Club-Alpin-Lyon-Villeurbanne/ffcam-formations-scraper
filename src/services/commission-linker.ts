@@ -1,6 +1,7 @@
 /**
- * Liaison des référentiels aux commissions du club : CSV du club pour les groupes de compétences,
- * patterns du code pour brevets, niveaux et formations. Les liaisons ne sont jamais supprimées.
+ * Liaison des référentiels aux commissions du club : CSV commun pour les groupes de compétences,
+ * patterns du code pour brevets, niveaux et formations, puis correspondance vers les codes du club.
+ * Les liaisons ne sont jamais supprimées.
  */
 
 import { DatabaseAdapter } from '../types';
@@ -17,6 +18,7 @@ import {
   getCommissionsForGc,
   GcCommissionMapping,
 } from '../utils/gc-csv-mapping';
+import { CommissionAliases, toClubCodes, ALIASES_FILE } from '../utils/commission-aliases';
 
 export interface MappingWarning {
   type: 'competence' | 'niveau' | 'brevet' | 'formation';
@@ -31,6 +33,7 @@ export interface MappingWarning {
 export class CommissionLinker {
   private db: DatabaseAdapter;
   private dryRun: boolean;
+  private aliases: CommissionAliases;
   private commissionCache: Map<string, number | null> = new Map();
 
   private gcMapping: GcCommissionMapping | null = null;
@@ -42,9 +45,10 @@ export class CommissionLinker {
     niveaux: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 }
   };
 
-  constructor(db: DatabaseAdapter, dryRun: boolean = false) {
+  constructor(db: DatabaseAdapter, dryRun: boolean = false, aliases: CommissionAliases = new Map()) {
     this.db = db;
     this.dryRun = dryRun;
+    this.aliases = aliases;
   }
 
   initGcMapping(csvPath?: string): void {
@@ -65,7 +69,7 @@ export class CommissionLinker {
     const missing = this.getMissingCommissions();
     if (missing.length > 0) {
       console.log(`\n⚠️  ${missing.length} COMMISSION(S) ABSENTE(S) de caf_commission : ${missing.join(', ')}`);
-      console.log('   👉 Créez-les dans la plateforme avec ce code_commission (les liaisons correspondantes ont été ignorées).');
+      console.log(`   👉 Créez-les dans la plateforme avec ce code_commission, ou déclarez vos codes dans config/clubs/<club>/${ALIASES_FILE} (les liaisons correspondantes ont été ignorées).`);
     }
     if (this.warnings.length === 0) {
       console.log('\n✅ Aucune alerte de mapping');
@@ -127,7 +131,7 @@ export class CommissionLinker {
 
   /** @returns nombre de liaisons créées (un brevet peut relever de plusieurs commissions) */
   async linkBrevet(brevetId: number, codeBrevet: string): Promise<number> {
-    const commissions = getCommissionsForBrevet(codeBrevet);
+    const commissions = toClubCodes(getCommissionsForBrevet(codeBrevet), this.aliases);
     if (commissions.length === 0) return 0;
 
     if (this.dryRun) return commissions.length;
@@ -167,33 +171,13 @@ export class CommissionLinker {
     if (discipline) {
       const slugFromDiscipline = getCommissionForActivite(activite, discipline);
       if (slugFromDiscipline) {
-        const result: MappingResult = {
+        if (await this.linkNiveauToCommissions(niveauId, slugFromDiscipline)) this.stats.niveaux.linked++;
+        return {
           commission: slugFromDiscipline,
           certainty: 100,
           source: 'discipline_field',
           matchedPattern: discipline
         };
-
-        if (!this.dryRun) {
-          const commissionId = await this.getCommissionId(slugFromDiscipline);
-          if (commissionId) {
-            try {
-              await this.db.execute(
-                `INSERT IGNORE INTO formation_commission_niveau_pratique (niveau_id, commission_id)
-                 VALUES (?, ?)`,
-                [niveauId, commissionId]
-              );
-              this.stats.niveaux.linked++;
-            } catch (error: any) {
-              if (!error.message.includes('Duplicate entry') && !error.message.includes('no such table')) {
-                console.error(`Erreur liaison niveau → ${slugFromDiscipline}:`, error.message);
-              }
-            }
-          }
-        } else {
-          this.stats.niveaux.linked++;
-        }
-        return result;
       }
     }
 
@@ -215,40 +199,41 @@ export class CommissionLinker {
       }
     }
 
-    if (!result.commission) {
-      this.stats.niveaux.skipped++;
-      return result;
-    }
-
-    if (this.dryRun) {
+    if (result.commission && await this.linkNiveauToCommissions(niveauId, result.commission)) {
       this.stats.niveaux.linked++;
-      return result;
-    }
-
-    const commissionId = await this.getCommissionId(result.commission);
-    if (!commissionId) {
+    } else {
       this.stats.niveaux.skipped++;
-      return result;
     }
-
-    try {
-      await this.db.execute(
-        `INSERT IGNORE INTO formation_commission_niveau_pratique (niveau_id, commission_id)
-         VALUES (?, ?)`,
-        [niveauId, commissionId]
-      );
-      this.stats.niveaux.linked++;
-      return result;
-    } catch (error: any) {
-      if (!error.message.includes('Duplicate entry') && !error.message.includes('no such table')) {
-        console.error(`Erreur liaison niveau → ${result.commission}:`, error.message);
-      }
-      this.stats.niveaux.skipped++;
-      return result;
-    }
+    return result;
   }
 
-  /** @returns nombre de liaisons créées d'après le CSV du club */
+  /** @returns true si au moins une liaison a été créée (ou le serait, en dry-run) */
+  private async linkNiveauToCommissions(niveauId: number, slug: string): Promise<boolean> {
+    const codes = toClubCodes([slug], this.aliases);
+    if (this.dryRun) return codes.length > 0;
+
+    let linked = false;
+    for (const code of codes) {
+      const commissionId = await this.getCommissionId(code);
+      if (!commissionId) continue;
+
+      try {
+        await this.db.execute(
+          `INSERT IGNORE INTO formation_commission_niveau_pratique (niveau_id, commission_id)
+           VALUES (?, ?)`,
+          [niveauId, commissionId]
+        );
+        linked = true;
+      } catch (error: any) {
+        if (!error.message.includes('Duplicate entry') && !error.message.includes('no such table')) {
+          console.error(`Erreur liaison niveau → ${code}:`, error.message);
+        }
+      }
+    }
+    return linked;
+  }
+
+  /** @returns nombre de liaisons créées d'après le CSV commun */
   async linkCompetenceFromCsv(
     competenceId: number,
     intitule: string
@@ -259,9 +244,9 @@ export class CommissionLinker {
       throw new Error('Le mapping GC doit être initialisé avec initGcMapping() avant utilisation');
     }
 
-    const commissions = getCommissionsForGc(this.gcMapping, intitule);
+    const csvCommissions = getCommissionsForGc(this.gcMapping, intitule);
 
-    if (commissions.length === 0) {
+    if (csvCommissions.length === 0) {
       this.warnings.push({
         type: 'competence',
         id: competenceId,
@@ -274,8 +259,10 @@ export class CommissionLinker {
       return 0;
     }
 
+    const commissions = toClubCodes(csvCommissions, this.aliases);
+
     if (this.dryRun) {
-      this.stats.competences.linked++;
+      this.stats.competences[commissions.length > 0 ? 'linked' : 'skipped']++;
       return commissions.length;
     }
 
@@ -313,7 +300,7 @@ export class CommissionLinker {
 
   /** @returns nombre de liaisons créées */
   async linkFormation(formationId: number, codeFormation: string): Promise<number> {
-    const commissions = getCommissionsForFormation(codeFormation);
+    const commissions = toClubCodes(getCommissionsForFormation(codeFormation), this.aliases);
     if (commissions.length === 0) return 0;
 
     if (this.dryRun) return commissions.length;

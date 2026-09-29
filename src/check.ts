@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
  * Vérification de la configuration d'un club avant le premier import (lecture seule)
- *   1. variables d'environnement   2. fichier GC du club
+ *   1. variables d'environnement   2. CSV GC commun + correspondance des codes du club
  *   3. login SSO + accès extranet  4. base : commissions attendues vs caf_commission
  *
  * Utilisation : npm run check   (NODE_ENV=production npm run check)
  */
-import * as fs from 'fs';
 import * as path from 'path';
 import { FFCAM_CONFIG, getClubCode, getClubConfigDir } from './config';
 import { FfcamSsoError } from './auth/ffcam-sso';
-import { loadGcMapping, getMappingStats } from './utils/gc-csv-mapping';
+import { loadGcMapping, getMappingStats, GC_CSV_PATH } from './utils/gc-csv-mapping';
+import { CommissionAliases, loadCommissionAliases, toClubCodes, ALIASES_FILE } from './utils/commission-aliases';
 import { getAllMappedCommissionSlugs } from './utils/commission-mapping';
 import { getDatabase, determineAdapter } from './database/db-factory';
 import NiveauxScraper from './scrapers/niveaux-scraper';
@@ -20,6 +20,7 @@ export interface CheckDeps {
   config: { EMAIL: string; PASSWORD: string; PROFILE: string };
   getClubCode: () => string;
   getClubConfigDir: () => string;
+  gcCsvPath: string;
   probe: () => Promise<{ records: number; clubCode: string | null }>;
   determineAdapter: () => 'sqlite' | 'mysql';
   getDatabase: () => DatabaseAdapter;
@@ -30,6 +31,7 @@ const defaultDeps: CheckDeps = {
   config: FFCAM_CONFIG,
   getClubCode,
   getClubConfigDir,
+  gcCsvPath: GC_CSV_PATH,
   probe: () => new NiveauxScraper().probe(),
   determineAdapter,
   getDatabase,
@@ -56,19 +58,23 @@ export async function runCheck(overrides: Partial<CheckDeps> = {}): Promise<numb
   try { clubDir = deps.getClubConfigDir(); ok(`CLUB=${process.env.CLUB} → ${path.relative(process.cwd(), clubDir)}/`); }
   catch (error: any) { ko(error.message, 'Ajoutez CLUB=<identifiant> dans .env (ex. CLUB=chambery)'); }
 
-  deps.log('\n2. Mapping groupes de compétences → commissions');
+  deps.log('\n2. Mapping des commissions');
   let gcCommissions = new Set<string>();
+  try {
+    const stats = getMappingStats(loadGcMapping(deps.gcCsvPath));
+    gcCommissions = stats.uniqueCommissions;
+    ok(`${stats.totalGc} groupes de compétences, ${gcCommissions.size} commissions référencées`);
+  } catch (error: any) {
+    ko(`Fichier GC illisible : ${error.message.split('\n')[0]}`, 'Vérifiez le format CSV : commission,niveau,groupe_competences');
+  }
+  let aliases: CommissionAliases = new Map();
   if (clubDir) {
-    const csvPath = path.join(clubDir, 'groupes-competences-commissions.csv');
-    if (!fs.existsSync(csvPath)) ko(`Fichier absent : ${path.relative(process.cwd(), csvPath)}`, 'Copiez config/clubs/lyon/groupes-competences-commissions.csv et adaptez la colonne commission');
-    else {
-      try {
-        const stats = getMappingStats(loadGcMapping(csvPath));
-        gcCommissions = stats.uniqueCommissions;
-        ok(`${stats.totalGc} groupes de compétences, ${gcCommissions.size} commissions référencées`);
-      } catch (error: any) {
-        ko(`Fichier GC illisible : ${error.message.split('\n')[0]}`, 'Vérifiez le format CSV : commission,niveau,groupe_competences');
-      }
+    try {
+      aliases = loadCommissionAliases(clubDir);
+      const ignored = [...aliases].filter(([, targets]) => targets.length === 0).map(([code]) => code);
+      if (aliases.size > 0) ok(`${ALIASES_FILE} : ${aliases.size - ignored.length} code(s) traduit(s)${ignored.length ? `, ignorés : ${ignored.join(', ')}` : ''}`);
+    } catch (error: any) {
+      ko(error.message, 'Une ligne code,code_club par commission du club ; code_club vide pour ignorer le code');
     }
   }
 
@@ -98,11 +104,11 @@ export async function runCheck(overrides: Partial<CheckDeps> = {}): Promise<numb
       try {
         const [rows] = await db.execute('SELECT code_commission FROM caf_commission');
         const inDb = new Set((rows as Array<{ code_commission: string }>).map(r => r.code_commission));
-        const needed = [...new Set([...getAllMappedCommissionSlugs(), ...gcCommissions])].sort();
+        const needed = toClubCodes([...getAllMappedCommissionSlugs(), ...gcCommissions], aliases).sort();
         const missing = needed.filter(slug => !inDb.has(slug));
         ok(`${inDb.size} commissions en base`);
         if (missing.length === 0) ok('Toutes les commissions attendues par le mapping existent');
-        else ko(`${missing.length} commission(s) absente(s) de caf_commission : ${missing.join(', ')}`, 'Créez-les dans la plateforme avec ce code_commission, sinon les liaisons correspondantes seront ignorées');
+        else ko(`${missing.length} commission(s) absente(s) de caf_commission : ${missing.join(', ')}`, `Créez-les dans la plateforme avec ce code_commission, ou déclarez vos codes dans ${ALIASES_FILE}, sinon les liaisons correspondantes seront ignorées`);
       } catch (error: any) {
         ko(`caf_commission illisible (${error.message.split('\n')[0]})`, 'Vérifiez que caf_commission existe dans la base MySQL de la plateforme et que le compte possède le droit SELECT');
       }

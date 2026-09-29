@@ -59,4 +59,32 @@ describe('CommissionLinker', () => {
 
     errorSpy.mockRestore();
   });
+
+  describe('correspondance vers les codes du club', () => {
+    const aliases = new Map([['escalade', ['escalade-adulte', 'escalade-competition']], ['via-ferrata', []]]);
+    const insertedIds = (execute: ReturnType<typeof fakeDb>['execute']) =>
+      execute.mock.calls.filter(([sql]) => sql.includes('INSERT')).map(([, params]) => params![1]);
+
+    it('lie un brevet à chaque commission cible du club', async () => {
+      const { db, execute } = fakeDb({ 'escalade-adulte': 7, 'escalade-competition': 8 });
+      expect(await new CommissionLinker(db, false, aliases).linkBrevet(42, 'BF1-ES-SAE')).toBe(2);
+      expect(insertedIds(execute)).toEqual([7, 8]);
+    });
+
+    it('lie un niveau à chaque commission cible du club', async () => {
+      const { db, execute } = fakeDb({ 'escalade-adulte': 7, 'escalade-competition': 8 });
+      const result = await new CommissionLinker(db, false, aliases).linkNiveau(3, 'ESCALADE', 'Escalade');
+      expect(result.commission).toBe('escalade');
+      expect(insertedIds(execute)).toEqual([7, 8]);
+    });
+
+    it("n'interroge pas la base pour un code ignoré et ne le signale pas comme absent", async () => {
+      const { db, execute } = fakeDb({});
+      const linker = new CommissionLinker(db, false, new Map([['escalade', []]]));
+      expect(await linker.linkBrevet(1, 'BF1-ES-SAE')).toBe(0);
+      expect(execute).not.toHaveBeenCalled();
+      expect(linker.getMissingCommissions()).toEqual([]);
+    });
+  });
 });
+
