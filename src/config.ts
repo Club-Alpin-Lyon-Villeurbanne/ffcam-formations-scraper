@@ -40,7 +40,7 @@ export function isClubMember(cafnum: string, clubCode: string = getClubCode()): 
 /**
  * Dossier config/clubs/<club> ; l'identifiant vient de la variable CLUB
  * (ex. "lyon", "chambery"), lue à l'appel pour rester testable.
- * Pas de valeur par défaut : on refuse de charger le mapping d'un autre club.
+ * Pas de valeur par défaut : on refuse de charger la correspondance d'un autre club.
  */
 export function getClubConfigDir(club: string | undefined = process.env.CLUB?.trim()): string {
   if (!club) {

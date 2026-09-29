@@ -10,7 +10,7 @@ import { CommissionLinker } from '../services/commission-linker';
 import Logger from '../utils/logger';
 import { DatabaseAdapter, Competence, Brevet } from '../types';
 
-const csvPath = path.resolve(__dirname, '../../config/clubs/lyon/groupes-competences-commissions.csv');
+const csvPath = path.resolve(__dirname, '../../config/groupes-competences-commissions.csv');
 
 function buildCompetence(overrides: Partial<Competence>): Competence {
   return {
@@ -30,11 +30,6 @@ function buildCompetence(overrides: Partial<Competence>): Competence {
 }
 
 describe('BaseImporter - checkMappingDryRun', () => {
-  // CompetencesImporter.import() charge le CSV via CLUB : ne pas dépendre du .env du développeur
-  let previousClub: string | undefined;
-  beforeEach(() => { previousClub = process.env.CLUB; process.env.CLUB = 'lyon'; });
-  afterEach(() => { if (previousClub === undefined) delete process.env.CLUB; else process.env.CLUB = previousClub; });
-
   it('résout le mapping GC en dry-run sans jamais écrire en base et remonte les alertes', async () => {
     // La DB ne doit jamais être sollicitée en dry-run : execute() lève si appelée.
     const db: DatabaseAdapter = {

@@ -1,12 +1,12 @@
 /**
- * Tests du mapping GC → Commissions depuis le CSV versionné de Lyon.
+ * Tests du mapping GC → Commissions depuis le CSV commun versionné.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import { loadGcMapping, getCommissionsForGc, normalizeGcIntitule, getMappingStats, GcCommissionMapping } from './gc-csv-mapping';
 
-const csvPath = path.resolve(__dirname, '../../config/clubs/lyon/groupes-competences-commissions.csv');
+const csvPath = path.resolve(__dirname, '../../config/groupes-competences-commissions.csv');
 
 describe('gc-csv-mapping', () => {
   let mapping: GcCommissionMapping;
@@ -16,7 +16,7 @@ describe('gc-csv-mapping', () => {
   });
 
   describe('loadGcMapping', () => {
-    it('aucune ligne du CSV de Lyon ne perd un morceau d\'intitulé sur une virgule non protégée', () => {
+    it('aucune ligne du CSV commun ne perd un morceau d\'intitulé sur une virgule non protégée', () => {
       const header = 'commission,niveau,groupe_competences';
       const lines = fs.readFileSync(csvPath, 'utf-8').split('\n').filter(l => l.trim() && l !== header);
       const suspicious = lines.filter(l => !l.includes('"') && l.split(',').length > 3);
@@ -32,20 +32,11 @@ describe('gc-csv-mapping', () => {
       expect(() => loadGcMapping('/nonexistent/path.csv')).toThrow('Fichier de mapping GC non trouvé');
     });
 
-    it('charge config/clubs/<CLUB>/… sans argument', () => {
-      const previous = process.env.CLUB;
-      process.env.CLUB = 'lyon';
-      try {
-        expect(loadGcMapping().size).toBe(mapping.size);
-      } finally {
-        if (previous === undefined) delete process.env.CLUB; else process.env.CLUB = previous;
-      }
-    });
-    it('lève une erreur explicite sans CLUB', () => {
+    it('charge le CSV commun sans argument, quel que soit CLUB', () => {
       const previous = process.env.CLUB;
       delete process.env.CLUB;
       try {
-        expect(() => loadGcMapping()).toThrow('Variable CLUB non définie');
+        expect(loadGcMapping().size).toBe(mapping.size);
       } finally {
         if (previous !== undefined) process.env.CLUB = previous;
       }

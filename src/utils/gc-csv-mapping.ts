@@ -1,10 +1,11 @@
-/** Le CSV du club donne directement les slugs de commission ; un GC peut relever de plusieurs commissions. */
+/** Le CSV commun à tous les clubs donne les slugs de commission ; un GC peut relever de plusieurs commissions. */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { getClubConfigDir } from '../config';
 
 export type GcCommissionMapping = Map<string, string[]>;
+
+export const GC_CSV_PATH = path.resolve(__dirname, '../../config/groupes-competences-commissions.csv');
 
 /** Normalise les espaces ; garde la casse, à laquelle le CSV est sensible */
 export function normalizeGcIntitule(intitule: string): string {
@@ -44,10 +45,7 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-/** @param csvPath par défaut config/clubs/<CLUB>/groupes-competences-commissions.csv */
-export function loadGcMapping(csvPath?: string): GcCommissionMapping {
-  const filePath = csvPath || path.join(getClubConfigDir(), 'groupes-competences-commissions.csv');
-
+export function loadGcMapping(filePath: string = GC_CSV_PATH): GcCommissionMapping {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Fichier de mapping GC non trouvé: ${filePath}`);
   }

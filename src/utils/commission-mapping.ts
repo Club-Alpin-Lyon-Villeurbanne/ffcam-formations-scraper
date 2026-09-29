@@ -1,6 +1,6 @@
 /**
  * Rattachement des brevets, formations et niveaux FFCAM aux commissions (slugs), commun à tous les clubs.
- * Les groupes de compétences passent, eux, par le CSV du club (gc-csv-mapping.ts).
+ * Les groupes de compétences passent, eux, par le CSV commun (gc-csv-mapping.ts).
  */
 
 export interface MappingResult {
