@@ -6,7 +6,7 @@ Importe chaque semaine, depuis l'extranet de la FFCAM, les **formations**, **bre
 
 ## Prérequis
 
-- Node.js (v22+)
+- Node.js (v24+)
 - pnpm (v10.13.1)
 - TypeScript (installé automatiquement)
 - Accès à l'extranet FFCAM avec un compte valide
