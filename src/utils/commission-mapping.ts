@@ -59,9 +59,9 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BRV-BESP/i, commission: 'speleologie' },
 
   // Anciens codes BRV-…
-  { pattern: /^BRV-BF(EA|EB|ES|AT)/i, commission: 'escalade' },        // SAE, bloc, sites naturels et grandes voies, terrain d'aventure
+  { pattern: /^BRV-BF(EA|EB|ES)/i, commission: 'escalade' },           // SAE, bloc, sites naturels et grandes voies
   { pattern: /^BRV-BEES17/i, commission: 'escalade' },                 // brevet d'État escalade
-  { pattern: /^BRV-BF(AL|CG|AM)/i, commission: 'alpinisme' },          // alpinisme, cascade de glace, terrain montagne
+  { pattern: /^BRV-BF(AL|CG|AM|AT)/i, commission: 'alpinisme' },       // alpinisme, cascade de glace, terrain montagne, terrain d'aventure (comme STG-FAT)
   { pattern: /^BRV-BFCA/i, commission: 'canyon' },
   { pattern: /^BRV-BF(RA|RD|RM|RP|TR|CO)/i, commission: 'randonnee' }, // alpine, randonnée, montagne, brevet de randonnée, trail, cartographie-orientation
   { pattern: /^BRV-BFRN/i, commission: 'ski-randonnee-nordique' },

@@ -115,9 +115,10 @@ describe('commission-mapping', () => {
     describe('Anciens codes BRV-…', () => {
       it.each([
         ['BRV-BFEA10', 'escalade'], ['BRV-BFEB10', 'escalade'], ['BRV-BFES10', 'escalade'], ['BRV-BFES20', 'escalade'],
-        ['BRV-BFES30', 'escalade'], ['BRV-BFES40', 'escalade'], ['BRV-BFES50', 'escalade'], ['BRV-BFAT10', 'escalade'],
+        ['BRV-BFES30', 'escalade'], ['BRV-BFES40', 'escalade'], ['BRV-BFES50', 'escalade'],
         ['BRV-BEES17', 'escalade'],
         ['BRV-BFAL10', 'alpinisme'], ['BRV-BFAL20', 'alpinisme'], ['BRV-BFCG10', 'alpinisme'], ['BRV-BFAM10', 'alpinisme'],
+        ['BRV-BFAT10', 'alpinisme'],
         ['BRV-BFCA00', 'canyon'], ['BRV-BFCA10', 'canyon'], ['BRV-BFCA30', 'canyon'],
         ['BRV-BFRA10', 'randonnee'], ['BRV-BFRD10', 'randonnee'], ['BRV-BFRD20', 'randonnee'], ['BRV-BFRM10', 'randonnee'],
         ['BRV-BFRP12', 'randonnee'], ['BRV-BFCO30', 'randonnee'],
