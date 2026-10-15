@@ -191,7 +191,7 @@ describe('BaseImporter - erreurs', () => {
 
   it("compte une erreur d'écriture et la journalise avec l'id de ligne, sans nom ni cafnum", async () => {
     const db = fakeDb(() => {
-      throw Object.assign(new Error("Unknown column 'date_obtention' in 'field list'"), { errno: 1054, sqlState: '42S22' });
+      throw Object.assign(new Error("Duplicate entry 'DUPONT Jean-690020190001' for key 'uniq_validation'"), { code: 'ER_DUP_ENTRY', errno: 1062, sqlState: '23000' });
     });
     const logger = new Logger();
     const importer = new BrevetsImporter(db, logger, new CommissionLinker(db, false), false);
@@ -202,8 +202,8 @@ describe('BaseImporter - erreurs', () => {
     expect(logger.stats.brevets.errors).toBe(1);
     expect(logger.stats.brevets.imported).toBe(0);
     expect(output).toContain('ligne 42');
-    expect(output).toContain('Unknown column');
-    expect(output).toContain('SQL-1054');
+    expect(output).toContain('ER_DUP_ENTRY (key uniq_validation) [SQLSTATE 23000, errno 1062]');
+    expect(output).toContain('SQL-1062');
     expect(output).not.toContain('DUPONT');
     expect(output).not.toContain('690020190001');
   });

@@ -26,6 +26,7 @@ import { CommissionLinker } from './services/commission-linker';
 import Logger from './utils/logger';
 import { ensureDirectories, saveImportReport, FFCAM_CONFIG, getClubCode } from './config';
 import { CommissionAliases, loadCommissionAliases } from './utils/commission-aliases';
+import { describeError } from './utils/describe-error';
 import { getSessionId } from './auth/ffcam-sso';
 
 type ImportType = 'formations' | 'brevets' | 'niveaux' | 'competences';
@@ -295,8 +296,9 @@ async function main(): Promise<void> {
     console.log('\n✅ Import terminé avec succès !');
 
   } catch (error: any) {
-    console.error('\n❌ Erreur fatale:', error.message);
-    console.error(error.stack);
+    console.error('\n❌ Erreur fatale:', describeError(error));
+    // La pile seule : sa première ligne répète le message
+    console.error(String(error?.stack ?? '').split('\n').filter(line => /^\s+at /.test(line)).join('\n'));
 
     if (db.isConnected()) {
       await db.close();
