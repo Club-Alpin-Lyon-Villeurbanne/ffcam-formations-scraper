@@ -27,7 +27,7 @@ jobs:
   import:
     name: Import ${{ matrix.environment }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180   # Chambéry : ~80 min en oct. 2026, base lente à l'écriture
     environment: ${{ matrix.environment }}
     strategy:
       fail-fast: false
