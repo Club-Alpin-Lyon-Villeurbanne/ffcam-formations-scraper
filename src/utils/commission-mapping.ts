@@ -35,17 +35,17 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   // RA-RM rando montagne, RA-RAL rando alpine, RA-TR trail
   { pattern: /^BF(\d|M)?-RA-/i, commission: 'randonnee' },
 
-  // SN-SR ski rando, SA ski alpin, RQ/RN raquette, SW/SWL snowboard rando, SWA snowboard alpin
-  { pattern: /^BF(\d|M)?-SN-SR/i, commission: 'ski-de-randonnee' },
-  { pattern: /^BF(\d|M)?-SN-SA/i, commission: 'ski-de-piste' },
+  // SN-SR ski de randonnée, SRN ski randonnée nordique, SA ski alpinisme (2e degré du ski de randonnée),
+  // RQ/RN raquette, SW/SWL/SWA snowboard de randonnée et alpinisme, NA neige avalanche
+  { pattern: /^BF(\d|M)?-SN-SR(?!N)/i, commission: 'ski-de-randonnee' },
+  { pattern: /^BF(\d|M)?-SN-SRN/i, commission: 'ski-randonnee-nordique' },
+  { pattern: /^BF(\d|M)?-SN-SA/i, commission: 'ski-de-randonnee' },
   { pattern: /^BF(\d|M)?-SN-RQ/i, commission: 'raquette' },
   { pattern: /^BF(\d|M)?-SN-RN/i, commission: 'raquette' },
-  { pattern: /^BF(\d|M)?-SN-SW$/i, commission: 'snowboard-rando' },
-  { pattern: /^BFM-SN-SWL/i, commission: 'snowboard-rando' },
-  { pattern: /^BF(\d|M)?-SN-SWA/i, commission: 'snowboard-alpin' },
+  { pattern: /^BF(\d|M)?-SN-SW/i, commission: 'snowboard-rando' },
+  { pattern: /^BF(\d|M)?-SN-NA/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
-  { pattern: /^BRV-BFST/i, commission: 'snowboard-alpin' },
 
   { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
@@ -55,6 +55,24 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   // BFSP14 initiateur, BFSP24 moniteur (FFSP), BESP brevet d'État option spéléo
   { pattern: /^BRV-BFSP/i, commission: 'speleologie' },
   { pattern: /^BRV-BESP/i, commission: 'speleologie' },
+
+  // Anciens codes BRV-… ; BFCO (cartographie-orientation) reste transversal
+  { pattern: /^BRV-BF(EA|EB|ES|AT)/i, commission: 'escalade' },        // SAE, bloc, sites naturels et grandes voies, terrain d'aventure
+  { pattern: /^BRV-BEES17/i, commission: 'escalade' },                 // brevet d'État escalade
+  { pattern: /^BRV-BF(AL|CG|AM)/i, commission: 'alpinisme' },          // alpinisme, cascade de glace, terrain montagne
+  { pattern: /^BRV-BFCA/i, commission: 'canyon' },
+  { pattern: /^BRV-BFR(A|D|M|P)/i, commission: 'randonnee' },          // alpine, randonnée, montagne, brevet de randonnée
+  { pattern: /^BRV-BFRN/i, commission: 'ski-randonnee-nordique' },
+  { pattern: /^BRV-BFRQ/i, commission: 'raquette' },
+  { pattern: /^BRV-(BFSM|QFSN)/i, commission: 'ski-de-randonnee' },    // ski alpinisme, ski de randonnée
+  { pattern: /^BRV-BFSF/i, commission: 'ski-de-fond' },
+  { pattern: /^BRV-BFST/i, commission: 'ski-de-piste' },               // ski alpin toutes neiges
+  { pattern: /^BRV-BFSU/i, commission: 'snowboard-alpin' },
+  { pattern: /^BRV-B?FS(B|L)/i, commission: 'snowboard-rando' },       // snowboard de montagne, snowboard alpinisme
+  { pattern: /^BRV-BFTR/i, commission: 'trail' },
+  { pattern: /^BRV-BFVM/i, commission: 'vtt' },
+  { pattern: /^BRV-QFMN/i, commission: 'marche-nordique' },
+  { pattern: /^BRV-QFVF/i, commission: 'via-ferrata' },
 
   // RA-TR relève aussi de randonnee (pattern RA ci-dessus)
   { pattern: /^BF(\d|M)?-RA-TR/i, commission: 'trail' },
