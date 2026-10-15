@@ -96,6 +96,16 @@ describe('commission-mapping', () => {
       });
     });
 
+    describe('Environnement', () => {
+      it('should map BF3-FC-AM (Brevet Avenir Montagne) to environnement', () => {
+        expect(getCommissionsForBrevet('BF3-FC-AM')).toEqual(['environnement']);
+      });
+
+      it('should not map the other transversal FC brevets', () => {
+        expect(getCommissionsForBrevet('BF3-FC-CO')).toEqual([]);
+      });
+    });
+
     describe('Spéléologie', () => {
       it.each(['BRV-BFSP14', 'BRV-BFSP24', 'BRV-BESP17'])('should map %s to speleologie', (code) => {
         expect(getCommissionsForBrevet(code)).toEqual(['speleologie']);

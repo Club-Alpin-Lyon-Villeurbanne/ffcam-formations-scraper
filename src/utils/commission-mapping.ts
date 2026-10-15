@@ -49,6 +49,9 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
+  // FC-AM : Brevet Avenir Montagne, instructeurs environnement (redirection écologique)
+  { pattern: /^BF(\d|M)?-FC-AM/i, commission: 'environnement' },
+
   // BFSP14 initiateur, BFSP24 moniteur (FFSP), BESP brevet d'État option spéléo
   { pattern: /^BRV-BFSP/i, commission: 'speleologie' },
   { pattern: /^BRV-BESP/i, commission: 'speleologie' },
