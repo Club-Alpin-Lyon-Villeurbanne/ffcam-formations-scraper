@@ -1,5 +1,6 @@
 import { DatabaseAdapter, Logger } from '../types';
 import { CommissionLinker } from '../services/commission-linker';
+import { describeError } from '../utils/describe-error';
 
 abstract class BaseImporter<T> {
   protected db: DatabaseAdapter;
@@ -37,8 +38,7 @@ abstract class BaseImporter<T> {
     this.errorsByType.set(type, (this.errorsByType.get(type) || 0) + 1);
 
     if (stats.errors < 3) {
-      const sql = error.sqlState ? ` [SQLSTATE ${error.sqlState}, errno ${error.errno}]` : '';
-      console.log(`\n   ❌ Erreur d'écriture (ligne ${rowId}) : ${error.message}${sql}`);
+      console.log(`\n   ❌ Erreur d'écriture (ligne ${rowId}) : ${describeError(error)}`);
     } else if (stats.errors === 3) {
       console.log('\n   … erreurs suivantes masquées, voir la répartition en fin de section');
     }
