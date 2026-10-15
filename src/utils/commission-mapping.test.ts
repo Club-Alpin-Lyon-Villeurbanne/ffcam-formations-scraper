@@ -19,6 +19,10 @@ describe('commission-mapping', () => {
       ])('should map %s to escalade', (code) => {
         expect(getCommissionsForBrevet(code)).toContain('escalade');
       });
+
+      it.each(['BF2-ES-VF', 'BFM-ES-VF'])('should map %s (via ferrata) to escalade and via-ferrata', (code) => {
+        expect(getCommissionsForBrevet(code)).toEqual(['escalade', 'via-ferrata']);
+      });
     });
 
     describe('Alpinisme', () => {
@@ -91,6 +95,10 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet(code)).toEqual(['snowboard-rando']);
       });
 
+      it.each(['BF1-SN-SX', 'BF2-SN-SAX', 'BF1-SN-SWB', 'BF1-SN-RQX'])('should leave unknown snow code %s without commission', (code) => {
+        expect(getCommissionsForBrevet(code)).toEqual([]);
+      });
+
       it('should map BRV-NIVO to ski-de-randonnee', () => {
         expect(getCommissionsForBrevet('BRV-NIVO')).toContain('ski-de-randonnee');
       });
@@ -112,15 +120,14 @@ describe('commission-mapping', () => {
         ['BRV-BFAL10', 'alpinisme'], ['BRV-BFAL20', 'alpinisme'], ['BRV-BFCG10', 'alpinisme'], ['BRV-BFAM10', 'alpinisme'],
         ['BRV-BFCA00', 'canyon'], ['BRV-BFCA10', 'canyon'], ['BRV-BFCA30', 'canyon'],
         ['BRV-BFRA10', 'randonnee'], ['BRV-BFRD10', 'randonnee'], ['BRV-BFRD20', 'randonnee'], ['BRV-BFRM10', 'randonnee'],
-        ['BRV-BFRP12', 'randonnee'],
+        ['BRV-BFRP12', 'randonnee'], ['BRV-BFCO30', 'randonnee'],
         ['BRV-BFRN10', 'ski-randonnee-nordique'],
         ['BRV-BFRQ00', 'raquette'], ['BRV-BFRQ10', 'raquette'],
         ['BRV-BFSM10', 'ski-de-randonnee'], ['BRV-BFSM20', 'ski-de-randonnee'], ['BRV-BFSM40', 'ski-de-randonnee'],
         ['BRV-QFSN10', 'ski-de-randonnee'],
         ['BRV-BFSF10', 'ski-de-fond'],
-        ['BRV-BFSU10', 'snowboard-alpin'],
-        ['BRV-BFSB10', 'snowboard-rando'], ['BRV-BFSL10', 'snowboard-rando'], ['BRV-FSL10', 'snowboard-rando'],
-        ['BRV-BFTR10', 'trail'],
+        ['BRV-BFSU10', 'snowboard-rando'], ['BRV-BFSB10', 'snowboard-rando'], ['BRV-BFSL10', 'snowboard-rando'],
+        ['BRV-FSL10', 'snowboard-rando'],
         ['BRV-BFVM10', 'vtt'], ['BRV-BFVM20', 'vtt'],
         ['BRV-QFMN10', 'marche-nordique'],
         ['BRV-QFVF10', 'via-ferrata'],
@@ -128,18 +135,18 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet(code)).toEqual([commission]);
       });
 
-      it.each(['BRV-BFCO30', 'BF3-FC-CO', 'BRV-BEES99'])('should leave %s without commission', (code) => {
-        expect(getCommissionsForBrevet(code)).toEqual([]);
+      it('should leave BRV-BEES99 without commission', () => {
+        expect(getCommissionsForBrevet('BRV-BEES99')).toEqual([]);
       });
     });
 
-    describe('Environnement', () => {
+    describe('Formateurs (FC)', () => {
       it('should map BF3-FC-AM (Brevet Avenir Montagne) to environnement', () => {
         expect(getCommissionsForBrevet('BF3-FC-AM')).toEqual(['environnement']);
       });
 
-      it('should not map the other transversal FC brevets', () => {
-        expect(getCommissionsForBrevet('BF3-FC-CO')).toEqual([]);
+      it('should map BF3-FC-CO (cartographie orientation) to randonnee', () => {
+        expect(getCommissionsForBrevet('BF3-FC-CO')).toEqual(['randonnee']);
       });
     });
 
@@ -159,10 +166,8 @@ describe('commission-mapping', () => {
     });
 
     describe('Trail', () => {
-      it('should map BF1-RA-TR to both randonnee and trail', () => {
-        const commissions = getCommissionsForBrevet('BF1-RA-TR');
-        expect(commissions).toContain('randonnee');
-        expect(commissions).toContain('trail');
+      it.each(['BF1-RA-TR', 'BRV-BFTR10'])('should map %s to both randonnee and trail', (code) => {
+        expect(getCommissionsForBrevet(code)).toEqual(['randonnee', 'trail']);
       });
     });
 

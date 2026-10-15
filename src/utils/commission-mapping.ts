@@ -26,6 +26,8 @@ export const CERTAINTY_THRESHOLD = 70;
  */
 const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BF(\d|M)?-ES-/i, commission: 'escalade' },
+  // ES-VF via ferrata relève aussi de escalade
+  { pattern: /^BF(\d|M)?-ES-VF/i, commission: 'via-ferrata' },
 
   // AL-CG cascade de glace, AL-AL alpinisme, AL-GV grande voie
   { pattern: /^BF(\d|M)?-AL-/i, commission: 'alpinisme' },
@@ -36,14 +38,12 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BF(\d|M)?-RA-/i, commission: 'randonnee' },
 
   // SN-SR ski de randonnée, SRN ski randonnée nordique, SA ski alpinisme (2e degré du ski de randonnée),
-  // RQ/RN raquette, SW/SWL/SWA snowboard de randonnée et alpinisme, NA neige avalanche
-  { pattern: /^BF(\d|M)?-SN-SR(?!N)/i, commission: 'ski-de-randonnee' },
-  { pattern: /^BF(\d|M)?-SN-SRN/i, commission: 'ski-randonnee-nordique' },
-  { pattern: /^BF(\d|M)?-SN-SA/i, commission: 'ski-de-randonnee' },
-  { pattern: /^BF(\d|M)?-SN-RQ/i, commission: 'raquette' },
-  { pattern: /^BF(\d|M)?-SN-RN/i, commission: 'raquette' },
-  { pattern: /^BF(\d|M)?-SN-SW/i, commission: 'snowboard-rando' },
-  { pattern: /^BF(\d|M)?-SN-NA/i, commission: 'ski-de-randonnee' },
+  // RQ/RN raquette, SW/SWL/SWA snowboard de randonnée et alpinisme, NA neige avalanche.
+  // Codes exacts : un nouveau code SN doit apparaître dans diagnostic-brevets plutôt qu'être rattaché au hasard
+  { pattern: /^BF(\d|M)?-SN-(SR|SA|NA)$/i, commission: 'ski-de-randonnee' },
+  { pattern: /^BF(\d|M)?-SN-SRN$/i, commission: 'ski-randonnee-nordique' },
+  { pattern: /^BF(\d|M)?-SN-(RQ|RN)$/i, commission: 'raquette' },
+  { pattern: /^BF(\d|M)?-SN-SW(A|L)?$/i, commission: 'snowboard-rando' },
   { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
 
@@ -51,30 +51,31 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // FC-AM : Brevet Avenir Montagne, instructeurs environnement (redirection écologique)
   { pattern: /^BF(\d|M)?-FC-AM/i, commission: 'environnement' },
+  // FC-CO cartographie-orientation, comme les formations STG-UFCO et FOR-IICO
+  { pattern: /^BF(\d|M)?-FC-CO/i, commission: 'randonnee' },
 
   // BFSP14 initiateur, BFSP24 moniteur (FFSP), BESP brevet d'État option spéléo
   { pattern: /^BRV-BFSP/i, commission: 'speleologie' },
   { pattern: /^BRV-BESP/i, commission: 'speleologie' },
 
-  // Anciens codes BRV-… ; BFCO (cartographie-orientation) reste transversal
+  // Anciens codes BRV-…
   { pattern: /^BRV-BF(EA|EB|ES|AT)/i, commission: 'escalade' },        // SAE, bloc, sites naturels et grandes voies, terrain d'aventure
   { pattern: /^BRV-BEES17/i, commission: 'escalade' },                 // brevet d'État escalade
   { pattern: /^BRV-BF(AL|CG|AM)/i, commission: 'alpinisme' },          // alpinisme, cascade de glace, terrain montagne
   { pattern: /^BRV-BFCA/i, commission: 'canyon' },
-  { pattern: /^BRV-BFR(A|D|M|P)/i, commission: 'randonnee' },          // alpine, randonnée, montagne, brevet de randonnée
+  { pattern: /^BRV-BF(RA|RD|RM|RP|TR|CO)/i, commission: 'randonnee' }, // alpine, randonnée, montagne, brevet de randonnée, trail, cartographie-orientation
   { pattern: /^BRV-BFRN/i, commission: 'ski-randonnee-nordique' },
   { pattern: /^BRV-BFRQ/i, commission: 'raquette' },
   { pattern: /^BRV-(BFSM|QFSN)/i, commission: 'ski-de-randonnee' },    // ski alpinisme, ski de randonnée
   { pattern: /^BRV-BFSF/i, commission: 'ski-de-fond' },
   { pattern: /^BRV-BFST/i, commission: 'ski-de-piste' },               // ski alpin toutes neiges
-  { pattern: /^BRV-BFSU/i, commission: 'snowboard-alpin' },
-  { pattern: /^BRV-B?FS(B|L)/i, commission: 'snowboard-rando' },       // snowboard de montagne, snowboard alpinisme
+  { pattern: /^BRV-B?FS(B|L|U)/i, commission: 'snowboard-rando' },     // snowboard de montagne, snowboard alpinisme, snowboard (comme STG-FSU)
   { pattern: /^BRV-BFTR/i, commission: 'trail' },
   { pattern: /^BRV-BFVM/i, commission: 'vtt' },
   { pattern: /^BRV-QFMN/i, commission: 'marche-nordique' },
   { pattern: /^BRV-QFVF/i, commission: 'via-ferrata' },
 
-  // RA-TR relève aussi de randonnee (pattern RA ci-dessus)
+  // RA-TR et BFTR relèvent aussi de randonnee (patterns ci-dessus)
   { pattern: /^BF(\d|M)?-RA-TR/i, commission: 'trail' },
 ];
 
