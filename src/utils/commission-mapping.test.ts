@@ -110,6 +110,10 @@ describe('commission-mapping', () => {
       it('should map BRV-BFST10 (ski alpin toutes neiges) to ski-de-piste only', () => {
         expect(getCommissionsForBrevet('BRV-BFST10')).toEqual(['ski-de-piste']);
       });
+
+      it('should map BRV-BFSA10 (initiateur ski alpin) to ski-de-piste only, like STG-FSA', () => {
+        expect(getCommissionsForBrevet('BRV-BFSA10')).toEqual(['ski-de-piste']);
+      });
     });
 
     describe('Anciens codes BRV-…', () => {
