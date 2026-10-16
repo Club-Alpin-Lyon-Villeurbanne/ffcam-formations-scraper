@@ -43,11 +43,17 @@ describe('loadCommissionAliases', () => {
     expect(() => loadCommissionAliases(clubDir(content))).toThrow(message);
   });
 
-  it('les fichiers de Lyon et Chambéry se chargent', () => {
+  it('les fichiers de Lyon, Chambéry et Clermont se chargent', () => {
     expect(loadCommissionAliases(path.resolve(__dirname, '../../config/clubs/lyon')).get('speleologie')).toEqual([]);
     const aliases = loadCommissionAliases(path.resolve(__dirname, '../../config/clubs/chambery'));
     expect(aliases.get('escalade')).toEqual(['escalade-adulte']);
     expect(aliases.get('marche-nordique')).toEqual([]);
+  });
+
+  it('Clermont : ski-de-randonnee y désigne le nordique, le ski de randonnée de Lyon va en ski-de-rando-alpine', () => {
+    const aliases = loadCommissionAliases(path.resolve(__dirname, '../../config/clubs/clermont'));
+    expect(toClubCodes(['ski-de-randonnee'], aliases)).toEqual(['ski-de-rando-alpine']);
+    expect(toClubCodes(['ski-randonnee-nordique'], aliases)).toEqual(['ski-de-randonnee']);
   });
 });
 

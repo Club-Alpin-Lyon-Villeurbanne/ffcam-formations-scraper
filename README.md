@@ -36,7 +36,7 @@ Rien à modifier dans le code : un `.env` et un fichier `config/clubs/<club>/cor
 
 ## Import automatique (GitHub Actions)
 
-[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`, `chambery-prod`), un seul à la fois (40 min à 1 h 20 chacun, 3 h au plus). L'ordre entre les environments n'est pas garanti.
+[`import.yml`](.github/workflows/import.yml) lance `check` puis `import` **tous les lundis à 03:17 UTC** pour chaque environment de la matrice (`lyon-staging`, `lyon-prod`, `chambery-prod`, `clermont-prod`), un seul à la fois (40 min à 1 h 20 chacun, 3 h au plus). L'ordre entre les environments n'est pas garanti.
 
 Lancement manuel : onglet Actions → Import FFCAM → Run workflow. Choisissez l'environment à synchroniser ; ⚠️ « tous » (par défaut) enchaîne **tous** les environments, **production comprise**. Cochez « Import à blanc » pour vérifier sans rien écrire. Le run planifié n'est jamais à blanc : après un changement de version de Node, d'une action ou de la configuration d'un club, lancez un import à blanc avant le lundi.
 
@@ -251,6 +251,8 @@ ffcam-formations-adherents-scraper/
 │   └── clubs/
 │       ├── chambery/
 │       │   └── correspondance-commissions.csv  # Codes de commission propres à Chambéry
+│       ├── clermont/
+│       │   └── correspondance-commissions.csv  # Codes de commission propres à Clermont-Ferrand
 │       └── lyon/
 │           └── correspondance-commissions.csv  # Lyon ignore speleologie (pas de commission)
 ├── docs/                   # API FFCAM, décisions d'architecture (adr/)
