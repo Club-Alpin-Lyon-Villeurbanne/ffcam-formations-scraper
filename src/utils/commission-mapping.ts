@@ -68,7 +68,7 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BRV-BFRQ/i, commission: 'raquette' },
   { pattern: /^BRV-(BFSM|QFSN)/i, commission: 'ski-de-randonnee' },    // ski alpinisme, ski de randonnée
   { pattern: /^BRV-BFSF/i, commission: 'ski-de-fond' },
-  { pattern: /^BRV-BFST/i, commission: 'ski-de-piste' },               // ski alpin toutes neiges
+  { pattern: /^BRV-BF(ST|SA)/i, commission: 'ski-de-piste' },           // ski alpin toutes neiges, ski alpin (comme STG-FSA)
   { pattern: /^BRV-B?FS(B|L|U)/i, commission: 'snowboard-rando' },     // snowboard de montagne, snowboard alpinisme, snowboard (comme STG-FSU)
   { pattern: /^BRV-BFTR/i, commission: 'trail' },
   { pattern: /^BRV-BFVM/i, commission: 'vtt' },
