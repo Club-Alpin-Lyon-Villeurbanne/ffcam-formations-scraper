@@ -1,22 +1,47 @@
-# Documentation de l'API FFCAM (non officielle)
+# L'API de l'extranet FFCAM
 
-> **AVERTISSEMENT** : Cette documentation a été créée par reverse-engineering de l'extranet FFCAM.
-> L'API n'est pas officielle et peut changer sans préavis.
+> ⚠️ Cette API n'est **pas officielle**. Tout ce qui suit a été découvert en observant le portail et l'extranet depuis un navigateur. La FFCAM peut la modifier sans prévenir : l'import échouerait alors au run suivant, en nommant l'étape en cause.
 
-## Endpoint principal
+Cette page sert à comprendre ou réparer la partie du programme qui parle à la FFCAM (`src/auth/` et `src/scrapers/`). Les noms et numéros d'adhérent des exemples sont fictifs.
 
+## Vue d'ensemble
+
+Deux sites interviennent :
+
+- **le portail** (`portail.ffcam.fr`, API sur `api.portail.ffcam.fr`), où l'on se connecte ;
+- **l'extranet** (`extranet-clubalpin.com`), qui fournit les données sous forme de tableaux paginés.
+
+```mermaid
+flowchart LR
+    P["Programme"] -- "1. e-mail et mot de passe" --> PO["Portail FFCAM"]
+    PO -- "2. session extranet (sid)" --> P
+    P -- "3. pages de données, avec le sid" --> EX["Extranet FFCAM"]
 ```
-https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php
+
+## Se connecter : obtenir un `sid`
+
+Le programme se connecte comme le ferait une personne, en 4 requêtes. Il n'y a ni captcha, ni double authentification.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as Programme
+    participant API as API du portail
+    participant EX as Extranet
+    P->>API: POST user/logged avec e-mail et mot de passe
+    API-->>P: sessionToken
+    P->>API: POST for-session/auth/select-app-id, application Extranet
+    API-->>P: liste des profils extranet du compte
+    Note over P: choisit le profil qui contient FFCAM_PROFILE,<br/>WEBMASTER par défaut
+    P->>API: POST for-session/auth/select-extranet-id, profil choisi
+    API-->>P: adresse de redirection et jetons
+    P->>EX: GET login_sso.php avec les jetons
+    EX-->>P: page qui contient le sid
 ```
 
-## Authentification
+Le détail des échanges :
 
-L'API extranet utilise une authentification par session. Le `sid` obtenu doit être
-passé en paramètre `sid` de chaque requête.
-
-Ce `sid` est obtenu via un flux SSO sur le portail FFCAM (`portail.ffcam.fr`), en 4 requêtes :
-
-```
+```text
 POST https://api.portail.ffcam.fr/user/logged                         {email, password}
   → {success: true, sessionToken: "JWT …"}
 POST https://api.portail.ffcam.fr/for-session/auth/select-app-id      {appId: "extranet.xyntxutqx1"}   Authorization: JWT …
@@ -28,307 +53,151 @@ GET  {redirectUri}?refreshToken=…&accessToken=…
   → HTML contenant : window.location.href = 'Effectifs/accueil.php?sid=XXXX&ish=…'
 ```
 
-`appId` est l'identifiant de l'application Extranet côté FFCAM, commun à tous les
-clubs. Pas de captcha, CSRF ni 2FA.
+`appId` identifie l'application Extranet côté FFCAM ; il est le même pour tous les clubs.
 
-**Durées de vie observées :**
-- session (`sessionToken`) : 100 jours
-- `refreshToken` : 30 jours
-- `accessToken` : 5 minutes
+Durées de vie observées : 100 jours pour le `sessionToken`, 30 jours pour le `refreshToken`, 5 minutes pour l'`accessToken`. Le `sid` expire après quelques heures d'inactivité, et quand le même compte se connecte ailleurs. Le programme se reconnecte alors tout seul.
 
-**Exemple d'URL après échange des tokens :**
-```
-https://extranet-clubalpin.com/app/Effectifs/accueil.php?sid=ABC123XYZ
-```
+## Lire les données
 
-## Paramètres communs
+Toutes les données passent par une même adresse, qui renvoie un tableau découpé en pages :
 
-| Paramètre | Type | Description |
-|-----------|------|-------------|
-| `sid` | string | Session ID (obligatoire) |
-| `def` | string | Type de données à récupérer |
-| `mode` | string | Toujours `liste` |
-| `page` | int | Numéro de page (1-based) |
-| `rows` | int | Nombre de lignes par page (max 150) |
-| `sidx` | string | Colonne de tri |
-| `sord` | string | Ordre de tri (`asc` ou `desc`) |
-| `_search` | string | `true` ou `false` |
-
-## Types de données (`def`)
-
-### 1. Formations (`adh_formations`)
-
-Récupère les formations validées des adhérents.
-
-```
-GET /jx_jqGrid.php?sid=XXX&def=adh_formations&mode=liste&page=1&rows=150
+```text
+https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php
 ```
 
-**Structure de réponse :**
+| Paramètre | Valeur |
+|---|---|
+| `sid` | La session obtenue ci-dessus (obligatoire) |
+| `def` | Le tableau voulu : voir ci-dessous |
+| `mode` | Toujours `liste` |
+| `page` | Numéro de page, à partir de 1 |
+| `rows` | Lignes par page, 150 au plus |
+| `sidx`, `sord` | Colonne et sens du tri (`asc` ou `desc`) |
+| `_search` | `false` |
 
-```json
-{
-  "page": 1,
-  "total": 25,
-  "records": 3679,
-  "rows": [
-    {
-      "id": "12345",
-      "cell": {
-        "col_0": "69002123456",     // cafnum adhérent
-        "col_1": "DUPONT Jean",      // nom complet
-        "col_2": "STG-UFALA2",       // code formation
-        "col_3": "UF vers l'autonomie...", // intitulé
-        "col_4": "2024-01-15",       // date validation
-        "col_5": "2024-001",         // numéro formation
-        "col_6": "Martin Pierre",    // formateur
-        "col_7": "Lyon",             // lieu
-        "col_8": "2024-01-10",       // date début
-        "col_9": "2024-01-15",       // date fin
-        "col_10": "12345"            // id interne
-      }
-    }
-  ]
-}
-```
-
-**Colonnes :**
-
-| Index | Champ | Description |
-|-------|-------|-------------|
-| col_0 | cafnum | Numéro d'adhérent FFCAM |
-| col_1 | nom | Nom complet de l'adhérent |
-| col_2 | code_formation | Code unique de la formation |
-| col_3 | intitule | Intitulé complet de la formation |
-| col_4 | date_validation | Date de validation (YYYY-MM-DD ou DD/MM/YYYY) |
-| col_5 | numero_formation | Numéro de la session de formation |
-| col_6 | formateur | Nom du formateur |
-| col_7 | lieu | Lieu de la formation |
-| col_8 | date_debut | Date de début |
-| col_9 | date_fin | Date de fin |
-| col_10 | id_interne | ID interne FFCAM |
-
----
-
-### 2. Brevets (`adh_brevets`)
-
-Récupère les brevets/diplômes des adhérents.
-
-```
-GET /jx_jqGrid.php?sid=XXX&def=adh_brevets&mode=liste&page=1&rows=150
-```
-
-**Structure de réponse :**
-
-```json
-{
-  "page": 1,
-  "total": 10,
-  "records": 1362,
-  "rows": [
-    {
-      "id": "67890",
-      "cell": {
-        "col_0": "69002123456",     // cafnum
-        "col_1": "DUPONT Jean",      // nom
-        "col_2": "BF1-ES-SAE",       // code brevet
-        "col_3": "Initiateur Escalade SAE", // intitulé
-        "col_4": "2023-06-15",       // date obtention
-        "col_5": "2026-06-15",       // date recyclage
-        "col_6": "2023-06-20",       // date édition
-        "col_7": "2024-01-10",       // date formation continue
-        "col_8": ""                  // date migration
-      }
-    }
-  ]
-}
-```
-
-**Colonnes :**
-
-| Index | Champ | Description |
-|-------|-------|-------------|
-| col_0 | cafnum | Numéro d'adhérent FFCAM |
-| col_1 | nom | Nom complet de l'adhérent |
-| col_2 | code_brevet | Code unique du brevet |
-| col_3 | intitule | Intitulé du brevet |
-| col_4 | date_obtention | Date d'obtention initiale |
-| col_5 | date_recyclage | Date limite de recyclage |
-| col_6 | date_edition | Date d'édition du diplôme |
-| col_7 | date_formation_continue | Date dernière formation continue |
-| col_8 | date_migration | Date de migration (si applicable) |
-
----
-
-### 3. Niveaux de pratique (`adh_niveaux_pratique`)
-
-Récupère les niveaux de pratique validés.
-
-```
-GET /jx_jqGrid.php?sid=XXX&def=adh_niveaux_pratique&mode=liste&page=1&rows=150
-```
-
-**Structure de réponse :**
-
-```json
-{
-  "page": 1,
-  "total": 8,
-  "records": 1055,
-  "userData": {
-    "caliData": {
-      "123": {
-        "cursus_niveau_id": "123",
-        "code_activite": "ES",
-        "activite": "ESCALADE",
-        "niveau": "INITIE",
-        "libelle": "Initié escalade SAE",
-        "niveau_court": "N1",
-        "discipline": null,
-        "_BASE_validation_qui": "Martin Pierre"
-      }
-    }
-  },
-  "rows": [
-    {
-      "id": "11111",
-      "cell": {
-        "col_0": "69002123456",
-        "col_1": "DUPONT Jean",
-        "col_2": "ES",               // code activité
-        "col_3": "ESCALADE",         // activité
-        "col_4": "INITIE",           // niveau
-        "col_5": "Initié escalade...", // libellé
-        "col_6": "2023-03-20",       // date validation
-        "col_7": "Martin Pierre",    // validateur
-        "col_8": "123"               // cursus_niveau_id
-      }
-    }
-  ]
-}
-```
-
-**Colonnes :**
-
-| Index | Champ | Description |
-|-------|-------|-------------|
-| col_0 | cafnum | Numéro d'adhérent FFCAM |
-| col_1 | nom | Nom complet de l'adhérent |
-| col_2 | code_activite | Code de l'activité (ES, AL, SN...) |
-| col_3 | activite | Nom de l'activité |
-| col_4 | niveau | Niveau (INITIE, PERFECTIONNE, AUTONOME) |
-| col_5 | libelle | Description du niveau |
-| col_6 | date_validation | Date de validation |
-| col_7 | validateur | Nom du validateur |
-| col_8 | cursus_niveau_id | ID du niveau dans le référentiel |
-
-**Métadonnées (`userData.caliData`) :**
-
-Le champ `userData.caliData` contient le référentiel complet des niveaux avec leurs métadonnées (discipline, niveau_court, validateur, etc.).
-
----
-
-### 4. Compétences (`adh_competences`)
-
-Récupère les groupes de compétences validés.
-
-```
-GET /jx_jqGrid.php?sid=XXX&def=adh_competences&mode=liste&page=1&rows=150
-```
-
-**Structure de réponse :**
-
-```json
-{
-  "rows": [
-    {
-      "id": "22222",
-      "cell": {
-        "col_0": "69002123456",
-        "col_1": "DUPONT Jean",
-        "col_2": "Technique d'assurage", // intitulé compétence
-        "col_3": "ES",                    // code activité
-        "col_4": "ESCALADE",              // activité
-        "col_5": "Niveau 2",              // niveau associé
-        "col_6": "2023-05-10",            // date validation
-        "col_7": "1",                     // est_valide (booléen)
-        "col_8": "Martin Pierre",         // validé par
-        "col_9": ""                       // commentaire
-      }
-    }
-  ]
-}
-```
-
----
-
-## Codes d'activités
-
-| Code | Activité |
-|------|----------|
-| AL | ALPINISME |
-| CA | DESCENTE DE CANYON |
-| ES | ESCALADE |
-| RA | RANDONNEE |
-| SN | SPORTS DE NEIGE |
-| VM | VELO DE MONTAGNE |
-
-## Disciplines Sports de Neige
-
-| Discipline | Description |
-|------------|-------------|
-| Randonnée | Ski de randonnée |
-| Piste | Ski alpin |
-| Fond | Ski de fond |
-| Raquettes | Raquette à neige |
-| Snowboard | Snowboard |
-| Nordique | Ski nordique / marche nordique |
-
-## Gestion des erreurs
-
-### Session expirée
-
-Si la session est expirée, l'API retourne une page HTML au lieu de JSON.
-Détection : vérifier si la réponse commence par `<!DOCTYPE` ou `<html`.
-
-### Codes HTTP
-
-| Code | Signification |
-|------|---------------|
-| 200 | Succès |
-| 302 | Redirection (session expirée) |
-| 500 | Erreur serveur |
-
-## Limites et bonnes pratiques
-
-1. **Rate limiting** : Respecter un délai de 300ms minimum entre les requêtes
-2. **Pagination** : Maximum 150 lignes par page
-3. **Session** : La session expire après ~2-4h d'inactivité
-4. **Filtrage** : Filtrer les adhérents par préfixe cafnum pour ne garder que son club
-
-## Exemple de requête complète
+Exemple :
 
 ```bash
-curl "https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php?\
-sid=ABC123XYZ&\
-def=adh_formations&\
-mode=liste&\
-page=1&\
-rows=150&\
-sidx=jqGrid_adh_formations_NOMCOMPLET&\
-sord=asc&\
-_search=false"
+curl "https://extranet-clubalpin.com/app/ActivitesFormations/jx_jqGrid.php?sid=ABC123XYZ&def=adh_formations&mode=liste&page=1&rows=150&sidx=jqGrid_adh_formations_NOMCOMPLET&sord=asc&_search=false"
 ```
 
----
+Chaque réponse donne le nombre total de pages (`total`) et de lignes (`records`). Le programme lit les pages une à une, avec 300 ms de pause entre deux pages.
 
-## Changelog de l'API (observé)
+```json
+{
+  "page": 1,
+  "total": 12,
+  "records": 1792,
+  "rows": [
+    { "id": "12345", "cell": { "col_0": "690020240123", "col_1": "DUPONT Jean", "col_2": "…" } }
+  ]
+}
+```
 
-| Date | Changement observé |
-|------|-------------------|
-| 2025-10 | Première documentation |
-| - | Aucun changement majeur observé depuis |
+Chaque ligne est un objet `cell` aux colonnes numérotées (`col_0`, `col_1`…). `col_0` est toujours le cafnum, `col_1` le nom de l'adhérent. Le programme ne garde que les lignes dont le cafnum commence par le code du club, et ne recopie jamais le nom en base ni dans les logs.
 
----
+### Les quatre tableaux
 
-*Dernière mise à jour : Décembre 2025*
+| Donnée | `def` | Taille observée |
+|---|---|---|
+| Formations | `adh_formations` | Les adhérents du club |
+| Brevets | `adh_brevets` | **Nationale** : plus de 50 000 lignes, tous clubs confondus |
+| Niveaux de pratique | `adh_niveaux_pratique` | Les adhérents du club |
+| Groupes de compétences | `adh_groupe_competence` | Les adhérents du club |
+
+### Formations (`adh_formations`)
+
+| Colonne | Contenu |
+|---|---|
+| `col_0` | Cafnum |
+| `col_1` | Nom de l'adhérent (non conservé) |
+| `col_2` | Code de la formation, par exemple `STG-FES10` |
+| `col_3` | Intitulé de la formation |
+| `col_4` | Date de validation |
+| `col_5` | Numéro de la session de formation |
+| `col_6` | Formateur |
+| `col_7` | Lieu |
+| `col_8` | Identifiant interne FFCAM |
+| `col_9` | Date de début |
+| `col_10` | Date de fin |
+
+### Brevets (`adh_brevets`)
+
+| Colonne | Contenu |
+|---|---|
+| `col_0` | Cafnum |
+| `col_1` | Nom de l'adhérent (non conservé) |
+| `col_2` | Code du brevet, par exemple `BF1-ES-SAE` |
+| `col_3` | Intitulé du brevet |
+| `col_4` | Date d'obtention |
+| `col_5` | Date de recyclage |
+| `col_6` | Date d'édition du diplôme |
+| `col_7` | Identifiant interne FFCAM (non conservé) |
+| `col_8` | Commentaire (non conservé) |
+| `col_9` | Date de formation continue |
+| `col_10` | Date de migration |
+
+### Niveaux de pratique (`adh_niveaux_pratique`)
+
+| Colonne | Contenu |
+|---|---|
+| `col_0` | Cafnum |
+| `col_1` | Nom de l'adhérent (non conservé) |
+| `col_2` | Code du club, par exemple `6900` : le `check` s'en sert pour vérifier que le profil est celui du bon club |
+| `col_4` | Code de l'activité : `ES`, `AL`, `SN`… |
+| `col_5` | Activité : `ESCALADE`… |
+| `col_6` | Niveau, par exemple `INITIE en escalade sur SAE` |
+| `col_7` | Date de validation |
+
+Cette réponse a aussi un champ `userData.caliData`, indexé par l'`id` de chaque ligne. Il donne notamment `_BASE_cursus_niveau_pratique_id`, l'identifiant du niveau dans le référentiel FFCAM, et `_BASE_validation_qui`, la personne qui a validé.
+
+### Groupes de compétences (`adh_groupe_competence`)
+
+| Colonne | Contenu |
+|---|---|
+| `col_0` | Cafnum |
+| `col_1` | Nom de l'adhérent (non conservé) |
+| `col_2` | Code du club |
+| `col_4` | Code de l'activité |
+| `col_5` | Activité |
+| `col_6` | Intitulé du groupe, par exemple `2.2 Progression sur glacier 1` |
+| `col_7` | Niveau associé, par exemple `INITIE en escalade sur SAE` |
+| `col_8` | Date de validation |
+| `col_9` | Statut, en HTML : validé si la cellule contient `text-vert` et `fa-circle` |
+| `col_10` | Validé par |
+| `col_11` | Commentaire |
+
+Les dates arrivent au format `AAAA-MM-JJ` ou `JJ/MM/AAAA`. `0000-00-00` veut dire « pas de date ».
+
+## Codes d'activité
+
+| Code | Activité |
+|---|---|
+| `AL` | ALPINISME |
+| `CA` | DESCENTE DE CANYON |
+| `ES` | ESCALADE |
+| `RA` | RANDONNEE |
+| `SN` | SPORTS DE NEIGE |
+| `VM` | VELO DE MONTAGNE |
+
+Pour les sports de neige, la discipline précise l'activité : `Randonnée` (ski de randonnée), `Piste` (ski alpin), `Fond`, `Raquettes`, `Snowboard`, `Nordique` (ski de randonnée nordique).
+
+## Quand ça se passe mal
+
+| Ce qu'on reçoit | Ce que ça veut dire | Ce que fait le programme |
+|---|---|---|
+| Une page HTML au lieu de JSON | Session refusée : `sid` expiré, ou profil changé | Se reconnecte et rejoue la page, 2 fois au plus par tableau |
+| Un JSON illisible | Erreur côté FFCAM, souvent passagère (panne du 29/09/2026) | Se reconnecte, réessaie, puis décrit l'erreur sans en citer le contenu |
+| Une erreur réseau, un délai dépassé (60 s), une erreur HTTP 5xx, 408 ou 429 | Problème passager | Réessaie après 1, 2 puis 4 secondes : 4 essais en tout |
+| Une autre erreur HTTP 4xx | Requête refusée | Abandonne la page sans réessayer |
+
+Une page toujours illisible après ses essais est notée « page manquante » : l'import continue avec les autres pages, puis se termine en échec pour qu'on le relance. Seule exception, la page 1 : sans elle, on ne connaît pas le nombre de pages, et le tableau entier est perdu.
+
+## Historique
+
+| Date | Observation |
+|---|---|
+| 2025-10 | Première documentation de l'API |
+| 2026-09 | Connexion par le portail (SSO) au lieu d'un `sid` copié à la main |
+| 2026-09-29 | Panne passagère : réponses JSON illisibles sur une partie des pages |
+| 2026-10-18 | Colonnes des quatre tableaux revérifiées d'après le code |
