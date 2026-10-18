@@ -746,7 +746,7 @@ describe('commission-mapping', () => {
       expect([...getCommissionsForBrevet(code), ...getCommissionsForFormation(code)]).toEqual([]);
     });
 
-    it.each(['UNKNOWN-123', 'STG-GRATX', 'BRV-BFSC20'])("%s n'en fait pas partie", (code) => {
+    it.each(['UNKNOWN-123', 'STG-GRATX', 'DTSAX10', 'BRV-BFSC20'])("%s n'en fait pas partie", (code) => {
       expect(isSansCommission(code)).toBe(false);
     });
   });

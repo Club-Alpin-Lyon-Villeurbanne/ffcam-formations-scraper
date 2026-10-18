@@ -688,7 +688,7 @@ export function getCommissionsForFormation(codeFormation: string): string[] {
 const SANS_COMMISSION: RegExp[] = [
   /^BFJ-/i,        // juge-arbitre
   /^FOR-J(I|P)/i,  // formation de juge-arbitre
-  /^DTSA/i,        // délégué technique compétition ski alpinisme
+  /^DTSA\d*$/i,    // délégué technique compétition ski alpinisme
   /^STG-GRAT$/i,   // gratuité jeux
 ];
 
