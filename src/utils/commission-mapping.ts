@@ -61,17 +61,20 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   // Anciens codes BRV-…
   { pattern: /^BRV-BF(EA|EB|ES)/i, commission: 'escalade' },           // SAE, bloc, sites naturels et grandes voies
   { pattern: /^BRV-BEES17/i, commission: 'escalade' },                 // brevet d'État escalade
+  { pattern: /^BRV-UFES/i, commission: 'escalade' },                   // brevet escalade CAF
   { pattern: /^BRV-BF(AL|CG|AM|AT)/i, commission: 'alpinisme' },       // alpinisme, cascade de glace, terrain montagne, terrain d'aventure (comme STG-FAT)
   { pattern: /^BRV-BFCA/i, commission: 'canyon' },
   { pattern: /^BRV-BF(RA|RD|RM|RP|TR|CO)/i, commission: 'randonnee' }, // alpine, randonnée, montagne, brevet de randonnée, trail, cartographie-orientation
+  { pattern: /^BRV-(UFRA|BERD)/i, commission: 'randonnee' },           // brevet randonnée alpine, brevet d'État accompagnateur
   { pattern: /^BRV-BFRN/i, commission: 'ski-randonnee-nordique' },
-  { pattern: /^BRV-BFRQ/i, commission: 'raquette' },
+  { pattern: /^BRV-(BFRQ|QFRA)/i, commission: 'raquette' },            // raquette, raquette en terrain alpin
   { pattern: /^BRV-(BFSM|QFSN)/i, commission: 'ski-de-randonnee' },    // ski alpinisme, ski de randonnée
   { pattern: /^BRV-BFSF/i, commission: 'ski-de-fond' },
-  { pattern: /^BRV-BF(ST|SA)/i, commission: 'ski-de-piste' },           // ski alpin toutes neiges, ski alpin (comme STG-FSA)
+  { pattern: /^BRV-BF(ST|SA|TK)/i, commission: 'ski-de-piste' },        // ski alpin toutes neiges, ski alpin (comme STG-FSA), télémark
   { pattern: /^BRV-B?FS(B|L|U)/i, commission: 'snowboard-rando' },     // snowboard de montagne, snowboard alpinisme, snowboard (comme STG-FSU)
   { pattern: /^BRV-BFTR/i, commission: 'trail' },
   { pattern: /^BRV-BFVM/i, commission: 'vtt' },
+  { pattern: /^BRV-BFSC/i, commission: 'slackline' },
   { pattern: /^BRV-QFMN/i, commission: 'marche-nordique' },
   { pattern: /^BRV-QFVF/i, commission: 'via-ferrata' },
 
@@ -495,7 +498,11 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^FOR-CIEG/i, commission: 'escalade' },   // Escalade sur glace - dry tooling
   { pattern: /^FOR-CTEA/i, commission: 'escalade' },   // Certification Escalade SAE
   { pattern: /^FOR-CTEN/i, commission: 'escalade' },   // Certification Escalade SNE
+  { pattern: /^FOR-CTEG/i, commission: 'escalade' },   // Certification Escalade sur glace - dry tooling
+  { pattern: /^FOR-CIGT/i, commission: 'escalade' },   // Formation Initiateur Grandes voies
+  { pattern: /^FOR-CCES/i, commission: 'escalade' },   // Formation continue Escalade
   { pattern: /^FOR-IIES/i, commission: 'escalade' },   // Instructeur Escalade
+  { pattern: /^FOR-ITES/i, commission: 'escalade' },   // Certification Instructeur Escalade
   { pattern: /^STG-BFEA/i, commission: 'escalade' },   // FFME Escalade SAE
   { pattern: /^STG-BFES/i, commission: 'escalade' },   // FFME Escalade SNE
 
@@ -517,6 +524,10 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^FOR-CIAL/i, commission: 'alpinisme' },  // Formation Initiateur Alpinisme
   { pattern: /^FOR-CICG/i, commission: 'alpinisme' },  // Formation Cascade de glace
   { pattern: /^FOR-CTAL/i, commission: 'alpinisme' },  // Certification Alpinisme
+  { pattern: /^FOR-CTCG/i, commission: 'alpinisme' },  // Certification Cascade de glace
+  { pattern: /^FOR-CCAL/i, commission: 'alpinisme' },  // Formation continue Alpinisme
+  { pattern: /^STG-UFTA/i, commission: 'alpinisme' },  // UF Techniques Alpines
+  { pattern: /^STG-BEAL/i, commission: 'alpinisme' },  // Guide de haute montagne
   { pattern: /^FOR-IIAL/i, commission: 'alpinisme' },  // Instructeur Alpinisme
   { pattern: /^FOR-ITAL/i, commission: 'alpinisme' },  // Certification Instructeur Alpinisme
   { pattern: /^STG-BFAL/i, commission: 'alpinisme' },  // FFME Alpinisme
@@ -527,6 +538,10 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-UFPA/i, commission: 'canyon' },     // UF Progression Autonome Canyon
   { pattern: /^STG-RFCA/i, commission: 'canyon' },     // Recyclage Canyon
   { pattern: /^FOR-CICA/i, commission: 'canyon' },     // Formation Initiateur Canyon
+  { pattern: /^FOR-CTCA/i, commission: 'canyon' },     // Certification Canyon
+  { pattern: /^STG-UFCH/i, commission: 'canyon' },     // UF Canyon hivernal
+  { pattern: /^STG-UGFTA/i, commission: 'canyon' },    // UF Canyon Terrain d'Aventure
+  { pattern: /^STG-UFEV/i, commission: 'canyon' },     // UF Eau vive
 
   // RANDONNÉE (Montagne, Alpine, Trail)
   { pattern: /^STG-FRA/i, commission: 'randonnee' },   // Randonnée Alpine
@@ -547,10 +562,12 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^FOR-ITCO/i, commission: 'randonnee' },  // Certification Instructeur CO
   { pattern: /^STG-BFRD/i, commission: 'randonnee' },  // FFME Randonnée
   { pattern: /^STG-UFQO/i, commission: 'randonnee' },  // UV Qualification Orientation FFME
+  { pattern: /^FOR-PPCO/i, commission: 'randonnee' },  // Perfectionnement Cartographie Orientation
 
   // TRAIL
   { pattern: /^FOR-CITR/i, commission: 'trail' },      // Formation Initiateur Trail
   { pattern: /^FOR-CTTR/i, commission: 'trail' },      // Certification Trail
+  { pattern: /^FOR-ITTR/i, commission: 'trail' },      // Certification Instructeur Trail
 
   // RAQUETTE
   { pattern: /^STG-FRQ/i, commission: 'raquette' },    // Raquettes FFCAM
@@ -559,6 +576,8 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-APTRQ/i, commission: 'raquette' },  // Test aptitude Raquette
   { pattern: /^FOR-CIRQ/i, commission: 'raquette' },   // Formation Initiateur Raquette
   { pattern: /^FOR-CTRQ/i, commission: 'raquette' },   // Certification Raquette
+  { pattern: /^FOR-ITRQ/i, commission: 'raquette' },   // Certification Instructeur Raquette
+  { pattern: /^STG-QFRA/i, commission: 'raquette' },   // Qualification raquette en terrain alpin
   { pattern: /^STG-BFRQ/i, commission: 'raquette' },   // FFME Raquette
 
   // SKI DE RANDONNÉE / SKI ALPINISME
@@ -573,6 +592,7 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-UFSST/i, commission: 'ski-de-randonnee' },  // UF Suivre sa trace
   { pattern: /^STG-RFSM/i, commission: 'ski-de-randonnee' },   // Recyclage Ski Alpinisme
   { pattern: /^STG-QFSN/i, commission: 'ski-de-randonnee' },   // Qualification ski alpinisme
+  { pattern: /^STG-APTSR/i, commission: 'ski-de-randonnee' },  // Test aptitude Ski de randonnée
   { pattern: /^FOR-CISM/i, commission: 'ski-de-randonnee' },   // Formation Ski Alpinisme
   { pattern: /^FOR-CTSM/i, commission: 'ski-de-randonnee' },   // Certification Ski Alpinisme
   { pattern: /^FOR-IISA/i, commission: 'ski-de-randonnee' },   // Instructeur Ski Alpinisme
@@ -585,9 +605,15 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   // SKI DE PISTE / SKI ALPIN
   { pattern: /^STG-FSA/i, commission: 'ski-de-piste' },  // Ski Alpin
   { pattern: /^STG-UFSN80/i, commission: 'ski-de-piste' }, // UF autonomie ski hors piste
+  { pattern: /^STG-FST/i, commission: 'ski-de-piste' },  // Ski Alpin Toutes Neiges
+  { pattern: /^STG-R?FTK/i, commission: 'ski-de-piste' }, // Télémark, recyclage
 
   // SKI DE FOND
   { pattern: /^STG-FSF/i, commission: 'ski-de-fond' },   // Ski de Fond
+
+  // SKI DE RANDONNÉE NORDIQUE
+  { pattern: /^STG-R?FRN/i, commission: 'ski-randonnee-nordique' }, // Initiateur, recyclage
+  { pattern: /^FOR-CTSN/i, commission: 'ski-randonnee-nordique' },  // Certification
 
   // SNOWBOARD
   { pattern: /^STG-FSB/i, commission: 'snowboard-rando' }, // Snowboard de montagne
@@ -600,15 +626,24 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^FOR-CTSB/i, commission: 'snowboard-rando' }, // Certification Snowboard
   { pattern: /^FOR-IISL/i, commission: 'snowboard-rando' }, // Instructeur Snowboard Alpinisme
   { pattern: /^FOR-ITSL/i, commission: 'snowboard-rando' }, // Certification Instructeur Snowboard
+  { pattern: /^FOR-CTSL/i, commission: 'snowboard-rando' }, // Certification Snowboard Alpinisme
 
   // VTT / VÉLO DE MONTAGNE
   { pattern: /^STG-FVM/i, commission: 'vtt' },         // VTT FFCAM
   { pattern: /^STG-RFVM/i, commission: 'vtt' },        // Recyclage VTT
   { pattern: /^FOR-CIVM/i, commission: 'vtt' },        // Formation Initiateur VTT
   { pattern: /^FOR-ITVM/i, commission: 'vtt' },        // Certification Instructeur VTT
+  { pattern: /^FOR-CTVM/i, commission: 'vtt' },        // Certification Initiateur VTT
 
   // VIA FERRATA
   { pattern: /^STG-UFVF/i, commission: 'via-ferrata' }, // UF Via Ferrata
+  { pattern: /^FOR-PIVF/i, commission: 'via-ferrata' }, // Pratiquant initié Via Ferrata
+
+  // SLACKLINE
+  { pattern: /^STG-SLSC/i, commission: 'slackline' },   // Initiateur Slackline
+
+  // SPÉLÉOLOGIE
+  { pattern: /^STG-AFISP/i, commission: 'speleologie' }, // Initiation et perfectionnement
 
   // MARCHE NORDIQUE
   { pattern: /^STG-QFMN/i, commission: 'marche-nordique' }, // Qualification Marche Nordique
@@ -625,10 +660,12 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // ENVIRONNEMENT
   { pattern: /^FOR-CIFC/i, commission: 'environnement' }, // Formation écologique
+  { pattern: /^FOR-CTAM/i, commission: 'environnement' }, // Certification Instructeur Avenir montagne (comme BF*-FC-AM)
 
   // VIE DU CLUB / DIRIGEANTS
   { pattern: /^STG-FORDIR/i, commission: 'vie-du-club' }, // Formation dirigeants
   { pattern: /^STG-FORTR/i, commission: 'vie-du-club' },  // Formation trésorerie
+  { pattern: /^STG-FOREXT/i, commission: 'vie-du-club' }, // Formation dirigeants Extranet
   { pattern: /^STG_FCO/i, commission: 'vie-du-club' },    // Formation communication
 ];
 
@@ -645,6 +682,18 @@ export function getCommissionsForFormation(codeFormation: string): string[] {
   }
 
   return commissions;
+}
+
+/** Codes volontairement rattachés à aucune commission, absents de l'alerte des codes inconnus */
+const SANS_COMMISSION: RegExp[] = [
+  /^BFJ-/i,        // juge-arbitre
+  /^FOR-J(I|P)/i,  // formation de juge-arbitre
+  /^DTSA/i,        // délégué technique compétition ski alpinisme
+  /^STG-GRAT$/i,   // gratuité jeux
+];
+
+export function isSansCommission(code: string): boolean {
+  return SANS_COMMISSION.some(pattern => pattern.test(code.trim()));
 }
 
 /** Tous les slugs de commission référencés par les mappings (pour `npm run check`) */

@@ -6,6 +6,7 @@ import {
   getCommissionsForFormation,
   getCommissionFromIntitule,
   getAllMappedCommissionSlugs,
+  isSansCommission,
   CERTAINTY_THRESHOLD,
 } from './commission-mapping';
 
@@ -136,6 +137,8 @@ describe('commission-mapping', () => {
         ['BRV-BFVM10', 'vtt'], ['BRV-BFVM20', 'vtt'],
         ['BRV-QFMN10', 'marche-nordique'],
         ['BRV-QFVF10', 'via-ferrata'],
+        ['BRV-UFES50', 'escalade'], ['BRV-UFRA50', 'randonnee'], ['BRV-BERD17', 'randonnee'],
+        ['BRV-QFRA10', 'raquette'], ['BRV-BFTK10', 'ski-de-piste'], ['BRV-BFSC20', 'slackline'],
       ])('should map %s to %s only', (code, commission) => {
         expect(getCommissionsForBrevet(code)).toEqual([commission]);
       });
@@ -228,6 +231,10 @@ describe('commission-mapping', () => {
         ['FOR-CTEA10', 'Certification SAE'],
         ['FOR-CTEN10', 'Certification SNE'],
         ['FOR-IIES10', 'Instructeur Escalade'],
+        ['FOR-ITES10', 'Cert Instructeur Escalade'],
+        ['FOR-CTEG10', 'Certification Escalade sur glace'],
+        ['FOR-CIGT10', 'Formation Grandes voies'],
+        ['FOR-CCES10', 'Formation continue Escalade'],
         ['STG-BFEA11', 'FFME SAE'],
         ['STG-BFES11', 'FFME SNE'],
       ])('should map %s (%s) to escalade', (code) => {
@@ -261,6 +268,10 @@ describe('commission-mapping', () => {
         ['FOR-IIAL10', 'Instructeur Alpinisme'],
         ['FOR-ITAL10', 'Cert Instructeur'],
         ['STG-BFAL11', 'FFME Alpinisme'],
+        ['FOR-CTCG10', 'Certification Cascade de glace'],
+        ['FOR-CCAL30', 'Formation continue BF3 Alpinisme'],
+        ['STG-UFTA20', 'UF Techniques Alpines'],
+        ['STG-BEAL27', 'Guide de Haute Montagne'],
       ])('should map %s (%s) to alpinisme', (code) => {
         expect(getCommissionsForFormation(code)).toContain('alpinisme');
       });
@@ -275,6 +286,10 @@ describe('commission-mapping', () => {
         ['STG-RFCA10', 'Recyclage Canyon'],
         ['FOR-CICA10', 'Formation Initiateur'],
         ['FOR-CICA30', 'Formation Moniteur'],
+        ['FOR-CTCA10', 'Certification Canyon'],
+        ['STG-UFCH10', 'UF Canyon hivernal'],
+        ['STG-UGFTA10', "UF Canyon Terrain d'Aventure"],
+        ['STG-UFEV10', 'UF Eau vive'],
       ])('should map %s (%s) to canyon', (code) => {
         expect(getCommissionsForFormation(code)).toContain('canyon');
       });
@@ -303,6 +318,7 @@ describe('commission-mapping', () => {
         ['FOR-ITCO10', 'Cert Instructeur CO'],
         ['STG-BFRD11', 'FFME Randonnée'],
         ['STG-UFQO21', 'UV Qualification Orientation FFME'],
+        ['FOR-PPCO20', 'Perfectionnement Cartographie Orientation'],
       ])('should map %s (%s) to randonnee', (code) => {
         expect(getCommissionsForFormation(code)).toContain('randonnee');
       });
@@ -312,6 +328,7 @@ describe('commission-mapping', () => {
       it.each([
         ['FOR-CITR10', 'Formation Initiateur Trail'],
         ['FOR-CTTR10', 'Certification Trail'],
+        ['FOR-ITTR10', 'Cert Instructeur Trail'],
       ])('should map %s (%s) to trail', (code) => {
         expect(getCommissionsForFormation(code)).toContain('trail');
       });
@@ -327,6 +344,8 @@ describe('commission-mapping', () => {
         ['FOR-CIRQ10', 'Formation Initiateur'],
         ['FOR-CIRQ20', 'Formation Init 2e degré'],
         ['FOR-CTRQ10', 'Certification Raquette'],
+        ['FOR-ITRQ10', 'Cert Instructeur Raquette'],
+        ['STG-QFRA10', 'Qualification raquette terrain alpin'],
         ['STG-BFRQ11', 'FFME Raquette'],
       ])('should map %s (%s) to raquette', (code) => {
         expect(getCommissionsForFormation(code)).toContain('raquette');
@@ -360,6 +379,7 @@ describe('commission-mapping', () => {
         ['FOR-ITNA10', 'Cert Instructeur NA'],
         ['STG-BFSM11', 'FFME Ski Alpinisme'],
         ['STG-QFHM11', 'FFME Haute Montagne'],
+        ['STG-APTSR', 'Test Aptitude Ski Rando'],
       ])('should map %s (%s) to ski-de-randonnee', (code) => {
         expect(getCommissionsForFormation(code)).toContain('ski-de-randonnee');
       });
@@ -369,6 +389,9 @@ describe('commission-mapping', () => {
       it.each([
         ['STG-FSA10', 'Initiateur Ski Alpin'],
         ['STG-UFSN80', 'UF Autonomie Hors Piste'],
+        ['STG-FST10', 'Initiateur Ski Alpin Toutes Neiges'],
+        ['STG-FTK10', 'Initiateur Télémark'],
+        ['STG-RFTK10', 'Recyclage Télémark'],
       ])('should map %s (%s) to ski-de-piste', (code) => {
         expect(getCommissionsForFormation(code)).toContain('ski-de-piste');
       });
@@ -377,6 +400,16 @@ describe('commission-mapping', () => {
     describe('Ski de fond', () => {
       it('should map STG-FSF10 to ski-de-fond', () => {
         expect(getCommissionsForFormation('STG-FSF10')).toContain('ski-de-fond');
+      });
+    });
+
+    describe('Ski de randonnée nordique', () => {
+      it.each([
+        ['STG-FRN10', 'Initiateur Ski Rando Nordique'],
+        ['STG-RFRN10', 'Recyclage Ski Rando Nordique'],
+        ['FOR-CTSN10', 'Certification Ski Rando Nordique'],
+      ])('should map %s (%s) to ski-randonnee-nordique only', (code) => {
+        expect(getCommissionsForFormation(code)).toEqual(['ski-randonnee-nordique']);
       });
     });
 
@@ -393,6 +426,7 @@ describe('commission-mapping', () => {
         ['FOR-CTSB10', 'Certification Snowboard'],
         ['FOR-IISL10', 'Instructeur Snowboard'],
         ['FOR-ITSL10', 'Cert Instructeur Snowboard'],
+        ['FOR-CTSL10', 'Certification Snowboard Alp'],
       ])('should map %s (%s) to snowboard-rando', (code) => {
         expect(getCommissionsForFormation(code)).toContain('snowboard-rando');
       });
@@ -405,6 +439,7 @@ describe('commission-mapping', () => {
         ['STG-RFVM10', 'Recyclage VTT'],
         ['FOR-CIVM10', 'Formation Initiateur VTT'],
         ['FOR-ITVM10', 'Cert Instructeur VTT'],
+        ['FOR-CTVM10', 'Certification Initiateur VTT'],
       ])('should map %s (%s) to vtt', (code) => {
         expect(getCommissionsForFormation(code)).toContain('vtt');
       });
@@ -414,9 +449,18 @@ describe('commission-mapping', () => {
       it.each([
         ['STG-UFVF10', 'Qualification Via Ferrata'],
         ['STG-UFVF60', 'UF Autonomie Via Ferrata'],
+        ['FOR-PIVF10', 'Pratiquant initié Via Ferrata'],
       ])('should map %s (%s) to via-ferrata', (code) => {
         expect(getCommissionsForFormation(code)).toContain('via-ferrata');
       });
+    });
+
+    it('should map STG-SLSC20 (initiateur slackline) to slackline', () => {
+      expect(getCommissionsForFormation('STG-SLSC20')).toEqual(['slackline']);
+    });
+
+    it('should map STG-AFISP0 (initiation spéléologie) to speleologie', () => {
+      expect(getCommissionsForFormation('STG-AFISP0')).toEqual(['speleologie']);
     });
 
     describe('Marche Nordique', () => {
@@ -446,6 +490,7 @@ describe('commission-mapping', () => {
         ['FOR-CIFC20', 'Préservation biodiversité'],
         ['FOR-CIFC30', 'Changement pratiques'],
         ['FOR-CIFC40', 'Communication promotion'],
+        ['FOR-CTAM30', 'Certification Instructeur Avenir montagne'],
       ])('should map %s (%s) to environnement', (code) => {
         expect(getCommissionsForFormation(code)).toContain('environnement');
       });
@@ -455,6 +500,7 @@ describe('commission-mapping', () => {
       it.each([
         ['STG-FORDIR', 'Formation Dirigeants'],
         ['STG-FORTR', 'Formation Trésorerie'],
+        ['STG-FOREXT', 'Formation dirigeants Extranet'],
         ['STG_FCO', 'Formation Communication'],
       ])('should map %s (%s) to vie-du-club', (code) => {
         expect(getCommissionsForFormation(code)).toContain('vie-du-club');
@@ -691,6 +737,17 @@ describe('commission-mapping', () => {
         expect(result.commission).toBeNull();
         expect(result.warning).toContain('transversale');
       });
+    });
+  });
+
+  describe('isSansCommission', () => {
+    it.each(['BFJ-AL-EGD', 'FOR-JIEG10', 'FOR-JPEG10', 'DTSA10', 'STG-GRAT'])('%s est volontairement sans commission', (code) => {
+      expect(isSansCommission(code)).toBe(true);
+      expect([...getCommissionsForBrevet(code), ...getCommissionsForFormation(code)]).toEqual([]);
+    });
+
+    it.each(['UNKNOWN-123', 'STG-GRATX', 'BRV-BFSC20'])("%s n'en fait pas partie", (code) => {
+      expect(isSansCommission(code)).toBe(false);
     });
   });
 

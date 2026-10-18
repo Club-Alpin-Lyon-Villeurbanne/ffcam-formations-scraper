@@ -42,6 +42,22 @@ describe('CommissionLinker', () => {
     log.mockRestore();
   });
 
+  it('signale les codes sans commission, sauf ceux qui en sont volontairement privés', async () => {
+    const { db } = fakeDb({});
+    const linker = new CommissionLinker(db, true);
+    await linker.linkFormation(0, 'STG-YY10');
+    await linker.linkBrevet(0, 'BRV-XX10');
+    await linker.linkFormation(0, 'STG-GRAT');
+    await linker.linkBrevet(0, 'BF1-ES-SAE');
+    expect(linker.getUnknownCodes()).toEqual(['BRV-XX10', 'STG-YY10']);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    linker.printWarningsReport();
+    const report = log.mock.calls.flat().join('\n');
+    expect(report).toContain('BRV-XX10, STG-YY10');
+    expect(report).not.toContain('Aucune alerte de mapping');
+    log.mockRestore();
+  });
+
   it('ignore les erreurs SQL (table inexistante) et ne cache pas comme absente', async () => {
     const execute = vi.fn(async (sql: string) => {
       if (sql.includes('FROM caf_commission')) {
@@ -84,6 +100,7 @@ describe('CommissionLinker', () => {
       expect(await linker.linkBrevet(1, 'BF1-ES-SAE')).toBe(0);
       expect(execute).not.toHaveBeenCalled();
       expect(linker.getMissingCommissions()).toEqual([]);
+      expect(linker.getUnknownCodes()).toEqual([]);
     });
   });
 });
