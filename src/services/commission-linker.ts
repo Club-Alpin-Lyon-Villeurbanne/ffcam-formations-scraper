@@ -10,6 +10,7 @@ import {
   getCommissionsForFormation,
   getCommissionForActivite,
   getCommissionFromIntitule,
+  isSansCommission,
   MappingResult,
   CERTAINTY_THRESHOLD
 } from '../utils/commission-mapping';
@@ -39,6 +40,7 @@ export class CommissionLinker {
   private gcMapping: GcCommissionMapping | null = null;
 
   private warnings: MappingWarning[] = [];
+  private unknownCodes = new Set<string>();
 
   private stats = {
     competences: { total: 0, linked: 0, skipped: 0, lowCertainty: 0 },
@@ -65,14 +67,24 @@ export class CommissionLinker {
     return [...this.commissionCache.entries()].filter(([, id]) => id === null).map(([slug]) => slug).sort();
   }
 
+  /** Codes de brevet ou de formation qu'aucun pattern ne reconnaît */
+  getUnknownCodes(): string[] {
+    return [...this.unknownCodes].sort();
+  }
+
   printWarningsReport(): void {
     const missing = this.getMissingCommissions();
     if (missing.length > 0) {
       console.log(`\n⚠️  ${missing.length} COMMISSION(S) ABSENTE(S) de caf_commission : ${missing.join(', ')}`);
       console.log(`   👉 Créez-les dans la plateforme avec ce code_commission, ou déclarez vos codes dans config/clubs/<club>/${ALIASES_FILE} (les liaisons correspondantes ont été ignorées).`);
     }
+    const unknown = this.getUnknownCodes();
+    if (unknown.length > 0) {
+      console.log(`\n⚠️  ${unknown.length} CODE(S) DE BREVET OU FORMATION SANS COMMISSION : ${unknown.join(', ')}`);
+      console.log("   👉 Ajoutez un pattern dans src/utils/commission-mapping.ts, ou le code dans SANS_COMMISSION s'il ne relève d'aucune commission : l'import suivant créera les liaisons.");
+    }
     if (this.warnings.length === 0) {
-      console.log('\n✅ Aucune alerte de mapping');
+      if (missing.length === 0 && unknown.length === 0) console.log('\n✅ Aucune alerte de mapping');
       return;
     }
 
@@ -131,7 +143,9 @@ export class CommissionLinker {
 
   /** @returns nombre de liaisons créées (un brevet peut relever de plusieurs commissions) */
   async linkBrevet(brevetId: number, codeBrevet: string): Promise<number> {
-    const commissions = toClubCodes(getCommissionsForBrevet(codeBrevet), this.aliases);
+    const mapped = getCommissionsForBrevet(codeBrevet);
+    if (mapped.length === 0 && !isSansCommission(codeBrevet)) this.unknownCodes.add(codeBrevet);
+    const commissions = toClubCodes(mapped, this.aliases);
     if (commissions.length === 0) return 0;
 
     if (this.dryRun) return commissions.length;
@@ -301,7 +315,9 @@ export class CommissionLinker {
 
   /** @returns nombre de liaisons créées */
   async linkFormation(formationId: number, codeFormation: string): Promise<number> {
-    const commissions = toClubCodes(getCommissionsForFormation(codeFormation), this.aliases);
+    const mapped = getCommissionsForFormation(codeFormation);
+    if (mapped.length === 0 && !isSansCommission(codeFormation)) this.unknownCodes.add(codeFormation);
+    const commissions = toClubCodes(mapped, this.aliases);
     if (commissions.length === 0) return 0;
 
     if (this.dryRun) return commissions.length;
