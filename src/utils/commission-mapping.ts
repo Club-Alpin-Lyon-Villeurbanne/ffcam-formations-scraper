@@ -38,14 +38,21 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BF(\d|M)?-RA-/i, commission: 'randonnee' },
 
   // SN-SR ski de randonnée, SRN ski randonnée nordique, SA ski alpinisme (2e degré du ski de randonnée),
-  // RQ/RN raquette, SW/SWL/SWA snowboard de randonnée et alpinisme, NA neige avalanche.
+  // RQ/RN raquette, NA neige avalanche. SW/SWL/SWA : sections snowboard ci-dessous.
   // Codes exacts : un nouveau code SN doit apparaître dans diagnostic-brevets plutôt qu'être rattaché au hasard
   { pattern: /^BF(\d|M)?-SN-(SR|SA|NA)$/i, commission: 'ski-de-randonnee' },
   { pattern: /^BF(\d|M)?-SN-SRN$/i, commission: 'ski-randonnee-nordique' },
   { pattern: /^BF(\d|M)?-SN-(RQ|RN)$/i, commission: 'raquette' },
-  { pattern: /^BF(\d|M)?-SN-SW(A|L)?$/i, commission: 'snowboard-rando' },
   { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
+
+  // SNOWBOARD RANDO
+  { pattern: /^BF(\d|M)?-SN-SW(A|L)?$/i, commission: 'snowboard-rando' },
+  { pattern: /^BRV-B?FS(B|L|U)/i, commission: 'snowboard-rando' },     // snowboard de montagne, snowboard alpinisme, snowboard (comme STG-FSU)
+
+  // SNOWBOARD ALPIN : la commission « Snowboard » de Lyon (ADR 0002)
+  { pattern: /^BF(\d|M)?-SN-SWA$/i, commission: 'snowboard-alpin' },
+  { pattern: /^BRV-BFST/i, commission: 'snowboard-alpin' },
 
   { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
@@ -71,7 +78,6 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BRV-(BFSM|QFSN)/i, commission: 'ski-de-randonnee' },    // ski alpinisme, ski de randonnée
   { pattern: /^BRV-BFSF/i, commission: 'ski-de-fond' },
   { pattern: /^BRV-BF(ST|SA|TK)/i, commission: 'ski-de-piste' },        // ski alpin toutes neiges, ski alpin (comme STG-FSA), télémark
-  { pattern: /^BRV-B?FS(B|L|U)/i, commission: 'snowboard-rando' },     // snowboard de montagne, snowboard alpinisme, snowboard (comme STG-FSU)
   { pattern: /^BRV-BFTR/i, commission: 'trail' },
   { pattern: /^BRV-BFVM/i, commission: 'vtt' },
   { pattern: /^BRV-BFSC/i, commission: 'slackline' },
@@ -80,10 +86,6 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // RA-TR et BFTR relèvent aussi de randonnee (patterns ci-dessus)
   { pattern: /^BF(\d|M)?-RA-TR/i, commission: 'trail' },
-
-  // Commission « Snowboard » de Lyon, en plus des rangements ci-dessus (ADR 0002)
-  { pattern: /^BF(\d|M)?-SN-(NA|SWA)$/i, commission: 'snowboard-alpin' },
-  { pattern: /^BRV-BF(ST|SU)/i, commission: 'snowboard-alpin' },
 ];
 
 const ACTIVITE_MAP: Record<string, string> = {
@@ -121,7 +123,7 @@ const INTITULE_DISCIPLINE_PATTERNS: Array<{
   certainty: number;
   description: string;
 }> = [
-  // SNOWBOARD - Patterns spécifiques (priorité haute)
+  // SNOWBOARD RANDO - Patterns spécifiques (priorité haute)
   {
     pattern: /snowboard\s+de\s+randonn[ée]e/i,
     commission: 'snowboard-rando',
@@ -589,7 +591,6 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-UFNA/i, commission: 'ski-de-randonnee' }, // UF Neige et avalanches
   { pattern: /^STG-UFNS/i, commission: 'ski-de-randonnee' }, // UV Neige et sécurité
   { pattern: /^STG-UFSG/i, commission: 'ski-de-randonnee' }, // UF Sécurité Glacier en ski
-  { pattern: /^STG-UFSG20$/i, commission: 'snowboard-alpin' }, // UF Sécurité Glacier 2, aussi pour la commission « Snowboard » (ADR 0002)
   { pattern: /^STG-UFSN60/i, commission: 'ski-de-randonnee' }, // UF autonomie ski randonnée
   { pattern: /^STG-UFSN70/i, commission: 'ski-de-randonnee' }, // UF autonomie ski glacier
   { pattern: /^STG-SNFST/i, commission: 'ski-de-randonnee' },  // Faire sa trace en hiver
@@ -620,7 +621,7 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-R?FRN/i, commission: 'ski-randonnee-nordique' }, // Initiateur, recyclage
   { pattern: /^FOR-CTSN/i, commission: 'ski-randonnee-nordique' },  // Certification
 
-  // SNOWBOARD
+  // SNOWBOARD RANDO
   { pattern: /^STG-FSB/i, commission: 'snowboard-rando' }, // Snowboard de montagne
   { pattern: /^STG-FSL/i, commission: 'snowboard-rando' }, // Snowboard-alpinisme qualification
   { pattern: /^STG-FSU/i, commission: 'snowboard-rando' }, // Snowboard FFCAM

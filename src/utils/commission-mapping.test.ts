@@ -68,8 +68,8 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet('BF1-SN-SRN')).toEqual(['ski-randonnee-nordique']);
       });
 
-      it('should map BF3-SN-NA (neige avalanche) to ski-de-randonnee and snowboard-alpin', () => {
-        expect(getCommissionsForBrevet('BF3-SN-NA')).toEqual(['ski-de-randonnee', 'snowboard-alpin']);
+      it('should map BF3-SN-NA (neige avalanche) to ski-de-randonnee', () => {
+        expect(getCommissionsForBrevet('BF3-SN-NA')).toEqual(['ski-de-randonnee']);
       });
 
       it('should map BF1-SN-RQ to raquette', () => {
@@ -108,8 +108,8 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet('BRV-UFNA')).toContain('ski-de-randonnee');
       });
 
-      it('should map BRV-BFST10 (ski alpin toutes neiges) to ski-de-piste and snowboard-alpin', () => {
-        expect(getCommissionsForBrevet('BRV-BFST10')).toEqual(['ski-de-piste', 'snowboard-alpin']);
+      it('should map BRV-BFST10 (ski alpin toutes neiges) to snowboard-alpin and ski-de-piste', () => {
+        expect(getCommissionsForBrevet('BRV-BFST10')).toEqual(['snowboard-alpin', 'ski-de-piste']);
       });
 
       it('should map BRV-BFSA10 (initiateur ski alpin) to ski-de-piste only, like STG-FSA', () => {
@@ -132,7 +132,7 @@ describe('commission-mapping', () => {
         ['BRV-BFSM10', 'ski-de-randonnee'], ['BRV-BFSM20', 'ski-de-randonnee'], ['BRV-BFSM40', 'ski-de-randonnee'],
         ['BRV-QFSN10', 'ski-de-randonnee'],
         ['BRV-BFSF10', 'ski-de-fond'],
-        ['BRV-BFSB10', 'snowboard-rando'], ['BRV-BFSL10', 'snowboard-rando'],
+        ['BRV-BFSU10', 'snowboard-rando'], ['BRV-BFSB10', 'snowboard-rando'], ['BRV-BFSL10', 'snowboard-rando'],
         ['BRV-FSL10', 'snowboard-rando'],
         ['BRV-BFVM10', 'vtt'], ['BRV-BFVM20', 'vtt'],
         ['BRV-QFMN10', 'marche-nordique'],
@@ -141,10 +141,6 @@ describe('commission-mapping', () => {
         ['BRV-QFRA10', 'raquette'], ['BRV-BFTK10', 'ski-de-piste'], ['BRV-BFSC20', 'slackline'],
       ])('should map %s to %s only', (code, commission) => {
         expect(getCommissionsForBrevet(code)).toEqual([commission]);
-      });
-
-      it('should map BRV-BFSU10 (initiateur snowboard) to snowboard-rando and snowboard-alpin', () => {
-        expect(getCommissionsForBrevet('BRV-BFSU10')).toEqual(['snowboard-rando', 'snowboard-alpin']);
       });
 
       it('should leave BRV-BEES99 without commission', () => {
@@ -386,11 +382,6 @@ describe('commission-mapping', () => {
         ['STG-APTSR', 'Test Aptitude Ski Rando'],
       ])('should map %s (%s) to ski-de-randonnee', (code) => {
         expect(getCommissionsForFormation(code)).toContain('ski-de-randonnee');
-      });
-
-      it('should map STG-UFSG20 to snowboard-alpin as well, but not STG-UFSG10', () => {
-        expect(getCommissionsForFormation('STG-UFSG20')).toEqual(['ski-de-randonnee', 'snowboard-alpin']);
-        expect(getCommissionsForFormation('STG-UFSG10')).toEqual(['ski-de-randonnee']);
       });
     });
 
