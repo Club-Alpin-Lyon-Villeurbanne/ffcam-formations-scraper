@@ -73,7 +73,7 @@ C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code F
 | `vie-du-club` | Formation des dirigeants : trésorerie, communication, extranet |
 | `vtt` | Vélo de montagne |
 
-Certains éléments vont dans deux commissions : un brevet de trail alimente `randonnee` et `trail`, un brevet de via ferrata alimente `escalade` et `via-ferrata`.
+Certains éléments vont dans plusieurs commissions : un brevet de trail alimente `randonnee` et `trail`, un brevet de via ferrata alimente `escalade` et `via-ferrata`, et neige et avalanches alimente toutes les commissions de neige sauf `ski-de-fond`.
 
 ### Les quatre réponses possibles
 
