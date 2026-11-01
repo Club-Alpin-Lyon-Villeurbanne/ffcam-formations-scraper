@@ -46,13 +46,12 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
   { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
 
-  // SNOWBOARD RANDO
+  // SNOWBOARD RANDO : SW snowboard de randonnée, SWA/SWL sa qualification alpinisme
   { pattern: /^BF(\d|M)?-SN-SW(A|L)?$/i, commission: 'snowboard-rando' },
   { pattern: /^BRV-B?FS(B|L|U)/i, commission: 'snowboard-rando' },     // snowboard de montagne, snowboard alpinisme, snowboard (comme STG-FSU)
 
-  // SNOWBOARD ALPIN : la commission « Snowboard » de Lyon (ADR 0002)
-  { pattern: /^BF(\d|M)?-SN-SWA$/i, commission: 'snowboard-alpin' },
-  { pattern: /^BRV-BFST/i, commission: 'snowboard-alpin' },
+  // SNOWBOARD ALPIN : snowboard sur piste, la commission « Snowboard » de Lyon (ADR 0002)
+  { pattern: /^BRV-BFSU/i, commission: 'snowboard-alpin' },            // initiateur snowboard FFCAM, comme STG-FSU
 
   { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
@@ -633,6 +632,9 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^FOR-IISL/i, commission: 'snowboard-rando' }, // Instructeur Snowboard Alpinisme
   { pattern: /^FOR-ITSL/i, commission: 'snowboard-rando' }, // Certification Instructeur Snowboard
   { pattern: /^FOR-CTSL/i, commission: 'snowboard-rando' }, // Certification Snowboard Alpinisme
+
+  // SNOWBOARD ALPIN : snowboard sur piste
+  { pattern: /^STG-FSU/i, commission: 'snowboard-alpin' }, // Snowboard FFCAM, mène à BRV-BFSU
 
   // VTT / VÉLO DE MONTAGNE
   { pattern: /^STG-FVM/i, commission: 'vtt' },         // VTT FFCAM
