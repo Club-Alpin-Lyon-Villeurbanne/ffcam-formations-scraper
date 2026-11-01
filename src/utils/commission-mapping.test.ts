@@ -11,6 +11,33 @@ import {
 } from './commission-mapping';
 
 describe('commission-mapping', () => {
+  describe('Neige et avalanches, dans toutes les commissions de neige', () => {
+    const COMMISSIONS_NEIGE = ['raquette', 'ski-de-piste', 'ski-de-randonnee', 'ski-randonnee-nordique', 'snowboard-alpin', 'snowboard-rando'];
+
+    it.each([
+      ['BF3-SN-NA', 'INSTRUCTEUR Neige avalanche'],
+      ['BRV-UFNA30', 'INSTRUCTEUR Neige et avalanche FFCAM'],
+      ['BRV-NIVO10', 'ancien code, absent de Lyon'],
+    ])('should map brevet %s (%s) to every snow commission', (code) => {
+      expect([...getCommissionsForBrevet(code)].sort()).toEqual(COMMISSIONS_NEIGE);
+    });
+
+    it.each([
+      ['STG-UFNA10', 'UF Initiation Neige et avalanches (NA1)'],
+      ['STG-UFNA20', 'UF Perfectionnement Neige et avalanches (NA2)'],
+      ['STG-UFNA30', 'INSTRUCTEUR Neige et avalanche FFCAM'],
+      ['STG-UFNS21', 'UV Niveau II Neige et sécurité - FFME'],
+      ['FOR-IINA10', 'Formation INSTRUCTEUR Neige et Avalanche'],
+      ['FOR-ITNA10', 'Certification INSTRUCTEUR Neige et Avalanche'],
+    ])('should map formation %s (%s) to every snow commission', (code) => {
+      expect([...getCommissionsForFormation(code)].sort()).toEqual(COMMISSIONS_NEIGE);
+    });
+
+    it('should keep ski de fond out (no avalanche terrain)', () => {
+      expect(getCommissionsForFormation('STG-UFNA20')).not.toContain('ski-de-fond');
+    });
+  });
+
   describe('getCommissionsForBrevet', () => {
     describe('Escalade', () => {
       it.each([
@@ -68,9 +95,6 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet('BF1-SN-SRN')).toEqual(['ski-randonnee-nordique']);
       });
 
-      it('should map BF3-SN-NA (neige avalanche) to ski-de-randonnee', () => {
-        expect(getCommissionsForBrevet('BF3-SN-NA')).toEqual(['ski-de-randonnee']);
-      });
 
       it('should map BF1-SN-RQ to raquette', () => {
         expect(getCommissionsForBrevet('BF1-SN-RQ')).toContain('raquette');
