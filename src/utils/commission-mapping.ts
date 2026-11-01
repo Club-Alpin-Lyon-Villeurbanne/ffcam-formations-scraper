@@ -80,6 +80,10 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // RA-TR et BFTR relèvent aussi de randonnee (patterns ci-dessus)
   { pattern: /^BF(\d|M)?-RA-TR/i, commission: 'trail' },
+
+  // Commission « Snowboard » de Lyon, en plus des rangements ci-dessus (ADR 0002)
+  { pattern: /^BF(\d|M)?-SN-(NA|SWA)$/i, commission: 'snowboard-alpin' },
+  { pattern: /^BRV-BF(ST|SU)/i, commission: 'snowboard-alpin' },
 ];
 
 const ACTIVITE_MAP: Record<string, string> = {
@@ -585,6 +589,7 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-UFNA/i, commission: 'ski-de-randonnee' }, // UF Neige et avalanches
   { pattern: /^STG-UFNS/i, commission: 'ski-de-randonnee' }, // UV Neige et sécurité
   { pattern: /^STG-UFSG/i, commission: 'ski-de-randonnee' }, // UF Sécurité Glacier en ski
+  { pattern: /^STG-UFSG20$/i, commission: 'snowboard-alpin' }, // UF Sécurité Glacier 2, aussi pour la commission « Snowboard » (ADR 0002)
   { pattern: /^STG-UFSN60/i, commission: 'ski-de-randonnee' }, // UF autonomie ski randonnée
   { pattern: /^STG-UFSN70/i, commission: 'ski-de-randonnee' }, // UF autonomie ski glacier
   { pattern: /^STG-SNFST/i, commission: 'ski-de-randonnee' },  // Faire sa trace en hiver

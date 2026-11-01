@@ -106,7 +106,7 @@ C'est la modification la plus fréquente. Elle arrive quand le rapport d'import 
 
 **1. Trouver l'intitulé du code.** Il est dans la table `formation_referentiel_brevet` ou `formation_referentiel_formation` de la base, ou sur l'extranet. On range d'après l'intitulé FFCAM, jamais d'après l'abréviation du code : `SN-SA` est le « Ski alpinisme », donc du ski de randonnée, pas du ski alpin.
 
-**2. Choisir la commission.** Parmi les 19 codes de Lyon (voir [Ajouter un club](ajouter-un-club.md#les-19-codes-à-placer)). Un brevet va dans la même commission que la formation qui y mène. Si le code relève de deux activités, il reçoit deux règles.
+**2. Choisir la commission.** Parmi les 20 codes de Lyon (voir [Ajouter un club](ajouter-un-club.md#les-20-codes-à-placer)). Un brevet va dans la même commission que la formation qui y mène. Si le code relève de deux activités, il reçoit deux règles.
 
 **3. Écrire la règle** dans `src/utils/commission-mapping.ts`, liste `BREVET_PATTERNS` ou `FORMATION_PATTERNS`, dans le groupe de l'activité :
 

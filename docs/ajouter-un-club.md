@@ -46,9 +46,9 @@ Quelques précautions :
 
 ## 2. Écrire la correspondance des commissions
 
-C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code FFCAM dans une des 19 commissions de Lyon, avec les codes de Lyon. La correspondance dit, pour chacun de ces 19 codes, où il va dans **votre** club.
+C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code FFCAM dans une des 20 commissions de Lyon, avec les codes de Lyon. La correspondance dit, pour chacun de ces 20 codes, où il va dans **votre** club.
 
-### Les 19 codes à placer
+### Les 20 codes à placer
 
 | Code de Lyon | Ce qu'il reçoit |
 |---|---|
@@ -65,6 +65,7 @@ C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code F
 | `ski-de-randonnee` | Ski de randonnée et ski alpinisme, neige et avalanches |
 | `ski-randonnee-nordique` | Ski de randonnée nordique |
 | `slackline` | Slackline |
+| `snowboard-alpin` | Snowboard (commission « Snowboard » de Lyon) : initiateur snowboard, snowboard alpinisme, ski alpin toutes neiges, neige et avalanches, UF sécurité glacier 2 |
 | `snowboard-rando` | Snowboard de randonnée et snowboard alpinisme |
 | `speleologie` | Spéléologie |
 | `trail` | Trail |
