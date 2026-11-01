@@ -52,6 +52,7 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // SNOWBOARD ALPIN : snowboard sur piste, la commission « Snowboard » de Lyon (ADR 0002)
   { pattern: /^BRV-BFSU/i, commission: 'snowboard-alpin' },            // initiateur snowboard FFCAM, comme STG-FSU
+  { pattern: /^BRV-BFST/i, commission: 'snowboard-alpin' },            // initiateur toutes neiges tous terrains, comme STG-FST (aussi en ski-de-piste)
 
   { pattern: /^BF(\d|M)?-VM-/i, commission: 'vtt' },
 
@@ -635,6 +636,7 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // SNOWBOARD ALPIN : snowboard sur piste
   { pattern: /^STG-FSU/i, commission: 'snowboard-alpin' }, // Snowboard FFCAM, mène à BRV-BFSU
+  { pattern: /^STG-FST/i, commission: 'snowboard-alpin' }, // Toutes neiges, mène à BRV-BFST (aussi en ski-de-piste)
 
   // VTT / VÉLO DE MONTAGNE
   { pattern: /^STG-FVM/i, commission: 'vtt' },         // VTT FFCAM

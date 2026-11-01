@@ -65,7 +65,7 @@ C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code F
 | `ski-de-randonnee` | Ski de randonnée et ski alpinisme, neige et avalanches |
 | `ski-randonnee-nordique` | Ski de randonnée nordique |
 | `slackline` | Slackline |
-| `snowboard-alpin` | Snowboard sur piste (commission « Snowboard » de Lyon) : initiateur snowboard FFCAM et son stage |
+| `snowboard-alpin` | Snowboard sur piste (commission « Snowboard » de Lyon) : initiateur snowboard FFCAM, initiateur toutes neiges, et leurs stages |
 | `snowboard-rando` | Snowboard de randonnée et sa qualification alpinisme |
 | `speleologie` | Spéléologie |
 | `trail` | Trail |

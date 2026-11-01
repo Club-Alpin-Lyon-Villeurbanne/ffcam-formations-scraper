@@ -108,8 +108,8 @@ describe('commission-mapping', () => {
         expect(getCommissionsForBrevet('BRV-UFNA')).toContain('ski-de-randonnee');
       });
 
-      it('should map BRV-BFST10 (ski alpin toutes neiges) to ski-de-piste only', () => {
-        expect(getCommissionsForBrevet('BRV-BFST10')).toEqual(['ski-de-piste']);
+      it('should map BRV-BFST10 (ski alpin toutes neiges) to snowboard-alpin and ski-de-piste', () => {
+        expect(getCommissionsForBrevet('BRV-BFST10')).toEqual(['snowboard-alpin', 'ski-de-piste']);
       });
 
       it('should map BRV-BFSA10 (initiateur ski alpin) to ski-de-piste only, like STG-FSA', () => {
@@ -398,6 +398,14 @@ describe('commission-mapping', () => {
         ['STG-RFTK10', 'Recyclage Télémark'],
       ])('should map %s (%s) to ski-de-piste', (code) => {
         expect(getCommissionsForFormation(code)).toContain('ski-de-piste');
+      });
+
+      it('should map STG-FST10 (toutes neiges) to snowboard-alpin as well, like BRV-BFST', () => {
+        expect(getCommissionsForFormation('STG-FST10')).toEqual(['ski-de-piste', 'snowboard-alpin']);
+      });
+
+      it.each(['STG-FSA10', 'STG-UFSN80', 'STG-FTK10'])('should map %s to ski-de-piste only', (code) => {
+        expect(getCommissionsForFormation(code)).toEqual(['ski-de-piste']);
       });
     });
 
