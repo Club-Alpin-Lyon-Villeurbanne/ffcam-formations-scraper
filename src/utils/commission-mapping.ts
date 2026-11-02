@@ -612,7 +612,7 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^STG-BFSM/i, commission: 'ski-de-randonnee' },   // FFME Ski Alpinisme
   { pattern: /^STG-QFHM/i, commission: 'ski-de-randonnee' },   // FFME Haute Montagne Randonnée
 
-  // NEIGE ET AVALANCHES : UF NA1 à NA3, UV neige et sécurité (FFME), formation et certification d'instructeur
+  // NEIGE ET AVALANCHES : UF NA1 et NA2, stage d'instructeur (UFNA30), UV neige et sécurité (FFME), formation et certification d'instructeur
   ...neigeEtAvalanches([/^STG-UFNA/i, /^STG-UFNS/i, /^FOR-IINA/i, /^FOR-ITNA/i]),
 
   // SKI DE PISTE / SKI ALPIN
