@@ -4,7 +4,7 @@ Cette page sert à modifier le programme : l'installer, le lancer, comprendre l'
 
 ## Installer
 
-Il faut **Node.js 24** (la version est dans `.nvmrc`) et **pnpm 10**.
+Il faut **Node.js 26** (la version est dans `.nvmrc`) et **pnpm 12** (la version est dans `package.json`).
 
 ```bash
 git clone https://github.com/Club-Alpin-Lyon-Villeurbanne/ffcam-formations-scraper.git

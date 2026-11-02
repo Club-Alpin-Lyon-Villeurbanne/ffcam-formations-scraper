@@ -21,9 +21,6 @@ node_modules/
 *.log
 .DS_Store
 
-# Package managers
-pnpm-workspace.yaml
-
 # IDE
 .vscode/
 .idea/
