@@ -45,6 +45,7 @@ ski-randonnee-nordique,INI,2.3 Progression en neige dure en raquettes et ski de 
 ski-randonnee-nordique,INI,3.1 Mon matériel mon équipement en ski de randonnée nordique 1
 ski-randonnee-nordique,INI,3.2 Les bons comportements en sports de neige
 ski-randonnee-nordique,INI,3.2 Les bons comportements en sortie encadrée en sports de neige
+ski-randonnee-nordique,INI,3.2 Les bons comportements en sortie encadrée en sports de neige 1 (RSS1)
 ski-randonnee-nordique,INI,3.3 Environnement de pratique - milieu montagne 1 (CO1)
 ski-randonnee-nordique,INI,3.4 Environnement de pratique - milieu montagne enneigée 1 (NA1)
 ski-randonnee-nordique,PER,1.1 Mon niveau de pratique en ski de randonnée nordique 2
@@ -54,6 +55,7 @@ ski-randonnee-nordique,PER,2.2 Progression ski de randonnée nordique en descent
 ski-randonnee-nordique,PER,2.3 Techniques de sécurité en raquettes et ski de randonnée nordique
 ski-randonnee-nordique,PER,3.1 Mon matériel en ski de randonnée nordique 2
 ski-randonnee-nordique,PER,3.2 Réussir sa sortie en sports de neige - pratique autonome
+ski-randonnee-nordique,PER,3.2 Réussir sa sortie en groupe autonome en sports de neige (RSS2)
 ski-randonnee-nordique,PER,3.3 Environnement de pratique - milieu montagne 2 (CO2*)
 raquette,INI,1.1 Mon niveau de pratique en raquettes à neige 1
 raquette,INI,1.2 Mon expérience en raquettes à neige 1
@@ -62,6 +64,7 @@ raquette,INI,2.2 Progression en neige dure en raquettes et ski de randonnée nor
 raquette,INI,3.1 Mon matériel - mon équipement en raquettes à neige 1
 raquette,INI,3.2 Les bons comportements en sports de neige
 raquette,INI,3.2 Les bons comportements en sortie encadrée en sports de neige
+raquette,INI,3.2 Les bons comportements en sortie encadrée en sports de neige 1 (RSS1)
 raquette,INI,3.3 Environnement de pratique - milieu montagne 1 (CO1)
 raquette,INI,3.4 Environnement de pratique - milieu montagne enneigée 1 (NA1)
 raquette,SPE,1.1 Mon niveau de pratique en raquettes à neige
@@ -70,6 +73,7 @@ raquette,SPE,2.1 Progression en raquettes à neige
 raquette,SPE,2.2 Techniques de sécurité en raquettes et ski de randonnée nordique
 raquette,SPE,3.1 Le matériel pour une pratique autonome en raquettes à neige
 raquette,PER,3.2 Réussir sa sortie en sports de neige - pratique autonome
+raquette,PER,3.2 Réussir sa sortie en groupe autonome en sports de neige (RSS2)
 raquette,PER,3.3 Environnement de pratique - milieu montagne 2 (CO2*)
 raquette,PER,3.4 Environnement de pratique - milieu montagne enneigée 2 (NA2)
 ski-de-randonnee,INI,1.1 Mon niveau de pratique en ski alpinisme 1
@@ -78,10 +82,13 @@ ski-de-randonnee,INI,2.1 Techniques de cordes en milieu montagne 1
 ski-de-randonnee,INI,2.2 Progression sur glacier 1
 ski-de-randonnee,INI,2.3 Progression en ski alpinisme 1 : pente modérées à fortes et/ou sur glacier
 ski-de-randonnee,INI,2.3 Progression en ski alpinisme 1 : pentes modérées à fortes et/ou sur glacier
+ski-de-randonnee,INI,"2.3 Progression à ski, sur pentes de neige montée / descente"
 ski-de-randonnee,INI,2.4 Progression à pied et sur arête de rocher enneigée 1
+ski-de-randonnee,INI,"2.4 Progression à pied, sur pente de neige et arête de rocher enneigée 1"
 ski-de-randonnee,INI,3.1 Mon matériel mon équipement en ski alpinisme 1
 ski-de-randonnee,INI,3.2 Les bons comportements en sports de neige
 ski-de-randonnee,INI,3.2 Les bons comportements en sortie encadrée en sports de neige
+ski-de-randonnee,INI,3.2 Les bons comportements en sortie encadrée en sports de neige 1 (RSS1)
 ski-de-randonnee,INI,3.3 Environnement de pratique - milieu montagne 1 (CO1)
 ski-de-randonnee,INI,3.4 Environnement de pratique - milieu montagne enneigée 1 (NA1)
 ski-de-randonnee,SPE,1.1 Mon niveau de pratique en ski alpinisme 2
@@ -89,9 +96,12 @@ ski-de-randonnee,SPE,1.2 Mon expérience en ski alpinisme 2
 ski-de-randonnee,SPE,2.1 Techniques de cordes en milieu montagne 2
 ski-de-randonnee,PER,2.2 Progression sur glacier 2
 ski-de-randonnee,SPE,2.3 Progression en ski alpinisme 2 : pentes modérées à fortes et/ou sur glacier
+ski-de-randonnee,SPE,"2.3 Progression à ski, pentes modérées à fortes, montée / descente"
 ski-de-randonnee,SPE,2.4 Progression à pieds et sur arête de rocher enneigée 2
+ski-de-randonnee,SPE,2.4 Progression à pied et sur arête de rocher enneigée 2
 ski-de-randonnee,SPE,3.1 Le matériel en ski alpinisme 2 : pratique autonome
 ski-de-randonnee,PER,3.2 Réussir sa sortie en sports de neige - pratique autonome
+ski-de-randonnee,PER,3.2 Réussir sa sortie en groupe autonome en sports de neige (RSS2)
 ski-de-randonnee,PER,3.3 Environnement de pratique - milieu montagne 2 (CO2*)
 ski-de-randonnee,PER,3.4 Environnement de pratique - milieu montagne enneigée 2 (NA2)
 ski-de-randonnee,INI,1.1 Mon niveau de pratique en ski de randonnée 1
@@ -120,6 +130,7 @@ snowboard-rando,INI,2.3 Progression en neige dure à pieds 1
 snowboard-rando,INI,3.1 Mon matériel 1 - mon équipement en snowboard de randonnée
 snowboard-rando,INI,3.2 Les bons comportements en sports de neige
 snowboard-rando,INI,3.2 Les bons comportements en sortie encadrée en sports de neige
+snowboard-rando,INI,3.2 Les bons comportements en sortie encadrée en sports de neige 1 (RSS1)
 snowboard-rando,INI,3.3 Environnement de pratique - milieu montagne 1 (CO1)
 snowboard-rando,INI,3.4 Environnement de pratique - milieu montagne enneigée 1 (NA1)
 snowboard-rando,PER,1.1 Mon niveau de pratique en snowboard de randonnée 2
@@ -129,6 +140,7 @@ snowboard-rando,PER,2.2 Progression snowboard de randonnée en descente 2
 snowboard-rando,PER,2.3 Progression en neige dure à pieds 2
 snowboard-rando,PER,3.1 Mon matériel en snowboard de randonnée 2 - pratique autonome
 snowboard-rando,PER,3.2 Réussir sa sortie en sports de neige - pratique autonome
+snowboard-rando,PER,3.2 Réussir sa sortie en groupe autonome en sports de neige (RSS2)
 snowboard-rando,PER,3.3 Environnement de pratique - milieu montagne 2 (CO2*)
 snowboard-rando,PER,3.4 Environnement de pratique - milieu montagne enneigée 2 (NA2)
 randonnee,SPE,1.1 Mon niveau de pratique en randonnée alpine
