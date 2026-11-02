@@ -17,6 +17,13 @@ export interface MappingResult {
 /** Certitude minimale par défaut pour retenir un mapping (surchargeable par appel) */
 export const CERTAINTY_THRESHOLD = 70;
 
+/** Neige et avalanches concerne toutes les activités de neige, sauf le ski de fond (ADR 0002) */
+const COMMISSIONS_NEIGE = ['ski-de-randonnee', 'snowboard-rando', 'raquette', 'ski-randonnee-nordique', 'ski-de-piste', 'snowboard-alpin'];
+
+function neigeEtAvalanches(patterns: RegExp[]): Array<{ pattern: RegExp; commission: string }> {
+  return patterns.flatMap(pattern => COMMISSIONS_NEIGE.map(commission => ({ pattern, commission })));
+}
+
 /**
  * Codes brevets → commission. Toutes les correspondances sont retenues (ex. BF1-RA-TR → randonnee et trail).
  *
@@ -38,13 +45,14 @@ const BREVET_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^BF(\d|M)?-RA-/i, commission: 'randonnee' },
 
   // SN-SR ski de randonnée, SRN ski randonnée nordique, SA ski alpinisme (2e degré du ski de randonnée),
-  // RQ/RN raquette, NA neige avalanche. SW/SWL/SWA : sections snowboard ci-dessous.
+  // RQ/RN raquette. NA et SW/SWL/SWA : sections neige et avalanches et snowboard ci-dessous.
   // Codes exacts : un nouveau code SN doit apparaître dans diagnostic-brevets plutôt qu'être rattaché au hasard
-  { pattern: /^BF(\d|M)?-SN-(SR|SA|NA)$/i, commission: 'ski-de-randonnee' },
+  { pattern: /^BF(\d|M)?-SN-(SR|SA)$/i, commission: 'ski-de-randonnee' },
   { pattern: /^BF(\d|M)?-SN-SRN$/i, commission: 'ski-randonnee-nordique' },
   { pattern: /^BF(\d|M)?-SN-(RQ|RN)$/i, commission: 'raquette' },
-  { pattern: /^BRV-NIVO/i, commission: 'ski-de-randonnee' },
-  { pattern: /^BRV-UFNA/i, commission: 'ski-de-randonnee' },
+
+  // NEIGE ET AVALANCHES : instructeur (SN-NA, BRV-UFNA), ancien code BRV-NIVO
+  ...neigeEtAvalanches([/^BF(\d|M)?-SN-NA$/i, /^BRV-NIVO/i, /^BRV-UFNA/i]),
 
   // SNOWBOARD RANDO : SW snowboard de randonnée, SWA/SWL sa qualification alpinisme
   { pattern: /^BF(\d|M)?-SN-SW(A|L)?$/i, commission: 'snowboard-rando' },
@@ -588,8 +596,6 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
 
   // SKI DE RANDONNÉE / SKI ALPINISME
   { pattern: /^STG-FSM/i, commission: 'ski-de-randonnee' },  // Ski Alpinisme, Ski Randonnée
-  { pattern: /^STG-UFNA/i, commission: 'ski-de-randonnee' }, // UF Neige et avalanches
-  { pattern: /^STG-UFNS/i, commission: 'ski-de-randonnee' }, // UV Neige et sécurité
   { pattern: /^STG-UFSG/i, commission: 'ski-de-randonnee' }, // UF Sécurité Glacier en ski
   { pattern: /^STG-UFSN60/i, commission: 'ski-de-randonnee' }, // UF autonomie ski randonnée
   { pattern: /^STG-UFSN70/i, commission: 'ski-de-randonnee' }, // UF autonomie ski glacier
@@ -603,10 +609,11 @@ const FORMATION_PATTERNS: Array<{ pattern: RegExp; commission: string }> = [
   { pattern: /^FOR-CTSM/i, commission: 'ski-de-randonnee' },   // Certification Ski Alpinisme
   { pattern: /^FOR-IISA/i, commission: 'ski-de-randonnee' },   // Instructeur Ski Alpinisme
   { pattern: /^FOR-ITSM/i, commission: 'ski-de-randonnee' },   // Certification Instructeur Ski
-  { pattern: /^FOR-IINA/i, commission: 'ski-de-randonnee' },   // Instructeur Neige et Avalanche
-  { pattern: /^FOR-ITNA/i, commission: 'ski-de-randonnee' },   // Certification Instructeur NA
   { pattern: /^STG-BFSM/i, commission: 'ski-de-randonnee' },   // FFME Ski Alpinisme
   { pattern: /^STG-QFHM/i, commission: 'ski-de-randonnee' },   // FFME Haute Montagne Randonnée
+
+  // NEIGE ET AVALANCHES : UF NA1 et NA2, stage d'instructeur (UFNA30), UV neige et sécurité (FFME), formation et certification d'instructeur
+  ...neigeEtAvalanches([/^STG-UFNA/i, /^STG-UFNS/i, /^FOR-IINA/i, /^FOR-ITNA/i]),
 
   // SKI DE PISTE / SKI ALPIN
   { pattern: /^STG-FSA/i, commission: 'ski-de-piste' },  // Ski Alpin

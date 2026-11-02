@@ -62,7 +62,7 @@ C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code F
 | `raquette` | Raquette à neige |
 | `ski-de-fond` | Ski de fond |
 | `ski-de-piste` | Ski alpin, hors-piste, télémark |
-| `ski-de-randonnee` | Ski de randonnée et ski alpinisme, neige et avalanches |
+| `ski-de-randonnee` | Ski de randonnée et ski alpinisme |
 | `ski-randonnee-nordique` | Ski de randonnée nordique |
 | `slackline` | Slackline |
 | `snowboard-alpin` | Snowboard sur piste (commission « Snowboard » de Lyon) : initiateur snowboard FFCAM, initiateur toutes neiges, et leurs stages |
@@ -73,7 +73,7 @@ C'est l'étape qui demande le plus de réflexion. Le mapping range chaque code F
 | `vie-du-club` | Formation des dirigeants : trésorerie, communication, extranet |
 | `vtt` | Vélo de montagne |
 
-Certains éléments vont dans deux commissions : un brevet de trail alimente `randonnee` et `trail`, un brevet de via ferrata alimente `escalade` et `via-ferrata`.
+Certains éléments vont dans plusieurs commissions : un brevet de trail alimente `randonnee` et `trail`, un brevet de via ferrata alimente `escalade` et `via-ferrata`, et neige et avalanches alimente toutes les commissions de neige sauf `ski-de-fond`. Si votre club range le ski de fond et le ski de randonnée nordique dans la même commission, celle-ci reçoit donc neige et avalanches.
 
 ### Les quatre réponses possibles
 
